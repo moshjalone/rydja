@@ -294,12 +294,16 @@ procedure during an outage.
 |---|---|
 | Admin login | 10 attempts per IP per 15 min, then 429 |
 | Quote form | 5 submissions per IP per hour |
-| Honeypot field | Hidden decoy; filled = silently discarded |
-| Submit timing | Signed timestamp; under 3 seconds = discarded |
+| Honeypot field | Hidden decoy; filled = rejected |
+| Form stamp | Signed timestamp; forged or over 6 hours old = rejected |
 
-Rejected spam gets a success-looking redirect so bots do not retune and retry.
-Counters are in memory, which is exact for a single instance — **another reason
-never to scale this past 1**.
+There is deliberately no minimum fill time. A signed stamp proves the form came
+from this server; it cannot prove a human was slow, and autofill or a fast typist
+submits in well under a second. Rejecting those silently lost real customers.
+
+A rejected submission is never shown the confirmation page — only a request that
+was actually written reaches `/quote/sent`. Counters are in memory, which is exact
+for a single instance — **another reason never to scale this past 1**.
 
 Ten bad logins locks you out for 15 minutes too. Use a password manager.
 

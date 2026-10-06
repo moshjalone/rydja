@@ -67,11 +67,15 @@ function makeLoginLimiter(onBlock) {
 
 // ---------------------------------------------------------------- bot filter
 
-// A real submission is a human filling a form: it takes more than a couple of
-// seconds, and it leaves the decoy field alone. Neither check inconveniences a
-// real customer, and neither needs a third-party captcha.
+// A real submission comes from a form this server actually issued, and leaves
+// the decoy field alone. Those two checks plus the rate limiter are the whole
+// filter — no third-party captcha, and nothing a real customer can trip.
+//
+// There is deliberately no minimum fill time. A signed stamp proves the form
+// came from us; it cannot prove a human was slow. Autofill, a password manager
+// and anyone who types quickly all submit in under a second, and rejecting
+// them silently loses real work — which is exactly what it did in production.
 
-const MIN_FILL_MS = 3000;            // faster than this is scripted
 const MAX_FORM_AGE_MS = 6 * 60 * 60 * 1000; // stale form, make them reload
 
 /** Signed timestamp embedded in the form so the age cannot be forged. */
@@ -82,7 +86,7 @@ function formStamp(secret) {
 }
 
 /**
- * @returns {'ok'|'too_fast'|'expired'|'bad'} why the submission was refused
+ * @returns {'ok'|'expired'|'bad'} why the submission was refused
  */
 function checkStamp(value, secret) {
   const [issued, sig] = String(value || '').split('.');
@@ -95,7 +99,6 @@ function checkStamp(value, secret) {
 
   const age = Date.now() - parseInt(issued, 36);
   if (!isFinite(age)) return 'bad';
-  if (age < MIN_FILL_MS) return 'too_fast';
   if (age > MAX_FORM_AGE_MS) return 'expired';
   return 'ok';
 }
@@ -111,6 +114,5 @@ module.exports = {
   formStamp,
   checkStamp,
   honeypotTripped,
-  HONEYPOT_FIELD,
-  MIN_FILL_MS
+  HONEYPOT_FIELD
 };

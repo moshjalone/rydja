@@ -405,14 +405,22 @@ app.get('/quote', (req, res) =>
 app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
   const b = req.body;
 
-  // Bot filter. A real person takes more than three seconds to fill this in
-  // and never types in a field they cannot see. Both are silent to customers.
+  // Bot filter: the form must be one this server issued, and the decoy field
+  // must be untouched. Neither can be tripped by a real customer, however fast
+  // they fill the form in or how much of it the browser autofilled.
   const stampState = checkStamp(b.form_stamp, SESSION_SECRET);
-  if (honeypotTripped(b) || stampState === 'too_fast' || stampState === 'bad') {
+  if (honeypotTripped(b) || stampState === 'bad') {
     for (const file of req.files || []) fs.unlink(file.path, () => {});
     console.warn(`[spam] rejected submission from ${req.ip} (${honeypotTripped(b) ? 'honeypot' : stampState})`);
-    // Looks like success to a bot, so it does not retune and retry.
-    return res.redirect('/quote?sent=1');
+    // Generic, and deliberately NOT the success page: nothing was saved, so
+    // nothing may suggest it was. A human who somehow lands here still has a
+    // working form and a way to reach us.
+    return res.status(400).render('quote', {
+      service: clean(b.service, LIMITS.service),
+      values: b,
+      stamp: formStamp(SESSION_SECRET),
+      error: 'We could not accept that submission. Please reload this page and send it again, or call us directly.'
+    });
   }
   if (stampState === 'expired') {
     for (const file of req.files || []) fs.unlink(file.path, () => {});
@@ -508,10 +516,18 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     return lead.lastInsertRowid;
   })();
 
-  const lead = db.prepare('select public_token from leads where id = ?').get(leadId);
   console.log(`[lead] new lead #${leadId} — ${f.service} — ${f.name} ${phone} — ${photos.length} photo(s)`);
-  res.redirect('/q/' + lead.public_token);
+
+  // The lead's private status URL (/q/:token) stays live and is what the
+  // customer gets when a quote goes out. It is not what they land on here:
+  // an empty status page reads like nothing happened, so the confirmation
+  // page says plainly that the request arrived.
+  res.redirect('/quote/sent');
 });
+
+// Confirmation for a request that was actually written. Nothing else redirects
+// here — a rejected submission must never reach this page.
+app.get('/quote/sent', (req, res) => res.render('quote-sent'));
 
 // Customer's own job page: status, quote, approve/decline, before/after photos.
 app.get('/q/:token', (req, res) => {

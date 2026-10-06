@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --env-file=.env --watch server.js",
-    "backup": "node backup.js"
+    "backup": "node backup.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22.5"
