@@ -8,7 +8,7 @@ const cookieSession = require('cookie-session');
 const multer = require('multer');
 
 const { db, ownerOperator } = require('./db');
-const { rateLimit, formStamp, checkStamp, honeypotTripped } = require('./security');
+const { rateLimit, formStamp, checkStamp } = require('./security');
 const { runBackup } = require('./backup');
 const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
@@ -405,30 +405,26 @@ app.get('/quote', (req, res) =>
 app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
   const b = req.body;
 
-  // Bot filter: the form must be one this server issued, and the decoy field
-  // must be untouched. Neither can be tripped by a real customer, however fast
-  // they fill the form in or how much of it the browser autofilled.
+  // Bot filter, entire: the form must be one this server issued, and issued
+  // recently. There is nothing else here a real customer can fail — no decoy
+  // field for a password manager to fill in, no stopwatch on how fast they
+  // type. What is left is the rate limiter, which is per-IP and generous.
   const stampState = checkStamp(b.form_stamp, SESSION_SECRET);
-  if (honeypotTripped(b) || stampState === 'bad') {
+  if (stampState !== 'ok') {
     for (const file of req.files || []) fs.unlink(file.path, () => {});
-    console.warn(`[spam] rejected submission from ${req.ip} (${honeypotTripped(b) ? 'honeypot' : stampState})`);
-    // Generic, and deliberately NOT the success page: nothing was saved, so
-    // nothing may suggest it was. A human who somehow lands here still has a
-    // working form and a way to reach us.
+    // Reason only. Never the customer's details, never the stamp itself.
+    console.warn(`[spam] rejected submission from ${req.ip} (${stampState})`);
+
+    // Neither case is the success page: nothing was saved, so nothing may
+    // suggest it was. Both leave a working form and a way to reach us.
     return res.status(400).render('quote', {
       service: clean(b.service, LIMITS.service),
       values: b,
       stamp: formStamp(SESSION_SECRET),
-      error: 'We could not accept that submission. Please reload this page and send it again, or call us directly.'
-    });
-  }
-  if (stampState === 'expired') {
-    for (const file of req.files || []) fs.unlink(file.path, () => {});
-    return res.status(400).render('quote', {
-      service: clean(b.service, LIMITS.service),
-      values: b,
-      stamp: formStamp(SESSION_SECRET),
-      error: 'This form was open for a while and timed out. Please re-send it — your details are still filled in.'
+      error:
+        stampState === 'expired'
+          ? 'This form was open for a while and timed out. Please re-send it — your details are still filled in.'
+          : 'We could not accept that submission. Please reload this page and send it again, or call us directly.'
     });
   }
 

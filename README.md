@@ -147,6 +147,7 @@ s3.js                signed upload to S3-compatible storage
 tar.js               minimal tar writer for the backup archive
 views/               EJS templates
 public/              styles.css
+test/                end-to-end cover for the quote flow (`npm test`)
 uploads/             photos (gitignored)
 data/                app.db (gitignored)
 backups/             snapshots (gitignored)

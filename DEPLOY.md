@@ -294,16 +294,35 @@ procedure during an outage.
 |---|---|
 | Admin login | 10 attempts per IP per 15 min, then 429 |
 | Quote form | 5 submissions per IP per hour |
-| Honeypot field | Hidden decoy; filled = rejected |
-| Form stamp | Signed timestamp; forged or over 6 hours old = rejected |
+| Form stamp | Signed timestamp; forged, missing or over 6 hours old = rejected |
 
-There is deliberately no minimum fill time. A signed stamp proves the form came
-from this server; it cannot prove a human was slow, and autofill or a fast typist
-submits in well under a second. Rejecting those silently lost real customers.
+That is the whole bot filter. Two other controls were tried and removed, both
+after they rejected real paying customers:
+
+* **a minimum fill time.** A signed stamp proves the form came from this server;
+  it cannot prove a human was slow. Autofill and a fast typist submit in well
+  under a second.
+* **a honeypot field.** A decoy input is invisible to a person but not to a
+  browser or a password manager, which filled it in and got the customer
+  refused without either of them ever seeing the field.
+
+No CAPTCHA and no third-party service. If spam ever becomes a real problem,
+tighten the rate limit first — it is the control that cannot misfire on a human.
 
 A rejected submission is never shown the confirmation page — only a request that
-was actually written reaches `/quote/sent`. Counters are in memory, which is exact
-for a single instance — **another reason never to scale this past 1**.
+was actually written reaches `/quote/sent`. Each rejection logs one line naming
+the reason and nothing else:
+
+```
+[spam] rejected submission from 198.51.100.7 (bad)
+[spam] rejected submission from 198.51.100.8 (expired)
+```
+
+`bad` is a forged or missing stamp; `expired` is a form left open over six hours.
+A burst of `expired` is normal. A burst of `bad` from one address is a bot.
+
+Counters are in memory, which is exact for a single instance — **another reason
+never to scale this past 1**.
 
 Ten bad logins locks you out for 15 minutes too. Use a password manager.
 

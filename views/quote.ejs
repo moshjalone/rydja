@@ -17,12 +17,9 @@
     <form class="quote-form" method="post" action="/quote" enctype="multipart/form-data">
       <% if (error) { %><div class="form-error"><%= error %></div><% } %>
 
-      <%# Bot filter. Both fields are invisible to people: the decoy is moved
-          off-screen and hidden from screen readers, and the stamp is a signed
-          timestamp so a scripted instant-submit can be told from a real one. %>
-      <div class="nope" aria-hidden="true">
-        <label>Company website<input type="text" name="company_website" tabindex="-1" autocomplete="off"></label>
-      </div>
+      <%# Bot filter: a signed timestamp proving this form came from our server
+          and was issued recently. It is the only hidden field — a decoy input
+          used to be here too, and browsers autofilled it for real customers. %>
       <input type="hidden" name="form_stamp" value="<%= stamp %>">
 
       <div class="two">

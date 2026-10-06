@@ -67,14 +67,20 @@ function makeLoginLimiter(onBlock) {
 
 // ---------------------------------------------------------------- bot filter
 
-// A real submission comes from a form this server actually issued, and leaves
-// the decoy field alone. Those two checks plus the rate limiter are the whole
-// filter — no third-party captcha, and nothing a real customer can trip.
+// A real submission comes from a form this server actually issued, recently.
+// That one check plus the rate limiter is the whole filter — no third-party
+// captcha, and nothing a real customer can trip.
 //
-// There is deliberately no minimum fill time. A signed stamp proves the form
-// came from us; it cannot prove a human was slow. Autofill, a password manager
-// and anyone who types quickly all submit in under a second, and rejecting
-// them silently loses real work — which is exactly what it did in production.
+// What is deliberately NOT here, because production proved both wrong:
+//
+//   * a minimum fill time. A signed stamp proves the form came from us; it
+//     cannot prove a human was slow. Autofill, a password manager and anyone
+//     who types quickly all submit in under a second.
+//   * a honeypot. A decoy field is only invisible to a person — browsers and
+//     password managers see the DOM, and a field named like a real one gets
+//     autofilled without the customer ever knowing it existed.
+//
+// Both rejected real customers. Neither is worth a lost job.
 
 const MAX_FORM_AGE_MS = 6 * 60 * 60 * 1000; // stale form, make them reload
 
@@ -103,16 +109,9 @@ function checkStamp(value, secret) {
   return 'ok';
 }
 
-/** The honeypot is hidden from people and irresistible to naive bots. */
-const HONEYPOT_FIELD = 'company_website';
-
-const honeypotTripped = (body) => Boolean(String(body?.[HONEYPOT_FIELD] || '').trim());
-
 module.exports = {
   rateLimit,
   makeLoginLimiter,
   formStamp,
-  checkStamp,
-  honeypotTripped,
-  HONEYPOT_FIELD
+  checkStamp
 };
