@@ -12,7 +12,7 @@
     <h2>Your quote is ready.</h2>
   <% } else if (quote.status === 'declined') { %>
     <h2>Quote declined.</h2>
-    <p class="lede smaller">No problem. If something changes<% if (businessPhone) { %>, call or text <a class="text-link" href="tel:<%= businessPhone %>"><%= businessPhone %></a><% } %>.</p>
+    <p class="lede smaller">No problem. If something changes<% if (businessPhone) { %>, call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %>.</p>
   <% } else if (job && job.status === 'complete') { %>
     <h2>Job complete.</h2>
     <p class="lede smaller">Finished <%= prettyDate(job.completed_at) %>. Thanks for the work.</p>

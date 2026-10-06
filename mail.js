@@ -43,6 +43,21 @@ const escapeHtml = (s) =>
 
 const firstName = (name) => String(name || '').trim().split(/\s+/)[0] || '';
 
+/**
+ * Dialable form for a tel: href — digits and a leading + only. The number is
+ * still displayed however it was typed. Same rules as the one in server.js;
+ * duplicated rather than imported to keep this module standalone.
+ */
+function telHref(value) {
+  const raw = String(value == null ? '' : value).trim();
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (raw.startsWith('+')) return '+' + digits;
+  if (digits.length === 10) return '+1' + digits;
+  if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;
+  return digits;
+}
+
 // ---------------------------------------------------------------- the email
 
 /**
@@ -114,7 +129,7 @@ function renderQuoteEmail({ name, amountCents, notes, token, revised }) {
     </div>
 
     <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#66685f;">
-      ${phone ? `Questions? Call or text <a href="tel:${escapeHtml(phone)}" style="color:#171816;font-weight:800;">${escapeHtml(phone)}</a>.` : ''}
+      ${phone ? `Questions? Call or text <a href="tel:${escapeHtml(telHref(phone))}" style="color:#171816;font-weight:800;">${escapeHtml(phone)}</a>.` : ''}
     </p>
     <p style="margin:8px 0 0;font-size:13px;color:#66685f;">&mdash; ${escapeHtml(brand)}</p>
   </div>

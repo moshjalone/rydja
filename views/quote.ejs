@@ -11,7 +11,7 @@
       <div class="eyebrow">REQUEST A QUOTE</div>
       <h2>Send the job.</h2>
       <p>Give us enough to understand the work. Photos are the fastest way to an accurate price &mdash; shoot everything you want gone, plus the path out to the driveway.</p>
-      <% if (businessPhone) { %><p>Rather talk? <a class="text-link accent" href="tel:<%= businessPhone %>"><%= businessPhone %></a></p><% } %>
+      <% if (businessPhone) { %><p>Rather talk? <a class="text-link accent" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></p><% } %>
     </div>
 
     <form class="quote-form" method="post" action="/quote" enctype="multipart/form-data">

@@ -101,6 +101,26 @@ test('/quote/sent confirms the request and links home', async () => {
   assert.match(html, /href="\/"/);
 });
 
+// A tel: URI takes digits and a leading + only; the spaces and parentheses we
+// used to emit are not valid in one. What the reader sees stays formatted.
+test('every tel: link is dialable, and the number still reads as a number', async () => {
+  const phoned = await startServer({ BUSINESS_PHONE: '1-616-929-3360' });
+  try {
+    for (const path of ['/', '/quote', '/quote/sent', '/services']) {
+      const html = await (await phoned.get(path)).text();
+      for (const href of html.match(/href="tel:[^"]*"/g) || []) {
+        assert.match(href, /^href="tel:\+?\d+"$/, path + ' has an undialable tel: link: ' + href);
+      }
+    }
+
+    const sent = await (await phoned.get('/quote/sent')).text();
+    assert.ok(sent.includes('href="tel:+16169293360"'), 'the dialable form');
+    assert.ok(sent.includes('>1-616-929-3360<'), 'the human-readable form is untouched');
+  } finally {
+    phoned.stop();
+  }
+});
+
 // ---------------------------------------------------------------- rejected
 
 test('a forged stamp is rejected', async () => {

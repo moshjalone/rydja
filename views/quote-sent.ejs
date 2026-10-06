@@ -10,7 +10,7 @@
         Same page, same place — just the dark button, which is also a proper
         tap target on a phone. %>
     <% if (businessPhone) { %>
-      <a class="button" href="tel:<%= businessPhone %>"><%= businessPhone %></a>
+      <a class="button" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a>
     <% } %>
     <a class="button ghost" href="/">Back to the homepage</a>
   </div>

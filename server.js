@@ -138,6 +138,29 @@ const prettyWhen = (s) => {
 
 const prettyStatus = (s) => String(s || '').replace(/_/g, ' ');
 
+/**
+ * The dialable form of a phone number, for a tel: href. Display stays however
+ * it was typed — "1-616-929-3360" reads better than "+16169293360" — but a
+ * tel: URI holds digits and a leading + only, and the spaces and parentheses
+ * we were emitting are not valid in one.
+ *
+ *   (616) 929-3360   -> +16169293360
+ *   1-616-929-3360   -> +16169293360
+ *   +44 20 7946 0000 -> +442079460000
+ *
+ * Anything that is not a recognisable North American number keeps its digits
+ * and loses the + rather than being guessed at.
+ */
+function telHref(value) {
+  const raw = String(value == null ? '' : value).trim();
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (raw.startsWith('+')) return '+' + digits;
+  if (digits.length === 10) return '+1' + digits;
+  if (digits.length === 11 && digits.startsWith('1')) return '+' + digits;
+  return digits;
+}
+
 // ---------------------------------------------------------------- validation
 
 /** Trim, collapse runs of whitespace, strip control characters, cap length. */
@@ -306,6 +329,7 @@ app.use((req, res, next) => {
   res.locals.prettyDate = prettyDate;
   res.locals.prettyWhen = prettyWhen;
   res.locals.prettyStatus = prettyStatus;
+  res.locals.telHref = telHref;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
   next();
 });
@@ -513,7 +537,10 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     return lead.lastInsertRowid;
   })();
 
-  console.log(`[lead] new lead #${leadId} — ${f.service} — ${f.name} ${phone} — ${photos.length} photo(s)`);
+  // Service and photo count only. A lead id is enough to find the rest in the
+  // admin; a name and phone number in a log file is a copy of the customer
+  // list sitting somewhere nobody is guarding.
+  console.log(`[lead] new lead #${leadId} — ${f.service} — ${photos.length} photo(s)`);
 
   // The lead's private status URL (/q/:token) stays live and is what the
   // customer gets when a quote goes out. It is not what they land on here:

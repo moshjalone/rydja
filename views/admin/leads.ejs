@@ -26,7 +26,7 @@
         <div class="job-row lead-row">
           <div>
             <strong><%= l.customer_name %></strong>
-            <small><a href="tel:<%= l.customer_phone %>"><%= l.customer_phone %></a></small>
+            <small><a href="tel:<%= telHref(l.customer_phone) %>"><%= l.customer_phone %></a></small>
           </div>
           <div><%= l.service %><small><%= prettyDate(l.created_at) %></small></div>
           <div data-label="Where"><%= [l.city, l.zip].filter(Boolean).join(" ") %></div>

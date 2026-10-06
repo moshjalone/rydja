@@ -8,7 +8,7 @@
       <h1><%= job.customer_name %></h1>
       <p class="sub">
         <%= job.service %> &middot;
-        <a class="text-link" href="tel:<%= job.customer_phone %>"><%= job.customer_phone %></a> &middot;
+        <a class="text-link" href="tel:<%= telHref(job.customer_phone) %>"><%= job.customer_phone %></a> &middot;
         operator: <%= job.operator_name %>
       </p>
     </div>

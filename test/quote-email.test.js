@@ -160,8 +160,11 @@ test('the email carries the amount, the notes and the private quote URL', async 
     assert.match(body, /Two hours, one truck\. Dump fees included\./, 'the notes meant for the customer');
     assert.match(body, /RYDJA/, 'branding');
     assert.match(body, /Dana/, 'the customer by name');
-    assert.match(body, /\(616\) 555-0100/, 'the business phone number');
+    assert.match(body, /\(616\) 555-0100/, 'the business phone number, as a human reads it');
   }
+
+  // ...and dialable in the HTML part, where it is a link.
+  assert.ok(mail.html.includes('href="tel:+16165550100"'), 'the tel: href holds digits only');
 
   assert.match(mail.subject, /\$450\.00/);
   assert.match(mail.subject, /RYDJA/);
@@ -263,12 +266,17 @@ test('no address, name, phone or token reaches the log', async () => {
   for (const token of tokens) {
     assert.ok(!log.includes(token), 'a quote token must never be logged');
   }
+  // Nothing about the person, anywhere in the log — not just in the lines this
+  // feature added. The accepted-lead line used to carry a name and a phone
+  // number; it now carries the service and a photo count.
   assert.ok(!log.includes(CUSTOMER.email), 'an email address must never be logged');
+  assert.ok(!log.includes(CUSTOMER.name), 'a customer name must never be logged');
+  assert.ok(!log.includes('Dana'), 'nor a first name on its own');
+  assert.ok(!log.includes(CUSTOMER.phone), 'a phone number must never be logged');
+  assert.ok(!log.includes('12 Oak St'), 'nor a street address');
 
-  // The [mail] lines are what this feature added, so they are held to the
-  // whole rule: reason codes and a lead id, nothing about the person. (The
-  // pre-existing [lead] line does name the customer; that is out of scope
-  // here and deliberately not asserted on.)
+  assert.match(log, /\[lead\] new lead #\d+ — .+ — \d+ photo\(s\)$/m, 'the accepted-lead line keeps its shape');
+
   const mailLines = log.split('\n').filter((l) => l.includes('[mail]'));
   assert.ok(mailLines.length >= 3, 'the sends above should have been logged');
 

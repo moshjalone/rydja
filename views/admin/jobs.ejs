@@ -26,7 +26,7 @@
         <div class="job-row">
           <div>
             <strong><%= j.customer_name %></strong>
-            <small><a href="tel:<%= j.customer_phone %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
+            <small><a href="tel:<%= telHref(j.customer_phone) %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
           </div>
           <div><%= j.service %><small><%= j.operator_name %></small></div>
           <div data-label="When"><%= j.scheduled_for ? prettyWhen(j.scheduled_for) : '—' %></div>
