@@ -1,0 +1,84 @@
+<% var title = 'Request a Quote' %>
+<%- include('partials/head') %>
+<% var v = function(k, fallback) { return values && values[k] != null && values[k] !== '' ? values[k] : (fallback || ''); } %>
+
+<main class="section dark">
+  <div class="shell form-shell">
+    <div class="form-intro">
+      <div class="eyebrow">REQUEST A QUOTE</div>
+      <h2>Send the job.</h2>
+      <p>Give us enough to understand the work. Photos are the fastest way to an accurate price &mdash; shoot everything you want gone, plus the path out to the driveway.</p>
+      <% if (businessPhone) { %><p>Rather talk? <a class="text-link accent" href="tel:<%= businessPhone %>"><%= businessPhone %></a></p><% } %>
+    </div>
+
+    <form class="quote-form" method="post" action="/quote" enctype="multipart/form-data">
+      <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+
+      <div class="two">
+        <label>Name<input required name="name" value="<%= v('name') %>" placeholder="Your name"></label>
+        <label>Phone<input required name="phone" type="tel" value="<%= v('phone') %>" placeholder="(555) 555-5555"></label>
+      </div>
+      <div class="two">
+        <label>Email<input name="email" type="email" value="<%= v('email') %>" placeholder="you@example.com"></label>
+        <label>ZIP code<input required name="zip" inputmode="numeric" value="<%= v('zip') %>" placeholder="49503"></label>
+      </div>
+
+      <label>Street address <span class="hint">optional &mdash; helps us judge access</span>
+        <input name="address" value="<%= v('address') %>" placeholder="123 Main St">
+      </label>
+      <div class="two">
+        <label>City<input name="city" value="<%= v('city') %>"></label>
+        <label>State<input name="state" value="<%= v('state') %>" maxlength="20"></label>
+      </div>
+
+      <label>What do you need?
+        <select required name="service">
+          <option value="">Choose a service</option>
+          <% var options = ['Junk / hauling','Garage / basement cleanout','Storage unit cleanout','Estate cleanout','Rental / property turnover','Yard / brush cleanup','Furniture / appliance removal','Moving / delivery help','Light demolition','Other'];
+             var preset = v('service', service); %>
+          <% options.forEach(function(o) { %>
+            <option<%= preset === o ? ' selected' : '' %>><%= o %></option>
+          <% }) %>
+          <% if (preset && options.indexOf(preset) === -1) { %><option selected><%= preset %></option><% } %>
+        </select>
+      </label>
+
+      <label>Describe the job
+        <textarea required name="description" rows="5" placeholder="Example: One-car garage, mostly boxes and old furniture. Everything can go except the red toolbox."><%= v('description') %></textarea>
+      </label>
+
+      <div class="two">
+        <label>Where is the material?
+          <select name="access">
+            <% ['Ground level / easy access','Inside house','Basement','Upstairs','Garage / barn','Yard / outdoors','Storage facility'].forEach(function(o) { %>
+              <option<%= v('access') === o ? ' selected' : '' %>><%= o %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Timing
+          <select name="timing">
+            <% ['ASAP','Within 2-3 days','This week','Flexible'].forEach(function(o) { %>
+              <option<%= v('timing') === o ? ' selected' : '' %>><%= o %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+
+      <label class="upload">
+        <span>Photos</span>
+        <input type="file" name="photos" accept="image/*" multiple>
+        <small>Up to 12 photos. Clear shots of everything you want handled.</small>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" name="hazard_ack" value="1" required>
+        I confirm this job does not knowingly include hazardous waste, asbestos, biohazards, unknown chemicals or other regulated materials.
+      </label>
+
+      <button class="button full" type="submit">Send Quote Request</button>
+      <small class="fineprint">We review the job and send a price to your phone. No obligation.</small>
+    </form>
+  </div>
+</main>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,44 @@
+<% var title = 'Job Board' %>
+<%- include('../partials/head') %>
+
+<main class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN</div>
+      <h1>Job board</h1>
+    </div>
+    <a class="button small" href="/admin/leads">Lead inbox &rarr;</a>
+  </div>
+
+  <div class="metrics three">
+    <div><span>Jobs completed</span><strong><%= totals.done %></strong></div>
+    <div><span>Revenue collected</span><strong><%= money(totals.revenue) %></strong></div>
+    <div><span>Net contribution</span><strong class="<%= totals.net < 0 ? 'neg' : 'pos' %>"><%= money(totals.net) %></strong></div>
+  </div>
+
+  <% if (!jobs.length) { %>
+    <div class="panel empty">No jobs yet. A job appears here the moment a customer approves a quote.</div>
+  <% } else { %>
+    <div class="jobs">
+      <div class="job-row header-row">
+        <div>Customer</div><div>Service</div><div>When</div><div>Revenue</div><div>Net</div><div>Status</div><div></div>
+      </div>
+      <% jobs.forEach(function(j) { %>
+        <div class="job-row">
+          <div>
+            <strong><%= j.customer_name %></strong>
+            <small><a href="tel:<%= j.customer_phone %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
+          </div>
+          <div><%= j.service %><small><%= j.operator_name %></small></div>
+          <div data-label="When"><%= j.scheduled_for ? prettyWhen(j.scheduled_for) : '—' %></div>
+          <div data-label="Revenue"><%= money(j.profit.revenue) %></div>
+          <div data-label="Net" class="<%= j.profit.net < 0 ? 'neg' : 'pos' %>"><%= money(j.profit.net) %></div>
+          <div><span class="badge <%= j.status %>"><%= prettyStatus(j.status) %></span></div>
+          <div><a class="button small" href="/admin/jobs/<%= j.id %>">Open</a></div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+
+<%- include('../partials/foot') %>

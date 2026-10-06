@@ -1,0 +1,18 @@
+node_modules/
+
+# Secrets — never commit
+.env
+
+# Live data
+data/*.db
+data/*.db-wal
+data/*.db-shm
+uploads/*
+backups/*
+
+# Keep the empty directories themselves
+!data/.gitkeep
+!uploads/.gitkeep
+!backups/.gitkeep
+
+*.log

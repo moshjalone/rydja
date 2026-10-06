@@ -1,0 +1,94 @@
+<% var title = 'Lead #' + lead.id %>
+<%- include('../partials/head') %>
+
+<main class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow"><a href="/admin/leads">&larr; Lead inbox</a></div>
+      <h1><%= lead.customer_name %></h1>
+      <p class="sub">
+        <a class="text-link" href="tel:<%= lead.customer_phone %>"><%= lead.customer_phone %></a>
+        <% if (lead.customer_email) { %> &middot; <a class="text-link" href="mailto:<%= lead.customer_email %>"><%= lead.customer_email %></a><% } %>
+      </p>
+    </div>
+    <span class="badge <%= lead.status %>"><%= prettyStatus(lead.status) %></span>
+  </div>
+
+  <div class="dash-grid">
+    <div class="panel">
+      <h2>The job</h2>
+      <dl class="kv">
+        <div><dt>Service</dt><dd><%= lead.service %></dd></div>
+        <div><dt>Address</dt><dd>
+          <% var addr = [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ') %>
+          <a class="text-link" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=<%= encodeURIComponent(addr) %>"><%= addr %></a>
+        </dd></div>
+        <div><dt>Access</dt><dd><%= lead.access || '—' %></dd></div>
+        <div><dt>Timing</dt><dd><%= lead.timing || '—' %></dd></div>
+        <div><dt>Submitted</dt><dd><%= prettyDate(lead.created_at) %></dd></div>
+        <div><dt>Customer link</dt><dd><a class="text-link" href="/q/<%= lead.public_token %>" target="_blank" rel="noopener">/q/<%= lead.public_token.slice(0, 8) %>… &nearr;</a></dd></div>
+      </dl>
+      <p class="desc-block"><%= lead.description %></p>
+
+      <% if (history.length) { %>
+        <h3 class="sub-head">Earlier requests from this customer</h3>
+        <ul class="plain-list">
+          <% history.forEach(function(h) { %>
+            <li><a class="text-link" href="/admin/leads/<%= h.id %>"><%= h.service %></a> &middot; <%= prettyStatus(h.status) %> &middot; <%= prettyDate(h.created_at) %></li>
+          <% }) %>
+        </ul>
+      <% } %>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Quote</h2>
+        <% if (quote) { %><span class="badge <%= quote.status %>"><%= prettyStatus(quote.status) %></span><% } %>
+      </div>
+
+      <% if (job) { %>
+        <div class="big-price"><%= money(quote.amount_cents) %></div>
+        <p class="price-note">Approved <%= prettyDate(quote.responded_at) %>. This is now a job.</p>
+        <a class="button full" href="/admin/jobs/<%= job.id %>">Open job #<%= job.id %> &rarr;</a>
+      <% } else { %>
+        <% if (quote && quote.status === 'sent') { %>
+          <div class="big-price"><%= money(quote.amount_cents) %></div>
+          <p class="price-note">Sent <%= prettyDate(quote.created_at) %> &mdash; waiting on the customer. Send a new amount below to replace it.</p>
+        <% } else if (quote && quote.status === 'declined') { %>
+          <p class="price-note"><%= money(quote.amount_cents) %> declined <%= prettyDate(quote.responded_at) %>. You can send a revised quote.</p>
+        <% } %>
+
+        <form method="post" action="/admin/leads/<%= lead.id %>/quote" class="stack-form">
+          <label>Price to the customer
+            <input name="amount" inputmode="decimal" placeholder="450" required autocomplete="off">
+          </label>
+          <label>Notes shown to the customer <span class="hint">optional</span>
+            <textarea name="notes" rows="4" placeholder="Includes labor, hauling and dump fees. Price assumes driveway access and nothing from the attic."><%= quote && quote.status !== 'approved' ? (quote.notes || '') : '' %></textarea>
+          </label>
+          <button class="button full" type="submit"><%= quote ? 'Send revised quote' : 'Send quote' %></button>
+          <small class="fineprint">Then text the customer their link: <code>/q/<%= lead.public_token %></code></small>
+        </form>
+
+        <form method="post" action="/admin/leads/<%= lead.id %>/status" class="inline-form right">
+          <input type="hidden" name="status" value="declined">
+          <button class="linkish danger" type="submit">Mark lead dead</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Customer photos (<%= photos.length %>)</h2>
+    <% if (!photos.length) { %>
+      <p class="muted">None sent. Call and ask for a few.</p>
+    <% } else { %>
+      <div class="photo-grid">
+        <% photos.forEach(function(p) { %>
+          <a href="/uploads/<%= p.filename %>" target="_blank" rel="noopener"><img src="/uploads/<%= p.filename %>" alt="Lead photo" loading="lazy"></a>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

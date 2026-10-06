@@ -1,0 +1,72 @@
+<%- include('partials/head') %>
+
+<main id="top">
+  <section class="hero shell">
+    <div class="hero-copy">
+      <div class="eyebrow">LOCAL PROPERTY HELP • FAST QUOTES</div>
+      <h1>Point at the problem.<br><span>We&rsquo;ll handle the rest.</span></h1>
+      <p class="lede">Cleanouts, hauling, yard cleanup, furniture removal, moving help, debris, property resets and the jobs you just need finished.</p>
+      <div class="hero-actions">
+        <a class="button" href="/quote">Send Photos for a Quote</a>
+        <a class="text-link" href="/services">See what we do &rarr;</a>
+      </div>
+      <div class="trust-row">
+        <div><strong>Fast</strong><span>photo quotes</span></div>
+        <div><strong>Local</strong><span>real operators</span></div>
+        <div><strong>Smart</strong><span>reuse before landfill</span></div>
+      </div>
+    </div>
+    <aside class="quote-card">
+      <div class="mini-label">THE EASY WAY TO START</div>
+      <h2>What needs done?</h2>
+      <p>Upload a few photos and tell us where the job is. We review it and send a price.</p>
+      <a class="button full" href="/quote">Request Quote</a>
+      <small>No obligation. We review the job before pricing.</small>
+    </aside>
+  </section>
+
+  <section id="services" class="section shell">
+    <div class="section-heading">
+      <div class="eyebrow">SERVICES</div>
+      <h2>One place for the jobs around your property.</h2>
+    </div>
+    <div class="service-grid">
+      <% services.forEach(function(s) { %>
+        <article>
+          <h3><%= s.name %></h3>
+          <p><%= s.blurb %></p>
+          <a class="text-link" href="/quote?service=<%= encodeURIComponent(s.name) %>">Get a quote &rarr;</a>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+
+  <section id="how" class="section contrast">
+    <div class="shell">
+      <div class="section-heading">
+        <div class="eyebrow">HOW IT WORKS</div>
+        <h2>Skip the phone-tag.</h2>
+      </div>
+      <div class="steps">
+        <div><span>01</span><h3>Show us</h3><p>Choose a service and upload photos.</p></div>
+        <div><span>02</span><h3>Get priced</h3><p>We review access, volume, labor and disposal needs.</p></div>
+        <div><span>03</span><h3>Approve</h3><p>Approve the quote from your phone and pick a time.</p></div>
+        <div><span>04</span><h3>Done</h3><p>We complete the job and send before/after photos.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section shell split">
+    <div>
+      <div class="eyebrow">REMOVE LESS &bull; RECOVER MORE</div>
+      <h2>Not everything belongs in a dump.</h2>
+      <p class="lede smaller">Usable items get separated for reuse, donation, recycling, scrap or resale when you authorize it. Less waste, and on some jobs a lower price for you.</p>
+      <a class="button" href="/quote">Start a quote</a>
+    </div>
+    <div class="recovery-flow">
+      <div>REMOVE</div><b>&rarr;</b><div>ASSESS</div><b>&rarr;</b><div>REUSE</div><b>&bull;</b><div>SCRAP</div><b>&bull;</b><div>SELL</div><b>&bull;</b><div>DISPOSE</div>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/foot') %>

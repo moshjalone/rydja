@@ -1,0 +1,82 @@
+<% var title = 'Your Job' %>
+<%- include('partials/head') %>
+
+<main class="section shell narrow">
+  <%# Reference is derived from the random token, not the sequential row id, so
+      it tells a customer nothing about how many jobs have come through. %>
+  <div class="eyebrow">REQUEST <%= lead.public_token.slice(0, 8).toUpperCase() %></div>
+
+  <% if (!quote) { %>
+    <h2>We&rsquo;ve got it.</h2>
+    <p class="lede smaller">Your request is in front of us now. We&rsquo;ll review the photos and send a price here&mdash;usually same day.</p>
+  <% } else if (quote.status === 'sent') { %>
+    <h2>Your quote is ready.</h2>
+  <% } else if (quote.status === 'declined') { %>
+    <h2>Quote declined.</h2>
+    <p class="lede smaller">No problem. If something changes<% if (businessPhone) { %>, call or text <a class="text-link" href="tel:<%= businessPhone %>"><%= businessPhone %></a><% } %>.</p>
+  <% } else if (job && job.status === 'complete') { %>
+    <h2>Job complete.</h2>
+    <p class="lede smaller">Finished <%= prettyDate(job.completed_at) %>. Thanks for the work.</p>
+  <% } else { %>
+    <h2>You&rsquo;re booked.</h2>
+    <p class="lede smaller">
+      <% if (job && job.scheduled_for) { %>Scheduled for <strong><%= prettyWhen(job.scheduled_for) %></strong>.
+      <% } else { %>We&rsquo;ll reach out to lock in a time window.<% } %>
+    </p>
+  <% } %>
+
+  <p class="bookmark-hint">Bookmark this page &mdash; it&rsquo;s your private link to this job.</p>
+
+  <% if (quote) { %>
+    <div class="panel quote-panel">
+      <div class="panel-head">
+        <h3>Quote</h3>
+        <span class="badge <%= quote.status %>"><%= prettyStatus(quote.status) %></span>
+      </div>
+      <div class="big-price"><%= money(quote.amount_cents) %></div>
+      <p class="price-note">Labor, hauling and disposal included unless noted below.</p>
+      <% if (quote.notes) { %><div class="quote-notes"><%= quote.notes %></div><% } %>
+
+      <% if (quote.status === 'sent') { %>
+        <form method="post" action="/q/<%= lead.public_token %>/respond" class="approve-row">
+          <button class="button full" type="submit" name="decision" value="approve">Approve this quote</button>
+          <button class="linkish danger" type="submit" name="decision" value="decline">Decline</button>
+        </form>
+        <small class="fineprint">
+          By approving, you confirm you have authority to have the listed property removed. Items you want kept must be
+          pointed out before the crew loads them. Once removed, material may be disposed of, recycled, donated, scrapped
+          or resold unless we agreed otherwise.
+        </small>
+      <% } %>
+    </div>
+  <% } %>
+
+  <div class="panel">
+    <h3>What you sent</h3>
+    <dl class="kv">
+      <div><dt>Service</dt><dd><%= lead.service %></dd></div>
+      <div><dt>Location</dt><dd><%= [lead.address, lead.city, lead.state, lead.zip].filter(Boolean).join(', ') %></dd></div>
+      <% if (lead.access) { %><div><dt>Access</dt><dd><%= lead.access %></dd></div><% } %>
+      <% if (lead.timing) { %><div><dt>Timing</dt><dd><%= lead.timing %></dd></div><% } %>
+      <div><dt>Submitted</dt><dd><%= prettyDate(lead.created_at) %></dd></div>
+    </dl>
+    <p class="desc-block"><%= lead.description %></p>
+  </div>
+
+  <% if (photos.length) { %>
+    <% ['before', 'after'].forEach(function(phase) {
+         var set = photos.filter(function(p) { return p.phase === phase; });
+         if (!set.length) return; %>
+      <div class="panel">
+        <h3><%= phase === 'before' ? 'Before' : 'After' %></h3>
+        <div class="photo-grid">
+          <% set.forEach(function(p) { %>
+            <a href="/uploads/<%= p.filename %>" target="_blank" rel="noopener"><img src="/uploads/<%= p.filename %>" alt="<%= phase %> photo" loading="lazy"></a>
+          <% }) %>
+        </div>
+      </div>
+    <% }) %>
+  <% } %>
+</main>
+
+<%- include('partials/foot') %>

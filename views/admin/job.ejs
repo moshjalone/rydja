@@ -1,0 +1,206 @@
+<% var title = 'Job #' + job.id %>
+<%- include('../partials/head') %>
+<% var catLabel = function(v) { var f = expenseCategories.find(function(c) { return c.value === v; }); return f ? f.label : v; } %>
+
+<main class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow"><a href="/admin/jobs">&larr; Job board</a></div>
+      <h1><%= job.customer_name %></h1>
+      <p class="sub">
+        <%= job.service %> &middot;
+        <a class="text-link" href="tel:<%= job.customer_phone %>"><%= job.customer_phone %></a> &middot;
+        operator: <%= job.operator_name %>
+      </p>
+    </div>
+    <span class="badge <%= job.status %>"><%= prettyStatus(job.status) %></span>
+  </div>
+
+  <!-- Status + schedule: the two things touched from a phone in the field. -->
+  <div class="panel status-bar">
+    <form method="post" action="/admin/jobs/<%= job.id %>/status" class="status-buttons">
+      <% [['scheduled','Scheduled'],['in_progress','In progress'],['complete','Complete']].forEach(function(s) { %>
+        <button class="button status-btn <%= job.status === s[0] ? 'active' : 'ghost' %>" type="submit" name="status" value="<%= s[0] %>"><%= s[1] %></button>
+      <% }) %>
+    </form>
+    <form method="post" action="/admin/jobs/<%= job.id %>/schedule" class="schedule-form">
+      <label>Scheduled for
+        <input type="datetime-local" name="scheduled_for" value="<%= job.scheduled_for ? job.scheduled_for.replace(' ', 'T').slice(0, 16) : '' %>">
+      </label>
+      <button class="button small" type="submit">Save</button>
+    </form>
+  </div>
+
+  <div class="dash-grid">
+    <!-- ============ PROFIT ============ -->
+    <div class="panel profit-panel">
+      <h2>Job profit</h2>
+      <dl class="kv">
+        <div><dt>Customer revenue</dt><dd><%= money(profit.revenue) %></dd></div>
+        <div><dt>Expenses</dt><dd class="neg">-<%= money(profit.expenses) %></dd></div>
+        <div class="indent"><dt>of which disposal</dt><dd><%= money(profit.disposal) %><%= profit.weightLbs ? ' · ' + profit.weightLbs + ' lbs' : '' %></dd></div>
+        <div><dt>Realized salvage</dt><dd class="pos">+<%= money(profit.salvageRealized) %></dd></div>
+        <div class="total"><dt>Net contribution</dt><dd class="<%= profit.net < 0 ? 'neg' : 'pos' %>"><%= money(profit.net) %></dd></div>
+      </dl>
+      <% if (profit.salvagePending) { %>
+        <p class="muted small-note"><%= money(profit.salvagePending) %> of salvage still unsold &mdash; not counted above.</p>
+      <% } %>
+    </div>
+
+    <!-- ============ JOB DETAILS ============ -->
+    <div class="panel">
+      <h2>Details</h2>
+      <dl class="kv">
+        <div><dt>Address</dt><dd>
+          <% var addr = [job.address, job.city, job.state, job.zip].filter(Boolean).join(', ') %>
+          <a class="text-link" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=<%= encodeURIComponent(addr) %>"><%= addr %></a>
+        </dd></div>
+        <div><dt>Access</dt><dd><%= job.access || '—' %></dd></div>
+        <div><dt>Started</dt><dd><%= job.started_at ? prettyDate(job.started_at) : '—' %></dd></div>
+        <div><dt>Completed</dt><dd><%= job.completed_at ? prettyDate(job.completed_at) : '—' %></dd></div>
+        <div><dt>Lead</dt><dd><a class="text-link" href="/admin/leads/<%= job.lead_id %>">#<%= job.lead_id %></a> &middot; <a class="text-link" href="/q/<%= job.public_token %>" target="_blank" rel="noopener">customer view &nearr;</a></dd></div>
+      </dl>
+      <p class="desc-block"><%= job.description %></p>
+      <% if (job.quote_notes) { %><p class="muted small-note"><strong>Quoted with:</strong> <%= job.quote_notes %></p><% } %>
+    </div>
+  </div>
+
+  <!-- ============ EXPENSES (incl. dump) ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Expenses</h2>
+      <span class="muted"><%= money(profit.expenses) %> total</span>
+    </div>
+
+    <% if (expenses.length) { %>
+      <table class="rows">
+        <tbody>
+          <% expenses.forEach(function(e) { %>
+            <tr>
+              <td><strong><%= catLabel(e.category) %></strong><% if (e.note) { %><small><%= e.note %></small><% } %></td>
+              <td class="num"><%= e.weight_lbs ? e.weight_lbs + ' lbs' : '' %></td>
+              <td class="num"><%= money(e.amount_cents) %></td>
+              <td class="num">
+                <form method="post" action="/admin/jobs/<%= job.id %>/expenses/<%= e.id %>/delete" class="inline-form">
+                  <button class="linkish danger" type="submit" title="Remove">&times;</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="muted">Nothing logged yet. Add the dump ticket, fuel and any helper pay.</p>
+    <% } %>
+
+    <form method="post" action="/admin/jobs/<%= job.id %>/expenses" class="add-row">
+      <label>Category
+        <select name="category">
+          <% expenseCategories.forEach(function(c) { %><option value="<%= c.value %>"><%= c.label %></option><% }) %>
+        </select>
+      </label>
+      <label>Amount<input name="amount" inputmode="decimal" placeholder="68.50" required></label>
+      <label>Weight <span class="hint">lbs, dump only</span><input name="weight_lbs" inputmode="decimal" placeholder="1240"></label>
+      <label>Note<input name="note" placeholder="County transfer station"></label>
+      <button class="button small" type="submit">Add expense</button>
+    </form>
+  </div>
+
+  <!-- ============ SALVAGE ============ -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Salvage</h2>
+      <span class="muted"><%= money(profit.salvageRealized) %> realized<%= profit.salvagePending ? ' · ' + money(profit.salvagePending) + ' pending' : '' %></span>
+    </div>
+
+    <% if (salvage.length) { %>
+      <table class="rows">
+        <tbody>
+          <% salvage.forEach(function(s) { %>
+            <tr>
+              <td>
+                <strong><%= s.title %></strong>
+                <small><%= s.disposition %><% if (s.notes) { %> &middot; <%= s.notes %><% } %></small>
+              </td>
+              <td class="num">est <%= money(s.estimated_value_cents) %></td>
+              <td class="num sold-cell">
+                <form method="post" action="/admin/jobs/<%= job.id %>/salvage/<%= s.id %>" class="inline-form">
+                  <input name="realized_value" inputmode="decimal" placeholder="sold for"
+                         value="<%= s.realized_value_cents != null ? (s.realized_value_cents / 100).toFixed(2) : '' %>">
+                  <button class="button small" type="submit">Save</button>
+                </form>
+              </td>
+              <td class="num">
+                <form method="post" action="/admin/jobs/<%= job.id %>/salvage/<%= s.id %>/delete" class="inline-form">
+                  <button class="linkish danger" type="submit" title="Remove">&times;</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="muted">Nothing pulled from this job yet.</p>
+    <% } %>
+
+    <form method="post" action="/admin/jobs/<%= job.id %>/salvage" class="add-row">
+      <label>Item<input name="title" placeholder="Snapper riding mower" required></label>
+      <label>Plan
+        <select name="disposition">
+          <% dispositions.forEach(function(d) { %><option value="<%= d %>"><%= d %></option><% }) %>
+        </select>
+      </label>
+      <label>Est. value<input name="estimated_value" inputmode="decimal" placeholder="350"></label>
+      <label>Note<input name="notes" placeholder="Runs, needs a belt"></label>
+      <button class="button small" type="submit">Add item</button>
+    </form>
+  </div>
+
+  <!-- ============ PHOTOS ============ -->
+  <div class="panel">
+    <h2>Before / after</h2>
+    <div class="phase-grid">
+      <% ['before', 'after'].forEach(function(phase) { %>
+        <div>
+          <h3 class="sub-head"><%= phase === 'before' ? 'Before' : 'After' %></h3>
+          <% var set = photos.filter(function(p) { return p.phase === phase; }) %>
+          <% if (set.length) { %>
+            <div class="photo-grid">
+              <% set.forEach(function(p) { %>
+                <figure>
+                  <a href="/uploads/<%= p.filename %>" target="_blank" rel="noopener"><img src="/uploads/<%= p.filename %>" alt="<%= phase %>" loading="lazy"></a>
+                  <form method="post" action="/admin/jobs/<%= job.id %>/photos/<%= p.id %>/delete" class="inline-form">
+                    <button class="linkish danger" type="submit">Remove</button>
+                  </form>
+                </figure>
+              <% }) %>
+            </div>
+          <% } else { %>
+            <p class="muted">None yet.</p>
+          <% } %>
+          <form method="post" action="/admin/jobs/<%= job.id %>/photos" enctype="multipart/form-data" class="upload-row">
+            <input type="hidden" name="phase" value="<%= phase %>">
+            <input type="file" name="photos" accept="image/*" multiple capture="environment" required>
+            <button class="button small" type="submit">Upload <%= phase %></button>
+          </form>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (leadPhotos.length) { %>
+      <h3 class="sub-head">What the customer sent</h3>
+      <div class="photo-grid">
+        <% leadPhotos.forEach(function(p) { %>
+          <a href="/uploads/<%= p.filename %>" target="_blank" rel="noopener"><img src="/uploads/<%= p.filename %>" alt="Customer photo" loading="lazy"></a>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+
+  <form method="post" action="/admin/jobs/<%= job.id %>/status" class="inline-form right">
+    <input type="hidden" name="status" value="cancelled">
+    <button class="linkish danger" type="submit">Cancel this job</button>
+  </form>
+</main>
+
+<%- include('../partials/foot') %>

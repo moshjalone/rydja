@@ -1,0 +1,16 @@
+<footer class="shell footer">
+  <div>
+    <div class="brand"><%= brand %></div>
+    <p>Local property services.<% if (businessPhone) { %> Call or text <a class="text-link" href="tel:<%= businessPhone %>"><%= businessPhone %></a>.<% } %></p>
+  </div>
+  <p>
+    <% if (isAdmin) { %>
+      <a href="/admin/leads">Admin</a> ·
+      <form method="post" action="/admin/logout" class="inline-form"><button class="linkish" type="submit">Sign out</button></form>
+    <% } else { %>
+      <a href="/admin/login">Staff sign in</a>
+    <% } %>
+  </p>
+</footer>
+</body>
+</html>

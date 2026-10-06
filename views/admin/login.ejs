@@ -1,0 +1,16 @@
+<% var title = 'Sign in' %>
+<%- include('../partials/head') %>
+
+<main class="section shell narrow">
+  <div class="panel login-panel">
+    <div class="eyebrow">STAFF</div>
+    <h2>Sign in</h2>
+    <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+    <form method="post" action="/admin/login">
+      <label>Password<input type="password" name="password" autocomplete="current-password" autofocus required></label>
+      <button class="button full" type="submit">Sign in</button>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>
