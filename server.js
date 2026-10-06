@@ -421,13 +421,63 @@ app.use((req, res, next) => {
   res.locals.prettyPrefDate = prettyPrefDate;
   res.locals.timeWindows = TIME_WINDOWS;
   res.locals.today = todayLocal();
+  res.locals.assetV = ASSET_V;
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+/**
+ * A short content hash per static asset, computed once at boot.
+ *
+ * Every reference to a stylesheet or script carries it as ?v=, so a deploy can
+ * never show a visitor the previous release's CSS -- which is exactly what a
+ * revalidating browser or a CDN in front of this app will otherwise do. The
+ * file name on disk never changes, so there is nothing to build and nothing to
+ * clean up; the URL changes and the cache misses.
+ */
+function assetVersion(file) {
+  try {
+    const bytes = fs.readFileSync(path.join(__dirname, 'public', file));
+    return crypto.createHash('sha1').update(bytes).digest('hex').slice(0, 10);
+  } catch {
+    // Missing file is a deploy problem, not a reason to refuse to start. A
+    // timestamp still busts the cache; the 404 will be obvious.
+    return String(Date.now());
+  }
+}
+
+const ASSET_V = {
+  css: assetVersion('styles.css'),
+  js: assetVersion('app.js'),
+  // The hero art is referenced from the stylesheet, which cannot be templated,
+  // so its URL is handed to CSS as a custom property in the page head. Without
+  // that it would be the one asset that could still go stale on its own.
+  hero: assetVersion('hero.svg')
+};
+
+/**
+ * Cache hard, but only what is safe to.
+ *
+ * A URL carrying ?v= is immutable by construction: change the file and the
+ * hash changes, so the URL changes with it. Everything else -- an asset a
+ * stylesheet references by plain path, say -- must revalidate, or editing it
+ * ships a change nobody can see until their cache expires. That is the exact
+ * failure this whole pass exists to fix; it should not be reintroduced one
+ * layer down.
+ */
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res) => {
+      const versioned = /[?&]v=/.test((res.req && res.req.originalUrl) || '');
+      res.setHeader(
+        'Cache-Control',
+        versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=0, must-revalidate'
+      );
+    }
+  })
+);
 
 // Photos. Filenames are random hex, so the URL is the capability — the
 // customer can see their own job without an account. Hardening:

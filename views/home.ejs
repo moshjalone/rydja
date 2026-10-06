@@ -1,6 +1,9 @@
 <%- include('partials/head', { canonicalPath: '/' }) %>
 
 <main id="top">
+  <%# The hero art is full-bleed, so the band wraps the shell rather than
+      living on it. Homepage only -- no other page carries it. %>
+  <div class="hero-band">
   <section class="hero shell">
     <div class="hero-copy">
       <div class="eyebrow">LOCAL PROPERTY HELP • FAST QUOTES</div>
@@ -24,6 +27,7 @@
       <small>No obligation. We review the job before pricing.</small>
     </aside>
   </section>
+  </div>
 
   <section id="services" class="section shell">
     <div class="section-heading">

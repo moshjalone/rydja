@@ -24,7 +24,11 @@
     <meta property="og:url" content="<%= siteUrl %><%= locals.canonicalPath || '/' %>">
     <meta name="twitter:card" content="summary">
   <% } %>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=<%= assetV.css %>">
+  <%# The stylesheet cannot carry a version into its own url(), so the hero art
+      is passed in as a custom property and versioned here instead. %>
+  <style>:root{--hero-art:url("/hero.svg?v=<%= assetV.hero %>")}</style>
+  <script src="/app.js?v=<%= assetV.js %>" defer></script>
 </head>
 <body>
 <header class="nav">

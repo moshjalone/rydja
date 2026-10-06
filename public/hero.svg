@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" preserveAspectRatio="xMidYMax slice" role="img" aria-label="">
+  <!--
+    Hand-drawn silhouette of a cleared property at dusk: tree line, fence,
+    utility pole, and a pickup with a loaded trailer on the drive.
+
+    Authored here rather than licensed, so there is nothing to attribute and
+    no stock photograph to look like one. Flat shapes only - it stays crisp at
+    any width and compresses to a couple of kilobytes.
+
+    Everything is charcoal on charcoal with one lime rim light from the right,
+    which is where the hero's CSS glow sits.
+  -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2f26"/>
+      <stop offset="1" stop-color="#171a14"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#d9ff43" stop-opacity=".34"/>
+      <stop offset=".35" stop-color="#d9ff43" stop-opacity=".16"/>
+      <stop offset=".68" stop-color="#d9ff43" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#d9ff43" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2d3124"/>
+      <stop offset="1" stop-color="#151710"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="640" fill="url(#sky)"/>
+  <ellipse cx="1300" cy="170" rx="760" ry="430" fill="url(#glow)"/>
+
+  <!-- far ridge -->
+  <path fill="#1b1f12" d="M0 392l120-26 140 14 150-34 170 22 160-30 180 26 150-18 170 24 160-12v282H0z"/>
+
+  <!-- tree line -->
+  <g fill="#0c0f06">
+    <path d="M60 400c10-34 20-48 30-70 10 22 20 36 30 70zM140 404c8-30 17-44 26-62 9 18 18 32 26 62zM232 398c11-38 22-52 33-76 11 24 22 38 33 76zM1180 402c9-32 19-46 28-66 9 20 19 34 28 66zM1268 396c12-40 23-54 34-78 11 24 22 38 34 78zM1380 404c8-28 17-42 25-60 8 18 17 32 25 60zM1468 400c10-34 21-48 31-72 10 24 21 38 31 72z"/>
+    <rect x="86" y="396" width="8" height="26"/><rect x="258" y="392" width="8" height="30"/>
+    <rect x="1294" y="390" width="8" height="32"/><rect x="1494" y="394" width="8" height="28"/>
+  </g>
+
+  <!-- fence along the property line -->
+  <g fill="#090b05">
+    <rect x="0" y="414" width="1600" height="5"/>
+    <rect x="0" y="432" width="1600" height="4"/>
+    <g>
+      <rect x="40" y="404" width="7" height="58"/><rect x="170" y="404" width="7" height="58"/>
+      <rect x="300" y="404" width="7" height="58"/><rect x="430" y="404" width="7" height="58"/>
+      <rect x="560" y="404" width="7" height="58"/><rect x="690" y="404" width="7" height="58"/>
+      <rect x="820" y="404" width="7" height="58"/><rect x="950" y="404" width="7" height="58"/>
+      <rect x="1080" y="404" width="7" height="58"/><rect x="1210" y="404" width="7" height="58"/>
+      <rect x="1340" y="404" width="7" height="58"/><rect x="1470" y="404" width="7" height="58"/>
+    </g>
+  </g>
+
+  <!-- utility pole -->
+  <g fill="#080a04">
+    <rect x="1104" y="300" width="9" height="162"/>
+    <rect x="1074" y="330" width="69" height="7"/>
+    <rect x="1082" y="322" width="5" height="12"/><rect x="1130" y="322" width="5" height="12"/>
+  </g>
+
+  <!-- ground -->
+  <path fill="url(#ground)" d="M0 452h1600v188H0z"/>
+
+  <!-- the drive -->
+  <path fill="#333729" d="M300 640l180-186h470l300 186z"/>
+
+  <!-- Pickup and loaded trailer, facing right, parked clear of the copy.
+       The truck is drawn as a real pickup rather than a wedge: a low bed, a
+       cab stepped up behind a sloped windscreen, then a hood dropping away to
+       the front. That stepped roofline is what makes it read as a truck at a
+       glance instead of a car. -->
+  <g transform="translate(470,0)" fill="#000000">
+    <!-- trailer deck and uprights -->
+    <path d="M506 556h228v10H506z"/>
+    <path d="M506 542h8v18h-8zM726 542h8v18h-8z"/>
+    <!-- the load: crates, a heap, a plank riding on top -->
+    <path d="M518 556v-34h44v34zM570 556l8-42h40l8 42zM628 556v-26h48v26z"/>
+    <path d="M512 521l180-11v9l-180 11z"/>
+    <!-- tandem axle and fender -->
+    <path d="M540 560h96v7h-96z"/>
+    <circle cx="562" cy="576" r="16"/><circle cx="614" cy="576" r="16"/>
+    <!-- drawbar to the hitch -->
+    <path d="M734 558l42 9v8l-42-7z"/>
+    <!-- truck: bed, cab, hood -->
+    <path d="M756 574V538h84l10-32h56l22 32h36l8 10v26z"/>
+    <path d="M752 532h94v8h-94z"/>
+    <path d="M858 512h44l18 22h-62z" fill="#232815"/>
+    <circle cx="792" cy="576" r="19"/><circle cx="938" cy="576" r="19"/>
+  </g>
+
+  <!-- lime rim light catching the top edges nearest the glow -->
+  <g transform="translate(470,0)" fill="#d9ff43" opacity=".55">
+    <path d="M850 506h56l3 4h-62z"/>
+    <path d="M928 534h36l4 4h-44z"/>
+    <path d="M578 514h40l1 5h-42zM628 530h48v4h-48zM518 522h44v4h-44z"/>
+  </g>
+  <g fill="#d9ff43" opacity=".45">
+    <rect x="1104" y="300" width="9" height="4"/>
+    <rect x="1074" y="330" width="69" height="2"/>
+  </g>
+
+  <!-- material stacked ready to go, well left of the rig -->
+  <g fill="#000000">
+    <path d="M250 600l26-22 30 22zM298 604l34-30 38 30zM362 602l22-18 26 18z"/>
+    <rect x="240" y="600" width="180" height="8"/>
+  </g>
+</svg>

@@ -23,12 +23,14 @@ body::after{
   pointer-events:none;
 }
 
-/* Light off the top-right, weight in the bottom corner, ground underfoot. */
+/* Light off the top-right, weight in the bottom corner, ground underfoot.
+   Deliberately quiet: the loud visual belongs to the homepage hero, and every
+   other page -- including every admin page -- just gets a little depth. */
 body::before{
   background:
-    radial-gradient(900px 520px at 88% -8%, rgba(217,255,67,.10), transparent 62%),
-    radial-gradient(760px 460px at 2% 6%, rgba(23,24,22,.03), transparent 62%),
-    linear-gradient(to top, rgba(23,24,22,.05), transparent 36%);
+    radial-gradient(900px 520px at 88% -8%, rgba(217,255,67,.12), transparent 62%),
+    radial-gradient(760px 460px at 2% 6%, rgba(23,24,22,.045), transparent 62%),
+    linear-gradient(to top, rgba(23,24,22,.06), transparent 36%);
 }
 
 /* The texture -- tread, corrugation, the side of a truck bed -- masked to the
@@ -75,7 +77,58 @@ img{max-width:100%;display:block}
 .cta-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
 
 /* ---------- marketing ---------- */
+/* ---------- homepage hero ----------
+   The one loud surface on the site. A cleared property at dusk behind
+   charcoal, with the brand lime coming in as rim light from the right -- the
+   business the copy is describing, rather than a photograph of someone
+   smiling next to a truck.
+
+   Full-bleed via a pseudo-element on a wrapper, so the artwork reaches both
+   edges while the copy stays on the normal 1180px grid. */
+.hero-band{position:relative;isolation:isolate;background:#111210;overflow:hidden}
+.hero-band::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-2;
+  background:
+    /* keeps the headline legible over the busiest part of the art */
+    linear-gradient(100deg, rgba(14,15,13,.96) 0%, rgba(14,15,13,.86) 30%, rgba(14,15,13,.34) 52%, rgba(14,15,13,.10) 78%, rgba(14,15,13,.05) 100%),
+    var(--hero-art, url("/hero.svg")) center bottom / cover no-repeat,
+    #111210;
+}
+/* Lime light pooling off the top-right, and the floor falling away below. */
+.hero-band::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(760px 420px at 86% 6%, rgba(217,255,67,.18), transparent 66%),
+    linear-gradient(to bottom, rgba(17,18,16,.5) 0%, transparent 20%, transparent 82%, rgba(10,11,9,.35) 100%);
+}
+
 .hero{min-height:600px;display:grid;grid-template-columns:1.6fr .8fr;gap:70px;align-items:center;padding:70px 0}
+
+/* Type flips to light inside the band. Nothing else about it changes. */
+.hero-band .hero-copy{color:#fff}
+.hero-band .eyebrow{color:var(--accent)}
+.hero-band h1{color:#fff;text-shadow:0 2px 30px rgba(0,0,0,.5)}
+.hero-band h1 span{color:#9aa08c}
+.hero-band .lede{color:#cfd1c6}
+.hero-band .trust-row strong{color:#fff}
+.hero-band .trust-row span{color:#b9bcae}
+.hero-band .text-link{color:#fff}
+.hero-band .button{background:var(--accent);color:#111}
+.hero-band .button:hover{background:#e6ff6b}
+/* The card was dark on cream; on a dark band it needs its own edge. */
+.hero-band .quote-card{
+  background:rgba(27,29,25,.82);
+  border:1px solid rgba(217,255,67,.16);
+  backdrop-filter:blur(6px);
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+}
 .eyebrow{font-size:12px;font-weight:900;letter-spacing:.15em;margin-bottom:18px}
 .hero h1{font-size:clamp(46px,7vw,92px);line-height:.91;letter-spacing:-.065em;margin:0 0 28px}
 .hero h1 span{color:#5f6258}
@@ -83,26 +136,31 @@ img{max-width:100%;display:block}
 .lede.smaller{font-size:18px}
 .hero-actions{display:flex;gap:24px;align-items:center;margin-top:30px;flex-wrap:wrap}
 
-/* The homepage's primary call to action, and nothing else on the site. Nine
-   seconds for three pixels and a third of a degree: enough that the eye
-   catches it on the way past, not enough to read as a moving thing. Transform
-   only, so it never costs a layout. */
-@keyframes cta-drift{
-  0%,100%{transform:translate3d(0,0,0) rotate(0deg)}
-  25%    {transform:translate3d(2.5px,-2px,0) rotate(.25deg)}
-  50%    {transform:translate3d(0,-3px,0) rotate(0deg)}
-  75%    {transform:translate3d(-2.5px,-2px,0) rotate(-.25deg)}
+/* The quote card is the page's conversion element, so it is the one thing that
+   moves -- not the button beside it, and nothing else on the site. Six and a
+   half seconds for five pixels and a third of a degree.
+
+   The card ships with a designed rotate(1deg) tilt, and animating `transform`
+   replaces that outright, so every keyframe carries the 1deg with it. Lose it
+   and the card quietly straightens up, which is a design change nobody asked
+   for. Transform only, so it never costs a layout; the button inside stays put
+   and simply rides along. */
+@keyframes card-drift{
+  0%,100%{transform:translate3d(0,0,0) rotate(1deg)}
+  25%    {transform:translate3d(2px,-2.5px,0) rotate(1.35deg)}
+  50%    {transform:translate3d(0,-5px,0) rotate(1deg)}
+  75%    {transform:translate3d(-2px,-2.5px,0) rotate(.65deg)}
 }
-.hero-actions>.button{
-  animation:cta-drift 9s cubic-bezier(.45,0,.55,1) infinite;
+.quote-card{
+  animation:card-drift 6.5s cubic-bezier(.45,0,.55,1) infinite;
   will-change:transform;
 }
-/* Settles under the cursor rather than drifting away from it. */
-.hero-actions>.button:hover,
-.hero-actions>.button:focus-visible{animation-play-state:paused}
+/* Settles the moment anyone reaches for it, including by keyboard. */
+.quote-card:hover,
+.quote-card:focus-within{animation-play-state:paused}
 
 @media (prefers-reduced-motion: reduce){
-  .hero-actions>.button{animation:none}
+  .quote-card{animation:none}
 }
 .trust-row{display:flex;gap:40px;margin-top:55px;flex-wrap:wrap}
 .trust-row div{display:flex;flex-direction:column}
@@ -272,6 +330,61 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .prefs legend{font-weight:800;font-size:15px;padding:0 8px}
 .prefs .hint.block{display:block;margin:0 0 16px;font-size:13px;line-height:1.5;color:#a8aaa2}
 .prefs .check{margin-top:4px}
+
+/* ---------- date fields ----------
+   A native date input looks exactly like a text box until you find the small
+   indicator at the right edge. This gives it a real calendar button: a ruled
+   divider, a larger target, and the brand accent, so the field says "pick a
+   date" before anyone clicks it. The control underneath is untouched. */
+input[type="date"],
+input[type="datetime-local"]{
+  cursor:pointer;
+  padding-right:8px;
+  background-image:linear-gradient(to right, transparent calc(100% - 46px), rgba(217,255,67,.10) calc(100% - 46px));
+  background-repeat:no-repeat;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator{
+  width:26px;
+  height:26px;
+  margin-left:10px;
+  padding:4px;
+  border-radius:7px;
+  cursor:pointer;
+  opacity:1;
+  /* The browser's own glyph, recoloured to the accent and enlarged. */
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9ff43' stroke-width='2' stroke-linecap='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 10h18'/><rect x='7' y='13' width='3' height='3' fill='%23d9ff43' stroke='none'/></svg>");
+  background-size:20px 20px;
+  background-position:center;
+  background-repeat:no-repeat;
+  transition:background-color .15s ease, transform .15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover{
+  background-color:rgba(217,255,67,.22);
+  transform:scale(1.06);
+}
+input[type="date"]:focus-visible,
+input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* Firefox has no indicator pseudo-element; the field still carries the panel
+   and the whole field opens the picker, so it reads the same way. */
+@supports not selector(::-webkit-calendar-picker-indicator){
+  input[type="date"],
+  input[type="datetime-local"]{
+    background-image:
+      linear-gradient(to right, transparent calc(100% - 46px), rgba(217,255,67,.10) calc(100% - 46px)),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d9ff43' stroke-width='2' stroke-linecap='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 10h18'/></svg>");
+    background-position:0 0, right 12px center;
+    background-size:auto, 20px 20px;
+  }
+}
+
+/* On the dark quote form the panel needs to read against a dark field. */
+.dark input[type="date"],
+.dark input[type="datetime-local"]{
+  background-image:linear-gradient(to right, transparent calc(100% - 46px), rgba(217,255,67,.16) calc(100% - 46px));
+}
 .proposed-inline{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;margin:18px 0}
 .proposed-inline .mini-label{color:var(--muted);margin-bottom:6px}
 .proposed-inline .big-when{margin:0}
@@ -295,7 +408,13 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
   .nav nav{display:none}
   .hero,.split,.form-shell,.dash-grid,.phase-grid{grid-template-columns:1fr}
   .hero{padding:40px 0;gap:30px;min-height:0}
-  .quote-card{transform:none}
+  .quote-card{transform:none;animation-name:card-drift-flat}
+  @keyframes card-drift-flat{
+    0%,100%{transform:translate3d(0,0,0)}
+    25%    {transform:translate3d(2px,-2.5px,0)}
+    50%    {transform:translate3d(0,-5px,0)}
+    75%    {transform:translate3d(-2px,-2.5px,0)}
+  }
   .section{padding:60px 0}
   .service-grid{grid-template-columns:1fr}
   .steps{grid-template-columns:1fr 1fr}
