@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" preserveAspectRatio="xMidYMax slice" role="img" aria-label="">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="110 70 1380 552" preserveAspectRatio="xMidYMax slice" role="img" aria-label="">
   <!--
     Hand-drawn silhouette of a cleared property at dusk: tree line, fence,
     utility pole, and a pickup with a loaded trailer on the drive.
@@ -9,6 +9,11 @@
 
     Everything is charcoal on charcoal with one lime rim light from the right,
     which is where the hero's CSS glow sits.
+
+    The viewBox is cropped in from the 1600x640 the shapes are drawn on, which
+    scales the whole scene up about 16% without touching a coordinate. The
+    ratio stays exactly 2.5 so `cover` still behaves. Shape coordinates below
+    are still in the original space: 0,0 is up and left of what you see.
   -->
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">

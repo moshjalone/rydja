@@ -98,7 +98,7 @@ img{max-width:100%;display:block}
   z-index:-2;
   background:
     /* keeps the headline legible over the busiest part of the art */
-    linear-gradient(100deg, rgba(14,15,13,.96) 0%, rgba(14,15,13,.86) 30%, rgba(14,15,13,.34) 52%, rgba(14,15,13,.10) 78%, rgba(14,15,13,.05) 100%),
+    linear-gradient(100deg, rgba(14,15,13,.96) 0%, rgba(14,15,13,.84) 30%, rgba(14,15,13,.24) 52%, rgba(14,15,13,.02) 76%, rgba(14,15,13,0) 100%),
     var(--hero-art, url("/hero.svg")) center bottom / cover no-repeat,
     #111210;
 }
@@ -111,7 +111,7 @@ img{max-width:100%;display:block}
   pointer-events:none;
   background:
     radial-gradient(760px 420px at 86% 6%, rgba(217,255,67,.18), transparent 66%),
-    linear-gradient(to bottom, rgba(17,18,16,.5) 0%, transparent 20%, transparent 82%, rgba(10,11,9,.35) 100%);
+    linear-gradient(to bottom, rgba(17,18,16,.5) 0%, transparent 20%, transparent 88%, rgba(10,11,9,.12) 100%);
 }
 
 .hero{min-height:600px;display:grid;grid-template-columns:1.6fr .8fr;gap:70px;align-items:center;padding:70px 0}
@@ -424,15 +424,15 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   .hero-band::before{
     background:
       linear-gradient(to bottom,
-        rgba(14,15,13,.96) 0%, rgba(14,15,13,.93) 42%,
-        rgba(14,15,13,.58) 70%, rgba(14,15,13,.22) 100%),
-      var(--hero-art, url("/hero.svg")) calc(50% - 173px) bottom / auto 360px no-repeat,
+        rgba(14,15,13,.96) 0%, rgba(14,15,13,.92) 42%,
+        rgba(14,15,13,.45) 72%, rgba(14,15,13,.04) 100%),
+      var(--hero-art, url("/hero.svg")) calc(50% - 200px) bottom / auto 360px no-repeat,
       #111210;
   }
   .hero-band::after{
     background:
       radial-gradient(520px 300px at 80% 4%, rgba(217,255,67,.16), transparent 68%),
-      linear-gradient(to bottom, rgba(17,18,16,.5) 0%, transparent 22%, transparent 88%, rgba(10,11,9,.2) 100%);
+      linear-gradient(to bottom, rgba(17,18,16,.5) 0%, transparent 22%, transparent 92%, rgba(10,11,9,.06) 100%);
   }
   .quote-card{transform:none;animation-name:card-drift-flat}
   @keyframes card-drift-flat{
