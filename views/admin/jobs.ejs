@@ -26,10 +26,14 @@
         <div class="job-row">
           <div>
             <strong><%= j.customer_name %></strong>
-            <small><a href="tel:<%= telHref(j.customer_phone) %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
+            <small><span class="ref-chip"><%= j.work_ref %></span> &middot; <a href="tel:<%= telHref(j.customer_phone) %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
           </div>
           <div><%= j.service %><small><%= j.operator_name %></small></div>
-          <div data-label="When"><%= j.scheduled_for ? prettyWhen(j.scheduled_for) : '—' %></div>
+          <div data-label="When">
+            <% if (j.scheduled_for && j.status === 'scheduled') { %><%= prettyWhen(j.scheduled_for) %>
+            <% } else if (j.proposed_for) { %><%= prettyWhen(j.proposed_for) %><small>proposed</small>
+            <% } else { %>—<% } %>
+          </div>
           <div data-label="Revenue"><%= money(j.profit.revenue) %></div>
           <div data-label="Net" class="<%= j.profit.net < 0 ? 'neg' : 'pos' %>"><%= money(j.profit.net) %></div>
           <div><span class="badge <%= j.status %>"><%= prettyStatus(j.status) %></span></div>

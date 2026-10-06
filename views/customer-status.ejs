@@ -1,9 +1,10 @@
 <%- include('partials/head', { title: 'Your Job', noindex: true }) %>
 
 <main class="section shell narrow">
-  <%# Reference is derived from the random token, not the sequential row id, so
-      it tells a customer nothing about how many jobs have come through. %>
-  <div class="eyebrow">REQUEST <%= lead.public_token.slice(0, 8).toUpperCase() %></div>
+  <%# The permanent work reference. Public on purpose, and not a capability --
+      only the token in the URL grants access. It reads "Request" before the
+      work exists and "Job" after, but the reference itself never changes. %>
+  <div class="eyebrow"><%= job ? 'JOB' : 'REQUEST' %> <%= lead.work_ref %></div>
 
   <% if (!quote) { %>
     <h2>We&rsquo;ve got it.</h2>
@@ -16,12 +17,54 @@
   <% } else if (job && job.status === 'complete') { %>
     <h2>Job complete.</h2>
     <p class="lede smaller">Finished <%= prettyDate(job.completed_at) %>. Thanks for the work.</p>
+  <% } else if (job && job.scheduled_for && job.status === 'scheduled') { %>
+    <h2>You&rsquo;re scheduled.</h2>
+    <p class="lede smaller">Confirmed for <strong><%= prettyWhen(job.scheduled_for) %></strong>. See you then.</p>
   <% } else { %>
     <h2>You&rsquo;re booked.</h2>
     <p class="lede smaller">
-      <% if (job && job.scheduled_for) { %>Scheduled for <strong><%= prettyWhen(job.scheduled_for) %></strong>.
+      <% if (job && job.proposed_for) { %>We&rsquo;ve proposed a time below &mdash; confirm it and you&rsquo;re set.
       <% } else { %>We&rsquo;ll reach out to lock in a time window.<% } %>
     </p>
+  <% } %>
+
+  <%# ---- the appointment, if one has been offered ---- %>
+  <% if (job && job.proposed_for && !(job.status === 'scheduled' && job.scheduled_for === job.proposed_for)) { %>
+    <div class="panel" id="appointment">
+      <h3>Proposed appointment</h3>
+      <div class="big-when"><%= prettyWhen(job.proposed_for) %></div>
+
+      <% if (job.schedule_message) { %>
+        <p class="price-note">
+          You asked for a different time on <%= prettyDate(job.schedule_responded_at) %>. We&rsquo;ll be in touch with
+          another option &mdash; or you can still take the time above if it turns out to work.
+        </p>
+      <% } else { %>
+        <p class="price-note">Nothing is locked in until you confirm.</p>
+      <% } %>
+
+      <form method="post" action="/q/<%= lead.public_token %>/schedule" class="approve-row">
+        <button class="button full" type="submit" name="decision" value="accept">Accept this time</button>
+      </form>
+
+      <%# A <details> rather than a script: the textarea is one tap away and the
+          page still works with nothing enabled. %>
+      <details class="ask-different"<%= job.schedule_message ? ' open' : '' %>>
+        <summary>Ask for a different time</summary>
+        <form method="post" action="/q/<%= lead.public_token %>/schedule" class="stack-form">
+          <label>What works better for you?
+            <textarea name="message" rows="3" required placeholder="Example: Mornings are hard &mdash; any afternoon that week works."><%= job.schedule_message || '' %></textarea>
+          </label>
+          <button class="button ghost full" type="submit" name="decision" value="change">Send this to us</button>
+        </form>
+      </details>
+    </div>
+  <% } else if (job && job.status === 'scheduled' && job.scheduled_for) { %>
+    <div class="panel" id="appointment">
+      <h3>Your appointment</h3>
+      <div class="big-when"><%= prettyWhen(job.scheduled_for) %></div>
+      <p class="price-note">Confirmed <%= prettyDate(job.schedule_responded_at) %>.</p>
+    </div>
   <% } %>
 
   <p class="bookmark-hint">Bookmark this page &mdash; it&rsquo;s your private link to this job.</p>

@@ -245,6 +245,57 @@ No SMS, no queue, no retries. If an email fails, text the customer.
 
 ---
 
+## Work references and scheduling
+
+Every request is given a permanent reference the moment it arrives — `RYDJA-7K4M2Q`.
+It is public, it is what gets read out over the phone, and it never changes: the
+job a customer approves keeps the reference their request was given, all the way
+to completion. Jobs reach it through `lead_id` rather than storing a copy, so a
+job and its lead can never end up with different references.
+
+**It is not a password.** `/q/<token>` remains the only customer capability URL;
+the reference on its own opens nothing. Sequential `lead.id` / `job.id` are never
+shown to a customer.
+
+Scheduling is a proposal the customer answers:
+
+```
+job created          status = unscheduled
+owner proposes       status = schedule_pending   proposed_for set, scheduled_for still NULL
+customer accepts     status = scheduled          scheduled_for = proposed_for
+customer asks again  status = schedule_pending   scheduled_for stays NULL, message saved
+```
+
+A job is never "scheduled" because the owner suggested a time. Only acceptance
+books it. A new proposal replaces the open one, clears the change request, and
+emails again. There is no calendar, no slot picker and no reminders.
+
+The proposal email needs the same `RESEND_API_KEY` / `EMAIL_FROM` as quotes, and
+like them it cannot cost you the proposal: if it is unconfigured, has no address
+to send to, or the provider refuses, the proposed time is already saved and the
+job page tells the owner to contact the customer and send the link by hand.
+
+Logs carry the work reference and a fixed event code, never a token, a customer
+or what the customer wrote:
+
+```
+[lead] new lead #12 RYDJA-7K4M2Q — Garage / basement cleanout — 3 photo(s)
+[mail] schedule proposal sent for RYDJA-7K4M2Q
+[schedule] RYDJA-7K4M2Q change requested by customer
+[schedule] RYDJA-7K4M2Q confirmed by customer
+```
+
+### Upgrading an existing deployment
+
+Nothing to do. `migrate()` in `db.js` runs on boot: it adds `leads.work_ref` and
+the four `jobs.schedule_*` columns if they are missing, assigns a reference to
+every lead that has none, and creates the unique index. It is additive and
+idempotent — tokens, quotes, jobs, photos, expenses and salvage rows are never
+touched, existing bookmarks keep working, and a second boot is a no-op. Take a
+backup first anyway (`npm run backup`); that advice never changes.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

@@ -6,6 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'app.db');
@@ -48,6 +49,93 @@ const db = {
     };
   }
 };
+
+// ---------------------------------------------------------------- work refs
+
+// A fixed prefix, not BRAND_NAME. These references are permanent and get read
+// out over the phone; a rebrand must not rewrite the ones already printed on a
+// customer's page, and a database holding two different prefixes is worse than
+// one holding a stale one.
+const REF_PREFIX = 'RYDJA';
+
+// No 0/O, 1/I/L, U/V confusion: every character survives being read aloud or
+// written down badly. 30 characters, 6 of them, is 729 million references --
+// far past anything this business will produce, and nowhere near sequential.
+const REF_ALPHABET = '23456789ABCDEFGHJKMNPQRSTWXYZ';
+const REF_LENGTH = 6;
+
+/** RYDJA-7K4M2Q. Format only -- says nothing about whether it exists. */
+const WORK_REF_PATTERN = new RegExp(`^${REF_PREFIX}-[${REF_ALPHABET}]{${REF_LENGTH}}$`);
+
+function randomRef() {
+  // rejection-free: 256 is not a multiple of 29, so take the modulo of bytes
+  // drawn one at a time from a fresh pool. The bias is irrelevant here -- this
+  // is an identifier, not a secret -- but crypto randomness costs nothing.
+  const bytes = crypto.randomBytes(REF_LENGTH);
+  let out = '';
+  for (const b of bytes) out += REF_ALPHABET[b % REF_ALPHABET.length];
+  return `${REF_PREFIX}-${out}`;
+}
+
+/**
+ * A reference no lead is using yet. Collision-checked against the table rather
+ * than trusted to probability.
+ */
+function generateWorkRef() {
+  const taken = db.prepare('select 1 from leads where work_ref = ?');
+  for (let i = 0; i < 50; i++) {
+    const ref = randomRef();
+    if (!taken.get(ref)) return ref;
+  }
+  // 50 collisions in a row means the keyspace is genuinely exhausted, which is
+  // a problem no retry fixes. Fail loudly rather than hand back a duplicate.
+  throw new Error('could not generate a unique work reference');
+}
+
+// ---------------------------------------------------------------- migrations
+
+/**
+ * Bring an existing database up to the current schema. `create table if not
+ * exists` does nothing to a table that already exists, so new columns have to
+ * be added by hand.
+ *
+ * Every step is guarded and additive: nothing is dropped, nothing is rewritten,
+ * and running it twice is a no-op. Tokens, quotes, jobs, photos, expenses and
+ * salvage rows are never touched.
+ */
+function migrate() {
+  const columns = (table) =>
+    new Set(db.prepare(`pragma table_info(${table})`).all().map((c) => c.name));
+
+  const addColumn = (table, name, type) => {
+    if (columns(table).has(name)) return false;
+    db.exec(`alter table ${table} add column ${name} ${type}`);
+    console.log(`[migrate] added ${table}.${name}`);
+    return true;
+  };
+
+  addColumn('leads', 'work_ref', 'text');
+  for (const col of ['proposed_for', 'proposed_at', 'schedule_responded_at', 'schedule_message']) {
+    addColumn('jobs', col, 'text');
+  }
+
+  // Backfill before the unique index exists, so a half-migrated database with
+  // several NULLs cannot trip over it on the way.
+  const pending = db.prepare("select id from leads where work_ref is null or work_ref = ''").all();
+  if (pending.length) {
+    const assign = db.prepare('update leads set work_ref = ? where id = ?');
+    db.transaction(() => {
+      for (const row of pending) assign.run(generateWorkRef(), row.id);
+    })();
+    // A job inherits its lead's reference through lead_id, so backfilling the
+    // lead is all it takes for existing jobs to pick theirs up.
+    console.log(`[migrate] assigned work references to ${pending.length} existing lead(s)`);
+  }
+
+  db.exec('create unique index if not exists idx_leads_work_ref on leads(work_ref)');
+}
+
+migrate();
 
 /** OWNER_* values, trimmed. Empty or unset means "no opinion". */
 function ownerFromEnv() {
@@ -106,4 +194,4 @@ function syncOwnerFromEnv() {
 
 syncOwnerFromEnv();
 
-module.exports = { db, ownerOperator, syncOwnerFromEnv, DB_PATH };
+module.exports = { db, ownerOperator, syncOwnerFromEnv, generateWorkRef, WORK_REF_PATTERN, DB_PATH };

@@ -7,7 +7,7 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 const multer = require('multer');
 
-const { db, ownerOperator } = require('./db');
+const { db, ownerOperator, generateWorkRef } = require('./db');
 const { rateLimit, formStamp, checkStamp } = require('./security');
 const { runBackup } = require('./backup');
 const mail = require('./mail');
@@ -103,7 +103,7 @@ const EXPENSE_CATEGORIES = [
 
 const DISPOSITIONS = ['resell', 'scrap', 'donate', 'recycle', 'keep'];
 
-const JOB_STATUSES = ['unscheduled', 'scheduled', 'in_progress', 'complete', 'cancelled'];
+const JOB_STATUSES = ['unscheduled', 'schedule_pending', 'scheduled', 'in_progress', 'complete', 'cancelled'];
 
 // ---------------------------------------------------------------- helpers
 
@@ -137,6 +137,31 @@ const prettyWhen = (s) => {
 };
 
 const prettyStatus = (s) => String(s || '').replace(/_/g, ' ');
+
+/**
+ * Where a job stands on scheduling, derived rather than stored -- the columns
+ * already say it, and a sixth column to keep in step with them would be one
+ * more thing to get wrong.
+ *
+ *   not_proposed     nothing offered yet
+ *   awaiting         offered, customer has not answered
+ *   change_requested customer asked for a different time
+ *   confirmed        customer accepted; scheduled_for is set
+ */
+function scheduleState(job) {
+  if (!job) return 'not_proposed';
+  if (job.status === 'scheduled' && job.scheduled_for) return 'confirmed';
+  if (job.schedule_message) return 'change_requested';
+  if (job.proposed_for) return 'awaiting';
+  return 'not_proposed';
+}
+
+const SCHEDULE_STATE_LABELS = {
+  not_proposed: 'Not proposed',
+  awaiting: 'Awaiting customer',
+  change_requested: 'Change requested',
+  confirmed: 'Confirmed'
+};
 
 /**
  * The dialable form of a phone number, for a tel: href. Display stays however
@@ -330,6 +355,8 @@ app.use((req, res, next) => {
   res.locals.prettyWhen = prettyWhen;
   res.locals.prettyStatus = prettyStatus;
   res.locals.telHref = telHref;
+  res.locals.scheduleState = scheduleState;
+  res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
   next();
 });
@@ -512,15 +539,19 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
       customer = { id: info.lastInsertRowid };
     }
 
+    // Two separate identifiers, deliberately. public_token is the capability
+    // that unlocks /q/:token and is secret; work_ref is the reference everyone
+    // says out loud and grants nothing.
     const token = crypto.randomBytes(16).toString('hex');
     const lead = db
       .prepare(
-        `insert into leads (customer_id, public_token, service, description, address, city, state, zip, access, timing)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `insert into leads (customer_id, public_token, work_ref, service, description, address, city, state, zip, access, timing)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         customer.id,
         token,
+        generateWorkRef(),
         f.service,
         f.description,
         f.address || null,
@@ -537,10 +568,10 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     return lead.lastInsertRowid;
   })();
 
-  // Service and photo count only. A lead id is enough to find the rest in the
-  // admin; a name and phone number in a log file is a copy of the customer
-  // list sitting somewhere nobody is guarding.
-  console.log(`[lead] new lead #${leadId} — ${f.service} — ${photos.length} photo(s)`);
+  // Reference, service and photo count. The work reference is public by
+  // design, so it belongs in a log in a way a name or phone number never did.
+  const { work_ref: workRef } = db.prepare('select work_ref from leads where id = ?').get(leadId);
+  console.log(`[lead] new lead #${leadId} ${workRef} — ${f.service} — ${photos.length} photo(s)`);
 
   // The lead's private status URL (/q/:token) stays live and is what the
   // customer gets when a quote goes out. It is not what they land on here:
@@ -601,8 +632,56 @@ app.post('/q/:token/respond', (req, res) => {
     db.prepare("update leads set status = 'converted' where id = ?").run(lead.id);
   })();
 
-  if (approved) console.log(`[job] quote #${quote.id} approved — job created for lead #${lead.id}`);
+  if (approved) console.log(`[job] quote #${quote.id} approved — job created for ${lead.work_ref}`);
   res.redirect('/q/' + lead.public_token);
+});
+
+/**
+ * The customer answers a proposed appointment. Accepting is the only thing
+ * that books it; asking for another time leaves the offer open and hands the
+ * owner a sentence to act on.
+ */
+app.post('/q/:token/schedule', (req, res) => {
+  const lead = db.prepare('select * from leads where public_token = ?').get(req.params.token);
+  if (!lead) return res.status(404).render('404');
+
+  const job = db
+    .prepare(
+      `select j.* from jobs j
+         join quotes q on q.id = j.quote_id
+        where j.lead_id = ? order by j.id desc limit 1`
+    )
+    .get(lead.id);
+
+  // Nothing to answer unless there is an open offer.
+  if (!job || !job.proposed_for) return res.redirect('/q/' + lead.public_token);
+
+  if (req.body.decision === 'accept') {
+    db.prepare(
+      `update jobs
+          set scheduled_for = proposed_for, schedule_responded_at = ?,
+              schedule_message = null, status = 'scheduled'
+        where id = ?`
+    ).run(nowIso(), job.id);
+    console.log(`[schedule] ${lead.work_ref} confirmed by customer`);
+    return res.redirect('/q/' + lead.public_token);
+  }
+
+  // Anything else is "not that time". The offer stays on the table, the job
+  // stays schedule_pending, and scheduled_for is left alone.
+  const message = clean(req.body.message, LIMITS.notes);
+  if (!message) return res.redirect('/q/' + lead.public_token + '#appointment');
+
+  db.prepare(
+    `update jobs
+        set schedule_message = ?, schedule_responded_at = ?, status = 'schedule_pending'
+      where id = ?`
+  ).run(message, nowIso(), job.id);
+
+  // The message itself is the customer's words -- the owner reads it in the
+  // admin, it does not go to a log file.
+  console.log(`[schedule] ${lead.work_ref} change requested by customer`);
+  res.redirect('/q/' + lead.public_token + '#appointment');
 });
 
 // ---------------------------------------------------------------- admin auth
@@ -688,7 +767,7 @@ app.get('/admin/leads/:id', requireAdmin, (req, res) => {
 app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
   const lead = db
     .prepare(
-      `select l.id, l.public_token, c.name as customer_name, c.email as customer_email
+      `select l.id, l.public_token, l.work_ref, c.name as customer_name, c.email as customer_email
          from leads l join customers c on c.id = l.customer_id where l.id = ?`
     )
     .get(req.params.id);
@@ -724,17 +803,18 @@ app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
     amountCents: cents,
     notes,
     token: lead.public_token,
+    workRef: lead.work_ref,
     revised
   });
 
   // Lead id and a fixed reason code only — never the address, name or token.
   // A deployment with no email configured is a choice, not a fault, so it is
   // not warned about on every single quote.
-  if (ok) console.log(`[mail] quote email sent for lead #${lead.id}`);
-  else if (reason === 'no_email') console.log(`[mail] lead #${lead.id} has no email on file — nothing sent`);
+  if (ok) console.log(`[mail] quote email sent for ${lead.work_ref}`);
+  else if (reason === 'no_email') console.log(`[mail] ${lead.work_ref} has no email on file — nothing sent`);
   else if (reason === 'not_configured')
-    console.log(`[mail] email is off — nothing sent for lead #${lead.id} (set RESEND_API_KEY and EMAIL_FROM)`);
-  else console.warn(`[mail] quote email FAILED for lead #${lead.id} (${reason}) — text the customer instead`);
+    console.log(`[mail] email is off — nothing sent for ${lead.work_ref} (set RESEND_API_KEY and EMAIL_FROM)`);
+  else console.warn(`[mail] quote email FAILED for ${lead.work_ref} (${reason}) — text the customer instead`);
 
   res.redirect('/admin/leads/' + lead.id + '?mail=' + (ok ? 'sent' : reason));
 });
@@ -752,7 +832,7 @@ app.post('/admin/leads/:id/status', requireAdmin, (req, res) => {
 app.get('/admin/jobs', requireAdmin, (req, res) => {
   const jobs = db
     .prepare(
-      `select j.*, l.service, l.address, l.city, l.zip, l.public_token,
+      `select j.*, l.service, l.address, l.city, l.zip, l.public_token, l.work_ref,
               c.name as customer_name, c.phone as customer_phone, o.name as operator_name
          from jobs j
          join leads l on l.id = j.lead_id
@@ -760,7 +840,8 @@ app.get('/admin/jobs', requireAdmin, (req, res) => {
          join operators o on o.id = j.operator_id
         order by case j.status
                    when 'in_progress' then 0 when 'scheduled' then 1
-                   when 'unscheduled' then 2 when 'complete' then 3 else 4 end,
+                   when 'schedule_pending' then 2
+                   when 'unscheduled' then 3 when 'complete' then 4 else 5 end,
                  coalesce(j.scheduled_for, j.created_at)`
     )
     .all();
@@ -785,7 +866,7 @@ app.get('/admin/jobs/:id', requireAdmin, (req, res) => {
   const job = db
     .prepare(
       `select j.*, l.service, l.description, l.address, l.city, l.state, l.zip, l.access, l.timing,
-              l.public_token, l.id as lead_id,
+              l.public_token, l.work_ref, l.id as lead_id,
               c.name as customer_name, c.phone as customer_phone, c.email as customer_email,
               o.name as operator_name, q.notes as quote_notes
          from jobs j
@@ -807,7 +888,9 @@ app.get('/admin/jobs/:id', requireAdmin, (req, res) => {
     profit: jobProfit(job.id),
     expenseCategories: EXPENSE_CATEGORIES,
     dispositions: DISPOSITIONS,
-    jobStatuses: JOB_STATUSES
+    jobStatuses: JOB_STATUSES,
+    // Outcome of the scheduling email the last proposal tried to send.
+    scheduleMail: typeof req.query.schedule === 'string' ? req.query.schedule : null
   });
 });
 
@@ -827,17 +910,52 @@ app.post('/admin/jobs/:id/status', requireAdmin, (req, res) => {
   res.redirect('/admin/jobs/' + req.params.id);
 });
 
-app.post('/admin/jobs/:id/schedule', requireAdmin, (req, res) => {
-  const when = String(req.body.scheduled_for || '').trim();
-  if (when) {
-    db.prepare("update jobs set scheduled_for = ?, status = case when status = 'unscheduled' then 'scheduled' else status end where id = ?").run(
-      when.replace('T', ' '),
-      req.params.id
-    );
-  } else {
-    db.prepare('update jobs set scheduled_for = null where id = ?').run(req.params.id);
-  }
-  res.redirect('/admin/jobs/' + req.params.id);
+// The owner offers a time; only the customer's acceptance books it. A second
+// proposal replaces the first and clears whatever the customer said about it,
+// so there is never more than one open offer to answer.
+app.post('/admin/jobs/:id/propose', requireAdmin, async (req, res) => {
+  const job = db
+    .prepare(
+      `select j.id, j.status, l.service, l.public_token, l.work_ref,
+              c.name as customer_name, c.email as customer_email
+         from jobs j
+         join leads l on l.id = j.lead_id
+         join customers c on c.id = l.customer_id
+        where j.id = ?`
+    )
+    .get(req.params.id);
+  if (!job) return res.status(404).render('404');
+
+  const when = String(req.body.proposed_for || '').trim().replace('T', ' ');
+  if (!when) return res.redirect('/admin/jobs/' + job.id + '?schedule=missing');
+
+  db.prepare(
+    `update jobs
+        set proposed_for = ?, proposed_at = ?,
+            schedule_message = null, schedule_responded_at = null,
+            status = case when status in ('unscheduled', 'schedule_pending', 'scheduled')
+                          then 'schedule_pending' else status end
+      where id = ?`
+  ).run(when, nowIso(), job.id);
+
+  // Saved. Delivery comes after, and cannot undo it.
+  const { ok, reason } = await mail.sendScheduleEmail({
+    to: job.customer_email,
+    name: job.customer_name,
+    workRef: job.work_ref,
+    service: job.service,
+    proposedFor: when,
+    token: job.public_token
+  });
+
+  // Work reference and a reason code. Never the token, never the customer.
+  if (ok) console.log(`[mail] schedule proposal sent for ${job.work_ref}`);
+  else if (reason === 'no_email') console.log(`[mail] ${job.work_ref} has no email on file — nothing sent`);
+  else if (reason === 'not_configured')
+    console.log(`[mail] email is off — nothing sent for ${job.work_ref} (set RESEND_API_KEY and EMAIL_FROM)`);
+  else console.warn(`[mail] schedule email FAILED for ${job.work_ref} (${reason}) — contact the customer directly`);
+
+  res.redirect('/admin/jobs/' + job.id + '?schedule=' + (ok ? 'sent' : reason));
 });
 
 app.post('/admin/jobs/:id/expenses', requireAdmin, (req, res) => {

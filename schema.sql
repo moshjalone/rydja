@@ -25,10 +25,18 @@ create table if not exists customers (
   created_at text    not null default (datetime('now'))
 );
 
+-- work_ref is the permanent, human-readable reference for a piece of work
+-- (RYDJA-7K4M2Q). It is public, it is NOT a capability -- public_token stays
+-- the only thing that grants access -- and it never changes: the job a
+-- customer approves keeps the reference its request was given. Jobs reach it
+-- through lead_id rather than storing a copy, so the two can never disagree.
+-- Nullable only because SQLite cannot ALTER a NOT NULL column onto an existing
+-- table; every insert sets it, and the backfill in db.js fills in old rows.
 create table if not exists leads (
   id            integer primary key autoincrement,
   customer_id   integer not null references customers(id),
   public_token  text    not null unique,         -- customer's private link
+  work_ref      text,                            -- RYDJA-XXXXXX, public, permanent
   service       text    not null,
   description   text    not null,
   address       text,
@@ -58,13 +66,22 @@ create table if not exists quotes (
   responded_at text
 );
 
+-- Scheduling is a proposal the customer answers, not something the owner sets
+-- unilaterally: scheduled_for stays NULL until the customer accepts. The
+-- proposed_* columns hold the offer, schedule_responded_at is when the customer
+-- last answered one, and schedule_message is their "that time doesn't work"
+-- reply. No calendar, no slots -- one open offer at a time.
 create table if not exists jobs (
   id                  integer primary key autoincrement,
   lead_id             integer not null references leads(id),
   quote_id            integer not null references quotes(id),
   operator_id         integer not null references operators(id),
-  status              text    not null default 'unscheduled', -- unscheduled | scheduled | in_progress | complete | cancelled
-  scheduled_for       text,
+  status              text    not null default 'unscheduled', -- unscheduled | schedule_pending | scheduled | in_progress | complete | cancelled
+  scheduled_for       text,                      -- set only by customer acceptance
+  proposed_for        text,                      -- the time the owner offered
+  proposed_at         text,                      -- when that offer went out
+  schedule_responded_at text,                    -- when the customer last answered one
+  schedule_message    text,                      -- "what works better for you?"
   customer_total_cents integer not null,
   started_at          text,
   completed_at        text,
@@ -102,6 +119,9 @@ create table if not exists job_photos (
   created_at text    not null default (datetime('now'))
 );
 
+-- Note: the unique index on leads(work_ref) is created by migrate() in db.js,
+-- not here. An existing database reaches this file before the column has been
+-- added, and indexing a column that is not there yet fails the whole boot.
 create index if not exists idx_leads_status    on leads(status);
 create index if not exists idx_jobs_status     on jobs(status);
 create index if not exists idx_expenses_job    on job_expenses(job_id);

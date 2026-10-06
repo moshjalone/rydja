@@ -157,6 +157,7 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .badge.new,.badge.sent{background:#fff1a8}
 .badge.quoted{background:#dce7ff}
 .badge.approved,.badge.converted,.badge.scheduled{background:var(--accent)}
+.badge.schedule_pending{background:#dce7ff}
 .badge.in_progress{background:#ffd79a}
 .badge.complete{background:#cfe9d4}
 .badge.declined,.badge.cancelled{background:#f3d2cb}
@@ -201,6 +202,23 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .quote-panel{border:2px solid var(--ink)}
 .big-price{font-size:clamp(44px,9vw,64px);font-weight:900;letter-spacing:-.05em;line-height:1;margin:6px 0 8px}
 .price-note{color:var(--muted);font-size:14px;margin:0 0 4px;line-height:1.5}
+
+/* ---------- work reference ---------- */
+/* Permanent, public, said out loud. Monospace so a 2 and a Z cannot be
+   confused when someone is reading one back over the phone. */
+.work-ref{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin:0 0 4px}
+.ref-chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+
+/* ---------- scheduling ---------- */
+.big-when{font-size:28px;font-weight:900;letter-spacing:-.03em;line-height:1.15;margin:6px 0 10px}
+.ask-different{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+.ask-different summary{font-weight:800;font-size:14px;cursor:pointer;color:var(--muted)}
+.ask-different summary:hover{color:var(--ink)}
+.ask-different .stack-form{margin-top:14px}
+.schedule-state{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;margin:0 0 14px}
+.schedule-state dt{font-size:11px;font-weight:900;letter-spacing:.14em;color:var(--muted)}
+.schedule-state dd{margin:0;font-weight:800}
+.customer-msg{background:#fff1a8;border-radius:10px;padding:14px;margin:14px 0 0;font-size:14px;line-height:1.55;white-space:pre-wrap}
 .quote-notes{white-space:pre-wrap;line-height:1.6;background:#f6f3eb;padding:14px 16px;border-radius:10px;margin:18px 0 0;font-size:15px}
 .approve-row{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:24px}
 .bookmark-hint{color:var(--muted);font-size:13px;margin:24px 0 30px;padding:12px 14px;background:#e9e5da;border-radius:10px}

@@ -40,7 +40,10 @@ function freePort() {
  */
 async function startServer(extraEnv = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rydja-test-'));
-  const dbPath = path.join(dir, 'app.db');
+  // A suite may point the server at a database it prepared itself — a
+  // pre-migration one, say. The read handle has to follow it there, or it
+  // opens a path nothing ever creates.
+  const dbPath = extraEnv.DB_PATH || path.join(dir, 'app.db');
   const port = await freePort();
   const base = 'http://127.0.0.1:' + port;
 
@@ -86,7 +89,15 @@ async function startServer(extraEnv = {}) {
     });
   });
 
-  const read = new DatabaseSync(dbPath, { readOnly: true });
+  // If this throws, the child is already running and nothing has a handle to
+  // stop it — which hangs the whole runner rather than failing one test.
+  let read;
+  try {
+    read = new DatabaseSync(dbPath, { readOnly: true });
+  } catch (err) {
+    child.kill();
+    throw err;
+  }
 
   const get = (url, opts = {}) => fetch(base + url, { redirect: 'manual', ...opts });
 

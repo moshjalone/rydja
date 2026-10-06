@@ -1,10 +1,11 @@
-<%- include('../partials/head', { title: 'Job #' + job.id + ' · ' + job.customer_name, noindex: true }) %>
+<%- include('../partials/head', { title: 'Job ' + job.work_ref + ' · ' + job.customer_name, noindex: true }) %>
 <% var catLabel = function(v) { var f = expenseCategories.find(function(c) { return c.value === v; }); return f ? f.label : v; } %>
 
 <main class="shell dashboard">
   <div class="dash-head">
     <div>
       <div class="eyebrow"><a href="/admin/jobs">&larr; Job board</a></div>
+      <div class="work-ref">Job <%= job.work_ref %></div>
       <h1><%= job.customer_name %></h1>
       <p class="sub">
         <%= job.service %> &middot;
@@ -22,12 +23,60 @@
         <button class="button status-btn <%= job.status === s[0] ? 'active' : 'ghost' %>" type="submit" name="status" value="<%= s[0] %>"><%= s[1] %></button>
       <% }) %>
     </form>
-    <form method="post" action="/admin/jobs/<%= job.id %>/schedule" class="schedule-form">
-      <label>Scheduled for
-        <input type="datetime-local" name="scheduled_for" value="<%= job.scheduled_for ? job.scheduled_for.replace(' ', 'T').slice(0, 16) : '' %>">
+  </div>
+
+  <%# ---- scheduling: propose, the customer confirms ---- %>
+  <% var sched = scheduleState(job) %>
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Appointment</h2>
+      <span class="badge <%= sched === 'confirmed' ? 'scheduled' : sched === 'change_requested' ? 'declined' : sched === 'awaiting' ? 'schedule_pending' : '' %>"><%= scheduleStateLabels[sched] %></span>
+    </div>
+
+    <% if (scheduleMail && scheduleMail !== 'sent') { %>
+      <div class="form-error">
+        <% if (scheduleMail === 'missing') { %>
+          Pick a date and time before sending a proposal.
+        <% } else if (scheduleMail === 'no_email') { %>
+          Time proposed, but this customer has no email address. Call or text them, and send their private link.
+        <% } else if (scheduleMail === 'not_configured') { %>
+          Time proposed, but email is switched off: set <code>RESEND_API_KEY</code> and <code>EMAIL_FROM</code>. Contact the customer and send their private link.
+        <% } else { %>
+          Time proposed, but the email could not be delivered (<%= scheduleMail %>). Call or text the customer and send their private link manually.
+        <% } %>
+      </div>
+    <% } else if (scheduleMail === 'sent') { %>
+      <p class="price-note">Proposal emailed to the customer.</p>
+    <% } %>
+
+    <dl class="schedule-state">
+      <% if (job.proposed_for) { %>
+        <div><dt>PROPOSED</dt><dd><%= prettyWhen(job.proposed_for) %></dd></div>
+        <div><dt>SENT</dt><dd><%= prettyDate(job.proposed_at) %></dd></div>
+      <% } %>
+      <% if (job.scheduled_for) { %>
+        <div><dt>CONFIRMED</dt><dd><%= prettyWhen(job.scheduled_for) %></dd></div>
+      <% } %>
+      <% if (job.schedule_responded_at) { %>
+        <div><dt>CUSTOMER REPLIED</dt><dd><%= prettyDate(job.schedule_responded_at) %></dd></div>
+      <% } %>
+    </dl>
+
+    <% if (job.schedule_message) { %>
+      <div class="customer-msg"><strong>They asked for a different time:</strong>
+<%= job.schedule_message %></div>
+    <% } %>
+
+    <form method="post" action="/admin/jobs/<%= job.id %>/propose" class="schedule-form">
+      <label><%= job.proposed_for ? 'Propose a different time' : 'Propose a time' %>
+        <input type="datetime-local" name="proposed_for" value="<%= job.proposed_for ? job.proposed_for.replace(' ', 'T').slice(0, 16) : '' %>" required>
       </label>
-      <button class="button small" type="submit">Save</button>
+      <button class="button small" type="submit"><%= job.proposed_for ? 'Send new proposal' : 'Send proposal' %></button>
     </form>
+    <small class="fineprint">
+      The customer confirms on their own page. Nothing is booked &mdash; and <code>scheduled_for</code> stays empty &mdash;
+      until they do.
+    </small>
   </div>
 
   <div class="dash-grid">

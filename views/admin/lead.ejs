@@ -4,6 +4,7 @@
   <div class="dash-head">
     <div>
       <div class="eyebrow"><a href="/admin/leads">&larr; Lead inbox</a></div>
+      <div class="work-ref"><%= job ? 'Job' : 'Request' %> <%= lead.work_ref %></div>
       <h1><%= lead.customer_name %></h1>
       <p class="sub">
         <a class="text-link" href="tel:<%= telHref(lead.customer_phone) %>"><%= lead.customer_phone %></a>

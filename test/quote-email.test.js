@@ -275,7 +275,11 @@ test('no address, name, phone or token reaches the log', async () => {
   assert.ok(!log.includes(CUSTOMER.phone), 'a phone number must never be logged');
   assert.ok(!log.includes('12 Oak St'), 'nor a street address');
 
-  assert.match(log, /\[lead\] new lead #\d+ — .+ — \d+ photo\(s\)$/m, 'the accepted-lead line keeps its shape');
+  assert.match(
+    log,
+    /\[lead\] new lead #\d+ RYDJA-[A-Z0-9]{6} — .+ — \d+ photo\(s\)$/m,
+    'the accepted-lead line keeps its shape, now with the work reference'
+  );
 
   const mailLines = log.split('\n').filter((l) => l.includes('[mail]'));
   assert.ok(mailLines.length >= 3, 'the sends above should have been logged');
@@ -285,13 +289,15 @@ test('no address, name, phone or token reaches the log', async () => {
     assert.ok(!line.includes('Dana'), 'no first name either');
     assert.ok(!line.includes(CUSTOMER.phone), 'no phone number');
     assert.ok(!line.includes('@'), 'no address, and no sender either');
-    assert.match(line, /lead #\d+/, 'a lead id is the only identifier allowed');
+    // The permanent work reference is the identifier that may be logged: it is
+    // public by design, and it is what the owner would search for anyway.
+    assert.match(line, /RYDJA-[A-Z0-9]{6}/, 'a work reference is the only identifier allowed');
   }
 
   // The reasons that actually occurred, in the shape the runbook documents.
-  assert.match(log, /\[mail\] quote email sent for lead #\d+/);
-  assert.match(log, /\[mail\] lead #\d+ has no email on file/);
-  assert.match(log, /\[mail\] quote email FAILED for lead #\d+ \(http_422\)/);
+  assert.match(log, /\[mail\] quote email sent for RYDJA-[A-Z0-9]{6}/);
+  assert.match(log, /\[mail\] RYDJA-[A-Z0-9]{6} has no email on file/);
+  assert.match(log, /\[mail\] quote email FAILED for RYDJA-[A-Z0-9]{6} \(http_422\)/);
 
   assert.ok(lead, 'sanity: the suite created leads');
 });
