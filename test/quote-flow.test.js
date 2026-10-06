@@ -155,6 +155,32 @@ test('every artwork file is served, versioned, and well formed', async () => {
   }
 });
 
+// The same silent-failure class as a malformed SVG: an unterminated comment
+// swallows everything after it until the next close, and a stylesheet with one
+// in it drops whole blocks without a word. It cost me the entire mobile
+// layout once. Two counts catch it.
+test('the stylesheet is structurally sound', async () => {
+  const href = (await (await app.get('/')).text()).match(/href="(\/styles\.css[^"]*)"/);
+  assert.ok(href, 'the page should link a versioned stylesheet');
+
+  const css = await (await app.get(href[1])).text();
+
+  const opens = (css.match(/\/\*/g) || []).length;
+  const closes = (css.match(/\*\//g) || []).length;
+  assert.equal(opens, closes, 'every comment must be closed; an open one eats the rules after it');
+
+  const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(
+    (withoutComments.match(/{/g) || []).length,
+    (withoutComments.match(/}/g) || []).length,
+    'braces must balance'
+  );
+
+  // A couple of rules that must survive, as a canary for the whole file.
+  assert.match(css, /@media\(max-width:860px\)/, 'the mobile block must still be there');
+  assert.match(css, /\.nav>\.brand/, 'and the nav rules');
+});
+
 // ---------------------------------------------------------------- rejected
 
 test('a forged stamp is rejected', async () => {
