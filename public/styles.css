@@ -36,6 +36,7 @@ img{max-width:100%;display:block}
 .inline-form{display:inline-flex;gap:6px;align-items:center;margin:0}
 .right{display:flex;justify-content:flex-end;margin-top:20px}
 .center-cta{text-align:center;margin-top:40px}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:26px}
 
 /* ---------- marketing ---------- */
 .hero{min-height:600px;display:grid;grid-template-columns:1.6fr .8fr;gap:70px;align-items:center;padding:70px 0}

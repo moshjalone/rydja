@@ -3,8 +3,16 @@
   <h2>Quote request sent</h2>
   <p class="lede smaller">We received your request and will review it shortly. We send the price straight to the phone number you gave us.</p>
   <% if (businessPhone) { %>
-    <p class="lede smaller">Need it sooner? Call or text <a class="text-link accent" href="tel:<%= businessPhone %>"><%= businessPhone %></a>.</p>
+    <p class="lede smaller">Need it sooner? Call or text us.</p>
   <% } %>
-  <a class="button" href="/">Back to the homepage</a>
+  <div class="cta-row">
+    <%# A tel: link on the lime accent was unreadable on this light background.
+        Same page, same place — just the dark button, which is also a proper
+        tap target on a phone. %>
+    <% if (businessPhone) { %>
+      <a class="button" href="tel:<%= businessPhone %>"><%= businessPhone %></a>
+    <% } %>
+    <a class="button ghost" href="/">Back to the homepage</a>
+  </div>
 </main>
 <%- include('partials/foot') %>

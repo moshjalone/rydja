@@ -10,6 +10,7 @@ const multer = require('multer');
 const { db, ownerOperator } = require('./db');
 const { rateLimit, formStamp, checkStamp } = require('./security');
 const { runBackup } = require('./backup');
+const mail = require('./mail');
 const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
 
@@ -649,12 +650,21 @@ app.get('/admin/leads/:id', requireAdmin, (req, res) => {
     )
     .all(lead.customer_id, lead.id);
 
-  res.render('admin/lead', { lead, photos, quote, job, history });
+  // Outcome of the email the last quote tried to send, so a delivery failure
+  // is visible on the page and not only in the logs.
+  const mailState = typeof req.query.mail === 'string' ? req.query.mail : null;
+
+  res.render('admin/lead', { lead, photos, quote, job, history, mailState });
 });
 
 // Admin enters the quote by hand. Sending a new one replaces any unanswered quote.
-app.post('/admin/leads/:id/quote', requireAdmin, (req, res) => {
-  const lead = db.prepare('select * from leads where id = ?').get(req.params.id);
+app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
+  const lead = db
+    .prepare(
+      `select l.id, l.public_token, c.name as customer_name, c.email as customer_email
+         from leads l join customers c on c.id = l.customer_id where l.id = ?`
+    )
+    .get(req.params.id);
   if (!lead) return res.status(404).render('404');
 
   const cents = toCents(req.body.amount);
@@ -662,17 +672,44 @@ app.post('/admin/leads/:id/quote', requireAdmin, (req, res) => {
     return res.redirect('/admin/leads/' + lead.id + '?error=amount');
   }
 
+  const notes = clean(req.body.notes, LIMITS.notes) || null;
+
+  // A quote already on file means this one revises it, which changes how the
+  // email reads. Read that before the write replaces it.
+  const revised = Boolean(db.prepare('select id from quotes where lead_id = ? limit 1').get(lead.id));
+
   db.transaction(() => {
     db.prepare("delete from quotes where lead_id = ? and status = 'sent'").run(lead.id);
     db.prepare('insert into quotes (lead_id, amount_cents, notes, status) values (?, ?, ?, \'sent\')').run(
       lead.id,
       cents,
-      clean(req.body.notes, LIMITS.notes) || null
+      notes
     );
     db.prepare("update leads set status = 'quoted' where id = ?").run(lead.id);
   })();
 
-  res.redirect('/admin/leads/' + lead.id);
+  // The quote is saved. Everything below is delivery, and delivery cannot undo
+  // it — the worst case is the owner texting the link by hand, exactly as they
+  // did before this existed. sendQuoteEmail never throws and never rejects.
+  const { ok, reason } = await mail.sendQuoteEmail({
+    to: lead.customer_email,
+    name: lead.customer_name,
+    amountCents: cents,
+    notes,
+    token: lead.public_token,
+    revised
+  });
+
+  // Lead id and a fixed reason code only — never the address, name or token.
+  // A deployment with no email configured is a choice, not a fault, so it is
+  // not warned about on every single quote.
+  if (ok) console.log(`[mail] quote email sent for lead #${lead.id}`);
+  else if (reason === 'no_email') console.log(`[mail] lead #${lead.id} has no email on file — nothing sent`);
+  else if (reason === 'not_configured')
+    console.log(`[mail] email is off — nothing sent for lead #${lead.id} (set RESEND_API_KEY and EMAIL_FROM)`);
+  else console.warn(`[mail] quote email FAILED for lead #${lead.id} (${reason}) — text the customer instead`);
+
+  res.redirect('/admin/leads/' + lead.id + '?mail=' + (ok ? 'sent' : reason));
 });
 
 app.post('/admin/leads/:id/status', requireAdmin, (req, res) => {

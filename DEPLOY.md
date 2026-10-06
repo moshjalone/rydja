@@ -208,6 +208,43 @@ is not a backup.
 
 ---
 
+## Customer email (Resend)
+
+When the owner sends or revises a quote, the customer gets an email with the
+amount, any notes, and a button to their private `/q/<token>` page where they
+approve or decline. Optional: leave it unconfigured and the app behaves exactly
+as it did before — the quote saves and the owner texts the link by hand.
+
+1. Make a Resend account and verify the sending domain (`getrydja.com`).
+2. Create an API key.
+3. Set both variables on the service and redeploy.
+
+| Variable | Value |
+|---|---|
+| `RESEND_API_KEY` | `re_...` from Resend |
+| `EMAIL_FROM` | `RYDJA <quotes@getrydja.com>` — must be on the verified domain |
+
+`SITE_URL` must be correct too: the link in the email is `SITE_URL` + `/q/<token>`.
+
+**Email never blocks a quote.** The quote is committed before anything is sent,
+so a missing key, a provider outage or a bad address cannot lose it. When
+delivery fails the lead page says so, and the log says why:
+
+```
+[mail] quote email sent for lead #12
+[mail] lead #13 has no email on file — nothing sent
+[mail] quote email FAILED for lead #14 (http_422) — text the customer instead
+```
+
+The reason is a fixed code — `http_<status>`, `timeout`, `network_error`,
+`not_configured`, `no_email`. No address, name, phone or quote token is ever
+logged, and the provider's response body is never printed, because a bounce
+message repeats the recipient address back at you.
+
+No SMS, no queue, no retries. If an email fails, text the customer.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.
@@ -278,6 +315,13 @@ procedure during an outage.
 `PORT` (host sets it), `BRAND_NAME`, `BRAND_TAGLINE`, `SITE_URL`, `BUSINESS_PHONE`, `OWNER_NAME`,
 `OWNER_PHONE`, `OWNER_EMAIL`, `BACKUP_DAILY`, `BACKUP_HOUR`,
 `BACKUP_KEEP_LOCAL`, `BACKUP_S3_*`.
+
+Customer email — set both or neither:
+
+| Variable | Value |
+|---|---|
+| `RESEND_API_KEY` | `re_...`. Unset means no email is sent; quotes still save |
+| `EMAIL_FROM` | Sender on a domain verified in Resend |
 
 ### Escape hatches — leave unset unless something is broken
 
