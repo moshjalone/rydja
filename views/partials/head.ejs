@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="/styles.css?v=<%= assetV.css %>">
   <%# The stylesheet cannot carry a version into its own url(), so the hero art
       is passed in as a custom property and versioned here instead. %>
-  <style>:root{--hero-art:url("/hero.svg?v=<%= assetV.hero %>")}</style>
+  <style>:root{--hero-art:url("/hero.svg?v=<%= assetV.hero %>");--rig-art:url("/rig.svg?v=<%= assetV.rig %>")}</style>
   <script src="/app.js?v=<%= assetV.js %>" defer></script>
 </head>
 <body>

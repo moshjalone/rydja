@@ -125,24 +125,34 @@ test('every tel: link is dialable, and the number still reads as a number', asyn
 // and no broken-image box -- the hero simply goes blank. A stray double hyphen
 // inside a comment did exactly that, and it cost a round trip to spot. Two
 // assertions make it impossible to ship again.
-test('the hero artwork is served, versioned, and well formed', async () => {
+test('every artwork file is served, versioned, and well formed', async () => {
   const page = await (await app.get('/')).text();
-  const ref = page.match(/--hero-art:url\("([^"]+)"\)/);
-  assert.ok(ref, 'the homepage should hand the artwork URL to CSS');
-  assert.match(ref[1], /^\/hero\.svg\?v=[0-9a-f]{10}$/, 'and version it, so a deploy cannot serve a stale one');
 
-  const res = await app.get(ref[1]);
-  assert.equal(res.status, 200);
-  const svg = await res.text();
+  for (const [name, prop] of [['hero', '--hero-art'], ['rig', '--rig-art']]) {
+    // Character classes rather than backslash escapes: the pattern is built
+    // from a string, and one lost backslash turns a literal bracket into a
+    // capture group that quietly matches nothing.
+    const ref = page.match(new RegExp(prop + ':url[(]"([^"]+)"[)]'));
+    assert.ok(ref, 'the homepage should hand the ' + name + ' URL to CSS');
+    assert.match(
+      ref[1],
+      new RegExp('^/' + name + '[.]svg[?]v=[0-9a-f]{10}$'),
+      name + ' must be versioned, so a deploy cannot serve a stale one'
+    );
 
-  // XML forbids "--" inside a comment. Nothing warns you; the file is just
-  // discarded wholesale.
-  for (const block of svg.match(/<!--[\s\S]*?-->/g) || []) {
-    assert.ok(!block.slice(4, -3).includes('--'), 'XML comment contains "--": ' + block.slice(0, 70));
+    const res = await app.get(ref[1]);
+    assert.equal(res.status, 200, name + ' should be served');
+    const svg = await res.text();
+
+    // XML forbids "--" inside a comment. Nothing warns you; the file is just
+    // discarded wholesale.
+    for (const block of svg.match(/<!--[\s\S]*?-->/g) || []) {
+      assert.ok(!block.slice(4, -3).includes('--'), name + ' XML comment contains "--": ' + block.slice(0, 70));
+    }
+
+    assert.match(svg, /^<svg[^>]*viewBox="[-\d. ]+"/, name + ' needs a viewBox, which is what lets it scale');
+    assert.match(svg, /<\/svg>\s*$/, name + ' needs a closing tag');
   }
-
-  assert.match(svg, /^<svg[^>]*viewBox="[-\d. ]+"/, 'a viewBox, which is what lets it scale');
-  assert.match(svg, /<\/svg>\s*$/, 'and a closing tag');
 });
 
 // ---------------------------------------------------------------- rejected

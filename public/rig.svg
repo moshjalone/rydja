@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="500 500 480 100" role="img" aria-label="">
+  <!--
+    The pickup and loaded trailer from hero.svg, on their own and cropped
+    tight, for use at nav size.
+
+    Same coordinates as the hero so the two stay recognisably one drawing;
+    only the viewBox differs. Single flat ink, no rim light: the bar is cream,
+    and the brand lime that reads well against charcoal is near invisible on
+    it. A silhouette is the honest thing at 30 pixels tall anyway.
+
+    Decorative. The empty aria-label keeps it out of the accessibility tree.
+  -->
+  <g fill="#171816">
+    <!-- trailer deck and uprights -->
+    <path d="M506 556h228v10H506z"/>
+    <path d="M506 542h8v18h-8zM726 542h8v18h-8z"/>
+    <!-- the load -->
+    <path d="M518 556v-34h44v34zM570 556l8-42h40l8 42zM628 556v-26h48v26z"/>
+    <path d="M512 521l180-11v9l-180 11z"/>
+    <!-- tandem axle and fender -->
+    <path d="M540 560h96v7h-96z"/>
+    <circle cx="562" cy="576" r="16"/><circle cx="614" cy="576" r="16"/>
+    <!-- drawbar to the hitch -->
+    <path d="M734 558l42 9v8l-42-7z"/>
+    <!-- truck: bed, cab, hood -->
+    <path d="M756 574V538h84l10-32h56l22 32h36l8 10v26z"/>
+    <path d="M752 532h94v8h-94z"/>
+    <circle cx="792" cy="576" r="19"/><circle cx="938" cy="576" r="19"/>
+  </g>
+  <!-- cab glass, knocked back out of the body -->
+  <path d="M858 512h44l18 22h-62z" fill="#f3f0e8"/>
+</svg>

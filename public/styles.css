@@ -59,6 +59,23 @@ img{max-width:100%;display:block}
 .nav>nav{grid-area:1/1;justify-self:start;display:flex;gap:24px}
 .nav>.brand{grid-area:1/2;justify-self:center;font-size:26px}
 .nav>.button{grid-area:1/3;justify-self:end}
+/* The rig, parked in the open stretch between the wordmark and the call to
+   action -- the widest empty run in the bar, and it points at the button.
+   A pseudo-element, so it adds no markup and nothing for a screen reader to
+   find. It is the first thing to go when the bar gets tight. */
+.nav::after{
+  content:"";
+  grid-area:1/3;
+  justify-self:center;
+  width:150px;
+  height:32px;
+  background:var(--rig-art, url("/rig.svg")) center / contain no-repeat;
+  opacity:.55;
+}
+/* Needs roughly 325px of column to itself: the rig, the button, and air
+   between them. That holds from about 1000px up; below it the bar is better
+   off without. */
+@media(max-width:1000px){.nav::after{display:none}}
 .brand{font-weight:900;letter-spacing:-.04em;font-size:21px}
 .footer{display:flex;justify-content:space-between;gap:20px;padding:35px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:60px;align-items:flex-end}
 .footer .brand{font-size:16px;color:var(--ink)}
@@ -99,7 +116,12 @@ img{max-width:100%;display:block}
   background:
     /* keeps the headline legible over the busiest part of the art */
     linear-gradient(100deg, rgba(14,15,13,.96) 0%, rgba(14,15,13,.84) 30%, rgba(14,15,13,.24) 52%, rgba(14,15,13,.02) 76%, rgba(14,15,13,0) 100%),
-    var(--hero-art, url("/hero.svg")) center bottom / cover no-repeat,
+    /* Anchored right, not centred. The rig sits right of centre in the drawing,
+       and `cover` on a narrower desktop overflows horizontally -- centring that
+       overflow pushed the truck's nose off the edge at around 1150px. What gets
+       cropped instead is the quiet left side, which the overlay darkens to
+       almost nothing anyway. */
+    var(--hero-art, url("/hero.svg")) right bottom / cover no-repeat,
     #111210;
 }
 /* Lime light pooling off the top-right, and the floor falling away below. */

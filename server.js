@@ -454,7 +454,8 @@ const ASSET_V = {
   // The hero art is referenced from the stylesheet, which cannot be templated,
   // so its URL is handed to CSS as a custom property in the page head. Without
   // that it would be the one asset that could still go stale on its own.
-  hero: assetVersion('hero.svg')
+  hero: assetVersion('hero.svg'),
+  rig: assetVersion('rig.svg')
 };
 
 /**
