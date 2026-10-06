@@ -1,9 +1,29 @@
-<!doctype html>
+<%
+  // These come from the include() call in each page. An EJS include has its own
+  // scope, so a `var` in the parent template would not be visible here — each
+  // page must pass what it wants to override.
+  var pageTitle = locals.title ? locals.title + ' — ' + brand : brand + ' — ' + tagline;
+  var pageDescription = locals.description ||
+    'Cleanouts, hauling, yard cleanup, furniture removal and moving help. Send photos, get a price, get it handled.';
+  var isPrivate = locals.noindex === true;
+%><!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title><%= typeof title !== 'undefined' ? title + ' — ' + brand : brand + ' — Local Property Help, Handled' %></title>
+  <title><%= pageTitle %></title>
+  <meta name="description" content="<%= pageDescription %>">
+  <% if (isPrivate) { %>
+    <meta name="robots" content="noindex,nofollow">
+  <% } else { %>
+    <link rel="canonical" href="<%= siteUrl %><%= locals.canonicalPath || '/' %>">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="<%= brand %>">
+    <meta property="og:title" content="<%= pageTitle %>">
+    <meta property="og:description" content="<%= pageDescription %>">
+    <meta property="og:url" content="<%= siteUrl %><%= locals.canonicalPath || '/' %>">
+    <meta name="twitter:card" content="summary">
+  <% } %>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>

@@ -1,6 +1,6 @@
-# Property Services V1
+# RYDJA — Clear the way.
 
-A working app for taking local property-services jobs: customer sends photos →
+The app behind getrydja.com. Takes local property-services jobs: customer sends photos →
 you price it → they approve → it becomes a job → you log costs and salvage →
 you see what you actually made.
 

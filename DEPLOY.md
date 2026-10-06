@@ -1,4 +1,4 @@
-# Deploying Property Services V1
+# Deploying RYDJA
 
 **Recommendation: Render, Starter plan, with a persistent disk. About $8/month
 all in.** Reasoning is at the bottom; the steps below are for that path.
@@ -47,7 +47,7 @@ security updates, nginx, systemd and certificate renewal forever. Render is
 ### 1. Put the code on GitHub
 
 ```bash
-git remote add origin https://github.com/<you>/property-services-v1.git
+git remote add origin https://github.com/<you>/rydja.git
 git push -u origin main
 ```
 
@@ -98,7 +98,9 @@ node -e "console.log('ADMIN_PASSWORD=' + require('crypto').randomBytes(12).toStr
 | `DB_PATH` | `/var/data/app.db` | **Must** be on the disk |
 | `UPLOAD_DIR` | `/var/data/uploads` | **Must** be on the disk |
 | `BACKUP_DIR` | `/var/data/backups` | |
-| `BRAND_NAME` | your business name | |
+| `BRAND_NAME` | `RYDJA` | |
+| `BRAND_TAGLINE` | `Clear the way.` | |
+| `SITE_URL` | `https://getrydja.com` | Canonical / link-preview URLs |
 | `BUSINESS_PHONE` | your number | Shown to customers |
 | `OWNER_NAME` | your name | The operator record |
 | `TZ` | e.g. `America/Detroit` | So job times read correctly |
@@ -111,7 +113,7 @@ both correctly for Render.
 **Manual Deploy** → **Deploy latest commit**. Watch the log for:
 
 ```
-<BRAND> running on http://localhost:10000  (admin: /admin/login)
+RYDJA running on http://localhost:10000  (admin: /admin/login)
 [config] secure cookies: on | trust proxy: 1 | off-site backup: ...
 [backup] daily backup scheduled for 03:00 local time
 ```
@@ -119,7 +121,7 @@ both correctly for Render.
 If it says *"Refusing to start"*, a secret is missing or too weak — the log
 names which one. It never prints the value.
 
-Visit `https://<your-service>.onrender.com` and sign in at `/admin/login`.
+Visit `https://rydja.onrender.com` and sign in at `/admin/login`.
 
 ---
 
@@ -128,14 +130,14 @@ Visit `https://<your-service>.onrender.com` and sign in at `/admin/login`.
 Render issues and renews certificates automatically. There is no certbot step.
 
 1. Render → your service → **Settings** → **Custom Domains** → add
-   `yourbusiness.com` and `www.yourbusiness.com`.
+   `getrydja.com` and `www.getrydja.com`.
 2. Render shows the records to create. At your registrar (Namecheap, GoDaddy,
    Cloudflare):
 
 | Type | Name | Value |
 |---|---|---|
 | `A` | `@` | the IP Render shows |
-| `CNAME` | `www` | `<your-service>.onrender.com` |
+| `CNAME` | `www` | `rydja.onrender.com` |
 
 3. Wait for propagation (usually minutes, up to 48h). Render verifies the
    domain, then issues the certificate and redirects HTTP → HTTPS on its own.
@@ -148,8 +150,8 @@ HTTP and break the secure cookie.
 Confirm when done:
 
 ```bash
-curl -sI https://yourbusiness.com | head -1       # expect 200
-curl -sI http://yourbusiness.com | grep -i location  # expect https:// redirect
+curl -sI https://getrydja.com | head -1       # expect 200
+curl -sI http://getrydja.com | grep -i location  # expect https:// redirect
 ```
 
 ---
@@ -163,7 +165,7 @@ is not a backup** — configure the off-site half.
 ### Cloudflare R2 (recommended: 10 GB free, no egress fees)
 
 1. Cloudflare dashboard → **R2** → **Create bucket**, name it
-   `property-services-backups`.
+   `rydja-backups`.
 2. **Manage R2 API Tokens** → **Create API Token** → permission **Object Read &
    Write**, scoped to that bucket. Copy the Access Key ID and Secret.
 3. Note your endpoint: `https://<account-id>.r2.cloudflarestorage.com`
@@ -172,7 +174,7 @@ is not a backup** — configure the off-site half.
 | Variable | Value |
 |---|---|
 | `BACKUP_S3_ENDPOINT` | `https://<account-id>.r2.cloudflarestorage.com` |
-| `BACKUP_S3_BUCKET` | `property-services-backups` |
+| `BACKUP_S3_BUCKET` | `rydja-backups` |
 | `BACKUP_S3_ACCESS_KEY_ID` | *(from step 2)* |
 | `BACKUP_S3_SECRET_ACCESS_KEY` | *(from step 2)* |
 | `BACKUP_S3_REGION` | `auto` |
@@ -187,7 +189,7 @@ After the next deploy the startup line should read
 npm run backup
 ```
 
-Expect `offsite  property-services-backups/2026-10-06_03-00-00.tar.gz`.
+Expect `offsite  rydja-backups/2026-10-06_03-00-00.tar.gz`.
 
 ### Backup tuning
 
@@ -273,7 +275,7 @@ procedure during an outage.
 
 ### Optional
 
-`PORT` (host sets it), `BRAND_NAME`, `BUSINESS_PHONE`, `OWNER_NAME`,
+`PORT` (host sets it), `BRAND_NAME`, `BRAND_TAGLINE`, `SITE_URL`, `BUSINESS_PHONE`, `OWNER_NAME`,
 `OWNER_PHONE`, `OWNER_EMAIL`, `BACKUP_DAILY`, `BACKUP_HOUR`,
 `BACKUP_KEEP_LOCAL`, `BACKUP_S3_*`.
 

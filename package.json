@@ -1,8 +1,8 @@
 {
-  "name": "property-services-v1",
+  "name": "rydja",
   "version": "1.0.0",
   "private": true,
-  "description": "Local property services V1 — lead to quote to job to profit.",
+  "description": "RYDJA — local property services. Lead to quote to job to profit.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

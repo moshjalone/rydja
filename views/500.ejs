@@ -1,5 +1,4 @@
-<% var title = 'Something broke' %>
-<%- include('partials/head') %>
+<%- include('partials/head', { title: 'Something broke', noindex: true }) %>
 <main class="section shell narrow center-cta">
   <h2>Something broke.</h2>
   <p class="lede smaller">The error is in the server log. Try again, or go back.</p>

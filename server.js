@@ -59,8 +59,12 @@ function requiredSecrets() {
 const { pw: ADMIN_PASSWORD, secret: SESSION_SECRET } = requiredSecrets();
 
 const PORT = process.env.PORT || 3000;
-const BRAND = process.env.BRAND_NAME || 'WORKINGBRAND';
+const BRAND = process.env.BRAND_NAME || 'RYDJA';
+const TAGLINE = process.env.BRAND_TAGLINE || 'Clear the way.';
 const PHONE = process.env.BUSINESS_PHONE || '';
+
+// Used for canonical and link-preview URLs. No trailing slash.
+const SITE_URL = (process.env.SITE_URL || 'https://getrydja.com').replace(/\/+$/, '');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -290,7 +294,12 @@ app.use(
 // 404/500 pages can still render when a static request is what failed.
 app.use((req, res, next) => {
   res.locals.brand = BRAND;
+  res.locals.tagline = TAGLINE;
+  res.locals.siteUrl = SITE_URL;
   res.locals.businessPhone = PHONE;
+  // Customer links and admin pages must never be indexed; the public marketing
+  // pages should be. Each template overrides this where it differs.
+  res.locals.noindex = false;
   res.locals.services = SERVICES;
   res.locals.money = money;
   res.locals.prettyDate = prettyDate;

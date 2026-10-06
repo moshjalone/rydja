@@ -1,5 +1,8 @@
-<% var title = 'Request a Quote' %>
-<%- include('partials/head') %>
+<%- include('partials/head', {
+  title: 'Request a Quote',
+  canonicalPath: '/quote',
+  description: 'Send photos of the job and get a price back. No obligation.'
+}) %>
 <% var v = function(k, fallback) { return values && values[k] != null && values[k] !== '' ? values[k] : (fallback || ''); } %>
 
 <main class="section dark">

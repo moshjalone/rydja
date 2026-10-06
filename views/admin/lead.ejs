@@ -1,5 +1,4 @@
-<% var title = 'Lead #' + lead.id %>
-<%- include('../partials/head') %>
+<%- include('../partials/head', { title: 'Lead #' + lead.id + ' · ' + lead.customer_name, noindex: true }) %>
 
 <main class="shell dashboard">
   <div class="dash-head">

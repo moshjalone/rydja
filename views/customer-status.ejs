@@ -1,5 +1,4 @@
-<% var title = 'Your Job' %>
-<%- include('partials/head') %>
+<%- include('partials/head', { title: 'Your Job', noindex: true }) %>
 
 <main class="section shell narrow">
   <%# Reference is derived from the random token, not the sequential row id, so
