@@ -49,15 +49,25 @@ const db = {
   }
 };
 
+/** OWNER_* values, trimmed. Empty or unset means "no opinion". */
+function ownerFromEnv() {
+  return {
+    name: (process.env.OWNER_NAME || '').trim(),
+    phone: (process.env.OWNER_PHONE || '').trim(),
+    email: (process.env.OWNER_EMAIL || '').trim()
+  };
+}
+
 // There is exactly one operator in V1: the owner. Jobs still reference it by
 // id so contractors can be added later without touching the job model.
 function ownerOperator() {
   let owner = db.prepare("select * from operators where role = 'owner' order by id limit 1").get();
   if (!owner) {
+    const env = ownerFromEnv();
     const info = db.prepare('insert into operators (name, phone, email, role) values (?, ?, ?, ?)').run(
-      process.env.OWNER_NAME || 'Owner',
-      process.env.OWNER_PHONE || null,
-      process.env.OWNER_EMAIL || null,
+      env.name || 'Owner',
+      env.phone || null,
+      env.email || null,
       'owner'
     );
     owner = db.prepare('select * from operators where id = ?').get(info.lastInsertRowid);
@@ -65,6 +75,35 @@ function ownerOperator() {
   return owner;
 }
 
-ownerOperator();
+/**
+ * Keep the owner record in step with the environment on every boot, so OWNER_*
+ * stays the source of truth and a value like the business email can be filled
+ * in later without editing the database by hand.
+ *
+ * Deliberately narrow:
+ *  - scoped to that one row by id, so contractors added later are never touched
+ *  - an unset or empty variable leaves the stored value alone, so a dropped
+ *    variable cannot silently blank out real contact details
+ *  - writes only when something actually differs, so a normal boot is read-only
+ */
+function syncOwnerFromEnv() {
+  const owner = ownerOperator();
+  const env = ownerFromEnv();
 
-module.exports = { db, ownerOperator, DB_PATH };
+  const fields = ['name', 'phone', 'email'].filter(
+    (f) => env[f] && env[f] !== owner[f]
+  );
+  if (!fields.length) return owner;
+
+  db.prepare(
+    `update operators set ${fields.map((f) => f + ' = ?').join(', ')} where id = ?`
+  ).run(...fields.map((f) => env[f]), owner.id);
+
+  // Field names only — the values are the owner's personal contact details.
+  console.log(`[operator] owner record synced from environment: ${fields.join(', ')}`);
+  return db.prepare('select * from operators where id = ?').get(owner.id);
+}
+
+syncOwnerFromEnv();
+
+module.exports = { db, ownerOperator, syncOwnerFromEnv, DB_PATH };
