@@ -18,7 +18,7 @@
     <h2>Job complete.</h2>
     <p class="lede smaller">Finished <%= prettyDate(job.completed_at) %>. Thanks for the work.</p>
   <% } else if (job && job.scheduled_for && job.status === 'scheduled') { %>
-    <h2>You&rsquo;re scheduled.</h2>
+    <h2>You&rsquo;re booked.</h2>
     <p class="lede smaller">Confirmed for <strong><%= prettyWhen(job.scheduled_for) %></strong>. See you then.</p>
   <% } else { %>
     <h2>You&rsquo;re booked.</h2>
@@ -80,10 +80,37 @@
       <% if (quote.notes) { %><div class="quote-notes"><%= quote.notes %></div><% } %>
 
       <% if (quote.status === 'sent') { %>
-        <form method="post" action="/q/<%= lead.public_token %>/respond" class="approve-row">
-          <button class="button full" type="submit" name="decision" value="approve">Approve this quote</button>
-          <button class="linkish danger" type="submit" name="decision" value="decline">Decline</button>
-        </form>
+        <% if (quote.proposed_for) { %>
+          <%# Price and time in one decision. The time is still only an offer:
+              it reaches scheduled_for only by way of this button. %>
+          <div class="proposed-inline">
+            <div class="mini-label">PROPOSED APPOINTMENT</div>
+            <div class="big-when"><%= prettyWhen(quote.proposed_for) %></div>
+          </div>
+
+          <form method="post" action="/q/<%= lead.public_token %>/respond" class="approve-row">
+            <button class="button full" type="submit" name="decision" value="approve_confirm">Approve quote &amp; confirm time</button>
+          </form>
+
+          <details class="ask-different">
+            <summary>Approve, but I need a different time</summary>
+            <form method="post" action="/q/<%= lead.public_token %>/respond" class="stack-form">
+              <label>What works better for you?
+                <textarea name="message" rows="3" required placeholder="Example: Mornings are hard &mdash; any afternoon that week works."></textarea>
+              </label>
+              <button class="button ghost full" type="submit" name="decision" value="approve_change">Approve quote, send this time instead</button>
+            </form>
+          </details>
+
+          <form method="post" action="/q/<%= lead.public_token %>/respond" class="approve-row secondary-row">
+            <button class="linkish danger" type="submit" name="decision" value="decline">Decline quote</button>
+          </form>
+        <% } else { %>
+          <form method="post" action="/q/<%= lead.public_token %>/respond" class="approve-row">
+            <button class="button full" type="submit" name="decision" value="approve">Approve this quote</button>
+            <button class="linkish danger" type="submit" name="decision" value="decline">Decline</button>
+          </form>
+        <% } %>
         <small class="fineprint">
           By approving, you confirm you have authority to have the listed property removed. Items you want kept must be
           pointed out before the crew loads them. Once removed, material may be disposed of, recycled, donated, scrapped
@@ -104,6 +131,25 @@
     </dl>
     <p class="desc-block"><%= lead.description %></p>
   </div>
+
+  <%# ---- a question, at any point ---- %>
+  <% if (!quote || quote.status !== 'declined') { %>
+    <div class="panel" id="ask">
+      <h3>Ask a question</h3>
+      <% if (asked) { %>
+        <p class="price-note">Got it &mdash; we&rsquo;ll come back to you<% if (businessPhone) { %>, or call us on <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %>.</p>
+      <% } %>
+      <form method="post" action="/q/<%= lead.public_token %>/ask" class="stack-form">
+        <label>What would you like to know?
+          <textarea name="question" rows="3" required maxlength="1000" placeholder="Example: Does the price cover the shed out back?"><%= lead.customer_message || '' %></textarea>
+        </label>
+        <button class="button ghost full" type="submit">Send</button>
+      </form>
+      <% if (businessPhone) { %>
+        <small class="fineprint">Faster: call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a>.</small>
+      <% } %>
+    </div>
+  <% } %>
 
   <% if (photos.length) { %>
     <% ['before', 'after'].forEach(function(phase) {

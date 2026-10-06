@@ -72,6 +72,50 @@
         </label>
       </div>
 
+      <%# ---- optional: when would suit them ---- %>
+      <fieldset class="prefs">
+        <legend>When would you like us to come?</legend>
+        <p class="hint block">
+          These are preferred times, not confirmed appointments. We&rsquo;ll confirm availability with your quote.
+          Leave it blank if you&rsquo;d rather talk it through.
+        </p>
+
+        <div class="two">
+          <label>1st choice <span class="hint">optional</span>
+            <input type="date" name="preferred_date_1" value="<%= v('preferred_date_1') %>">
+          </label>
+          <label>Time of day
+            <select name="preferred_window_1">
+              <% timeWindows.forEach(function(w) { %>
+                <option value="<%= w.value %>"<%= (v('preferred_window_1') || 'flexible') === w.value ? ' selected' : '' %>><%= w.label %> &middot; <%= w.hint %></option>
+              <% }) %>
+            </select>
+          </label>
+        </div>
+
+        <div class="two">
+          <label>2nd choice <span class="hint">optional</span>
+            <input type="date" name="preferred_date_2" value="<%= v('preferred_date_2') %>">
+          </label>
+          <label>Time of day
+            <select name="preferred_window_2">
+              <% timeWindows.forEach(function(w) { %>
+                <option value="<%= w.value %>"<%= (v('preferred_window_2') || 'flexible') === w.value ? ' selected' : '' %>><%= w.label %> &middot; <%= w.hint %></option>
+              <% }) %>
+            </select>
+          </label>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" name="scheduling_flexible" value="1"<%= values && values.scheduling_flexible ? ' checked' : '' %>>
+          I&rsquo;m flexible &mdash; work around what suits you.
+        </label>
+
+        <label>Anything we should know about timing? <span class="hint">optional</span>
+          <textarea name="scheduling_note" rows="2" maxlength="300" placeholder="Example: After 3 PM is easiest. Gate code is on the sign."><%= v('scheduling_note') %></textarea>
+        </label>
+      </fieldset>
+
       <label class="upload">
         <span>Photos</span>
         <input type="file" name="photos" accept="image/*" multiple>

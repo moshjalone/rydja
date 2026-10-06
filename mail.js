@@ -90,20 +90,25 @@ function splitWhen(stored) {
  * @param {string} o.notes         admin notes meant for the customer, may be empty
  * @param {string} o.token         lead.public_token
  * @param {string} o.workRef       the permanent public reference, RYDJA-XXXXXX
+ * @param {string} o.proposedFor   an appointment offered with the quote, if any
  * @param {boolean} o.revised      true when this replaces an earlier quote
  */
-function renderQuoteEmail({ name, amountCents, notes, token, workRef, revised }) {
+function renderQuoteEmail({ name, amountCents, notes, token, workRef, proposedFor, revised }) {
   const { siteUrl, brand, phone } = config();
   const url = `${siteUrl}/q/${token}`;
   const amount = money(amountCents);
   const greeting = firstName(name) ? `Hi ${firstName(name)},` : 'Hi,';
+  const when = proposedFor ? splitWhen(proposedFor) : null;
   const intro = revised
     ? `We've revised the quote for your job. The updated price is ${amount}.`
     : `We've reviewed your request. Your quote is ${amount}.`;
 
-  const subject = workRef
-    ? `${revised ? 'Revised quote' : 'Your quote'} for ${workRef} — ${amount}`
-    : `${revised ? 'Revised quote' : 'Your quote'} from ${brand} — ${amount}`;
+  // The subject says what is actually in the email, so a customer with a time
+  // to agree to can see that before opening it.
+  const lead = revised ? 'Revised quote' : 'Your quote';
+  const subject = when
+    ? `${revised ? 'Revised quote' : 'Quote'} & proposed appointment from ${brand} — ${workRef}`
+    : `${lead} from ${brand} — ${amount}`;
 
   // Built up rather than filtered, so the blank lines that separate paragraphs
   // survive and only the optional blocks drop out.
@@ -111,7 +116,13 @@ function renderQuoteEmail({ name, amountCents, notes, token, workRef, revised })
   if (workRef) lines.push(`Reference: ${workRef}`, '');
   lines.push(intro);
   if (notes) lines.push('', 'Notes: ' + notes);
-  lines.push('', 'Review the full quote and approve or decline it here:', url);
+  if (when) {
+    lines.push('', 'Proposed appointment:', when.day + (when.time ? ' at ' + when.time : ''));
+    lines.push('', 'Review the quote here — you can approve it and confirm this time in one go,');
+    lines.push('or approve it and ask for a different time:', url);
+  } else {
+    lines.push('', 'Review the full quote and approve or decline it here:', url);
+  }
   lines.push('', 'Nothing is booked until you approve it.');
   if (phone) lines.push('', `Questions? Call or text ${phone}.`);
   lines.push('', `— ${brand}`);
@@ -148,11 +159,24 @@ function renderQuoteEmail({ name, amountCents, notes, token, workRef, revised })
           : ''
       }
 
+      ${
+        when
+          ? `<div style="border-top:1px solid #d8d4c9;padding-top:18px;margin-bottom:24px;">
+        <div style="font-size:11px;font-weight:900;letter-spacing:0.14em;color:#66685f;margin-bottom:10px;">PROPOSED APPOINTMENT</div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:-0.03em;line-height:1.2;">${escapeHtml(when.day)}</div>
+        ${when.time ? `<div style="font-size:18px;font-weight:800;margin-top:2px;">${escapeHtml(when.time)}</div>` : ''}
+      </div>`
+          : ''
+      }
+
       <a href="${escapeHtml(url)}" style="display:block;background:#171816;color:#ffffff;text-decoration:none;border-radius:999px;padding:16px 22px;font-weight:800;font-size:15px;text-align:center;">Review your quote</a>
 
       <p style="margin:18px 0 0;font-size:14px;line-height:1.6;color:#66685f;">
-        That link is private to you. Open it to see the full quote and approve or decline it &mdash;
-        nothing is booked until you approve.
+        That link is private to you. ${
+          when
+            ? 'Open it to approve the quote and confirm this time in one go &mdash; or approve it and ask for a different time.'
+            : 'Open it to see the full quote and approve or decline it.'
+        } Nothing is booked until you approve.
       </p>
     </div>
 
@@ -265,8 +289,10 @@ async function send({ to, subject, html, text }) {
 }
 
 /** Send the quote email. */
-async function sendQuoteEmail({ to, name, amountCents, notes, token, workRef, revised }) {
-  const { subject, html, text } = renderQuoteEmail({ name, amountCents, notes, token, workRef, revised });
+async function sendQuoteEmail({ to, name, amountCents, notes, token, workRef, proposedFor, revised }) {
+  const { subject, html, text } = renderQuoteEmail({
+    name, amountCents, notes, token, workRef, proposedFor, revised
+  });
   return send({ to, subject, html, text });
 }
 

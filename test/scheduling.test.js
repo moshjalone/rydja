@@ -229,7 +229,8 @@ test('accepting the time is what books it', async () => {
   assert.equal(after.schedule_message, null);
 
   const page = await (await app.get('/q/' + lead.public_token)).text();
-  assert.match(page, /You&rsquo;re scheduled\.|You’re scheduled\./);
+  assert.match(page, /You&rsquo;re booked\./);
+  assert.match(page, /Confirmed for/);
   assert.match(page, /May 14, 2026/);
 
   const admin = await (await app.get('/admin/jobs/' + job.id, { headers: { cookie } })).text();

@@ -105,6 +105,17 @@ const DISPOSITIONS = ['resell', 'scrap', 'donate', 'recycle', 'keep'];
 
 const JOB_STATUSES = ['unscheduled', 'schedule_pending', 'scheduled', 'in_progress', 'complete', 'cancelled'];
 
+// What the customer can ask for at intake. Preferences, not bookings -- none of
+// these ever reaches jobs.scheduled_for.
+const TIME_WINDOWS = [
+  { value: 'morning', label: 'Morning', hint: '8am - 12pm' },
+  { value: 'midday', label: 'Midday', hint: '11am - 2pm' },
+  { value: 'afternoon', label: 'Afternoon', hint: '12pm - 5pm' },
+  { value: 'evening', label: 'Evening', hint: 'after 5pm' },
+  { value: 'flexible', label: 'Flexible', hint: 'any time that day' }
+];
+const WINDOW_LABELS = Object.fromEntries(TIME_WINDOWS.map((w) => [w.value, w.label]));
+
 // ---------------------------------------------------------------- helpers
 
 const money = (cents) =>
@@ -137,6 +148,43 @@ const prettyWhen = (s) => {
 };
 
 const prettyStatus = (s) => String(s || '').replace(/_/g, ' ');
+
+/**
+ * A bare YYYY-MM-DD, as a person reads it: "Thursday, Oct 8".
+ *
+ * Built from the parts rather than parsed, because `new Date('2026-10-08')` is
+ * UTC midnight and prints as the 7th for anyone west of Greenwich. A preferred
+ * date is a day in the business's own calendar and has no time zone to convert.
+ */
+function prettyPrefDate(value) {
+  const [y, m, d] = String(value || '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const dt = new Date(y, m - 1, d);
+  return isNaN(dt) ? '' : dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+/**
+ * A date the customer could plausibly mean: a real calendar day, not in the
+ * past, not more than a year out. Anything else is dropped rather than argued
+ * about -- it is an optional preference, and refusing the whole lead over it
+ * would be the worst possible trade.
+ */
+function cleanPrefDate(value) {
+  const raw = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [y, m, d] = raw.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (isNaN(dt) || dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const aYearOut = new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+  if (dt < today || dt > aYearOut) return null;
+  return raw;
+}
+
+const cleanWindow = (value) =>
+  TIME_WINDOWS.some((w) => w.value === value) ? String(value) : null;
 
 /**
  * Where a job stands on scheduling, derived rather than stored -- the columns
@@ -204,7 +252,7 @@ function clean(input, maxLen) {
 const LIMITS = {
   name: 80, phone: 25, email: 120, address: 120, city: 60,
   state: 30, zip: 12, service: 60, description: 4000, access: 60, timing: 40,
-  note: 200, title: 120, notes: 2000
+  note: 200, title: 120, notes: 2000, schedulingNote: 300, question: 1000
 };
 
 const digitsOnly = (s) => String(s).replace(/\D/g, '');
@@ -356,6 +404,9 @@ app.use((req, res, next) => {
   res.locals.prettyStatus = prettyStatus;
   res.locals.telHref = telHref;
   res.locals.scheduleState = scheduleState;
+  res.locals.prettyPrefDate = prettyPrefDate;
+  res.locals.timeWindows = TIME_WINDOWS;
+  res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
   next();
@@ -491,7 +542,15 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     service: clean(b.service, LIMITS.service),
     description: clean(b.description, LIMITS.description),
     access: clean(b.access, LIMITS.access),
-    timing: clean(b.timing, LIMITS.timing)
+    timing: clean(b.timing, LIMITS.timing),
+    // Optional throughout. A bad date is dropped, never a reason to refuse the
+    // lead -- the job is the point, the preference is a courtesy.
+    prefDate1: cleanPrefDate(b.preferred_date_1),
+    prefWindow1: cleanWindow(b.preferred_window_1),
+    prefDate2: cleanPrefDate(b.preferred_date_2),
+    prefWindow2: cleanWindow(b.preferred_window_2),
+    schedulingFlexible: b.scheduling_flexible ? 1 : 0,
+    schedulingNote: clean(b.scheduling_note, LIMITS.schedulingNote)
   };
 
   const errors = [];
@@ -515,7 +574,7 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     for (const file of req.files || []) fs.unlink(file.path, () => {});
     return res.status(400).render('quote', {
       service: f.service,
-      values: f,
+      values: Object.assign({}, b, f),
       stamp: formStamp(SESSION_SECRET),
       error
     });
@@ -545,8 +604,10 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     const token = crypto.randomBytes(16).toString('hex');
     const lead = db
       .prepare(
-        `insert into leads (customer_id, public_token, work_ref, service, description, address, city, state, zip, access, timing)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `insert into leads (customer_id, public_token, work_ref, service, description, address, city, state, zip,
+                            access, timing, pref_date_1, pref_window_1, pref_date_2, pref_window_2,
+                            scheduling_flexible, scheduling_note)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         customer.id,
@@ -559,7 +620,13 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
         f.state || null,
         f.zip,
         f.access || null,
-        f.timing || null
+        f.timing || null,
+        f.prefDate1,
+        f.prefDate1 ? f.prefWindow1 || 'flexible' : null,
+        f.prefDate2,
+        f.prefDate2 ? f.prefWindow2 || 'flexible' : null,
+        f.schedulingFlexible,
+        f.schedulingNote || null
       );
 
     const addPhoto = db.prepare('insert into lead_photos (lead_id, filename) values (?, ?)');
@@ -599,41 +666,105 @@ app.get('/q/:token', (req, res) => {
   const job = quote ? db.prepare('select * from jobs where quote_id = ?').get(quote.id) : null;
   const photos = job ? db.prepare('select * from job_photos where job_id = ? order by id').all(job.id) : [];
 
-  res.render('customer-status', { lead, quote, job, photos });
+  res.render('customer-status', {
+    lead,
+    quote,
+    job,
+    photos,
+    asked: req.query.asked === '1'
+  });
 });
 
+/**
+ * The customer answers the quote. Three ways to say yes:
+ *
+ *   approve          take the price; schedule later        -> unscheduled
+ *   approve_confirm  take the price AND the proposed time  -> scheduled
+ *   approve_change   take the price, not that time         -> schedule_pending
+ *
+ * All of it is one transaction, and the "is this quote still open?" check lives
+ * inside it. A double-clicked Approve finds the quote already approved on the
+ * second pass and changes nothing -- and if it somehow got that far, the unique
+ * index on jobs(quote_id) refuses the second row outright.
+ */
 app.post('/q/:token/respond', (req, res) => {
   const lead = db.prepare('select * from leads where public_token = ?').get(req.params.token);
   if (!lead) return res.status(404).render('404');
 
-  const quote = db.prepare('select * from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
-  if (!quote || quote.status !== 'sent') return res.redirect('/q/' + lead.public_token);
+  const decision = String(req.body.decision || '');
+  const approvals = { approve: 'later', approve_confirm: 'confirm', approve_change: 'change' };
+  const intent = approvals[decision];
+  if (!intent && decision !== 'decline') return res.redirect('/q/' + lead.public_token);
 
-  const approved = req.body.decision === 'approve';
+  // Their reason for wanting a different time, if that is what they chose.
+  const message = intent === 'change' ? clean(req.body.message, LIMITS.notes) : '';
 
-  db.transaction(() => {
+  const outcome = db.transaction(() => {
+    // Re-read inside the transaction: this is the check a second click races.
+    const quote = db.prepare('select * from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
+    if (!quote || quote.status !== 'sent') return 'already_answered';
+
     db.prepare('update quotes set status = ?, responded_at = ? where id = ?').run(
-      approved ? 'approved' : 'declined',
+      intent ? 'approved' : 'declined',
       nowIso(),
       quote.id
     );
 
-    if (!approved) {
+    if (!intent) {
       db.prepare("update leads set status = 'declined' where id = ?").run(lead.id);
-      return;
+      return 'declined';
     }
 
-    // Approved quote becomes a job, assigned to the owner operator.
+    // Only a time the owner proposed can be confirmed, and only confirming it
+    // fills scheduled_for. Nothing the customer typed at intake can reach here.
+    const proposed = quote.proposed_for || null;
+    const confirmed = intent === 'confirm' && proposed;
+
+    const status = confirmed ? 'scheduled' : proposed ? 'schedule_pending' : 'unscheduled';
+
     db.prepare(
-      `insert into jobs (lead_id, quote_id, operator_id, status, customer_total_cents)
-       values (?, ?, ?, 'unscheduled', ?)`
-    ).run(lead.id, quote.id, ownerOperator().id, quote.amount_cents);
+      `insert into jobs (lead_id, quote_id, operator_id, status, customer_total_cents,
+                         scheduled_for, proposed_for, proposed_at, schedule_responded_at, schedule_message)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      lead.id,
+      quote.id,
+      ownerOperator().id,
+      status,
+      quote.amount_cents,
+      confirmed ? proposed : null,
+      proposed,
+      proposed ? quote.created_at : null,
+      proposed ? nowIso() : null,
+      message || null
+    );
 
     db.prepare("update leads set status = 'converted' where id = ?").run(lead.id);
+    return confirmed ? 'scheduled' : status === 'schedule_pending' ? 'schedule_pending' : 'approved';
   })();
 
-  if (approved) console.log(`[job] quote #${quote.id} approved — job created for ${lead.work_ref}`);
+  // Reference and outcome only -- never the token, and never what they wrote.
+  if (outcome !== 'already_answered') console.log(`[job] ${lead.work_ref} quote ${outcome} by customer`);
   res.redirect('/q/' + lead.public_token);
+});
+
+/** "Ask a question" -- saved on the lead for the owner to answer by phone. */
+app.post('/q/:token/ask', (req, res) => {
+  const lead = db.prepare('select id, public_token, work_ref from leads where public_token = ?').get(req.params.token);
+  if (!lead) return res.status(404).render('404');
+
+  const question = clean(req.body.question, LIMITS.question);
+  if (!question) return res.redirect('/q/' + lead.public_token + '#ask');
+
+  db.prepare('update leads set customer_message = ?, customer_message_at = ? where id = ?').run(
+    question,
+    nowIso(),
+    lead.id
+  );
+
+  // The question is the customer's words; the owner reads it in the admin.
+  console.log(`[question] ${lead.work_ref} asked a question`);
+  res.redirect('/q/' + lead.public_token + '?asked=1#ask');
 });
 
 /**
@@ -767,7 +898,8 @@ app.get('/admin/leads/:id', requireAdmin, (req, res) => {
 app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
   const lead = db
     .prepare(
-      `select l.id, l.public_token, l.work_ref, c.name as customer_name, c.email as customer_email
+      `select l.id, l.public_token, l.work_ref, l.service,
+              c.name as customer_name, c.email as customer_email
          from leads l join customers c on c.id = l.customer_id where l.id = ?`
     )
     .get(req.params.id);
@@ -780,17 +912,19 @@ app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
 
   const notes = clean(req.body.notes, LIMITS.notes) || null;
 
+  // Optional. With one, the customer can agree to the price and the time in a
+  // single click; without one, the quote behaves exactly as it always has.
+  const proposedFor = String(req.body.proposed_for || '').trim().replace('T', ' ') || null;
+
   // A quote already on file means this one revises it, which changes how the
   // email reads. Read that before the write replaces it.
   const revised = Boolean(db.prepare('select id from quotes where lead_id = ? limit 1').get(lead.id));
 
   db.transaction(() => {
     db.prepare("delete from quotes where lead_id = ? and status = 'sent'").run(lead.id);
-    db.prepare('insert into quotes (lead_id, amount_cents, notes, status) values (?, ?, ?, \'sent\')').run(
-      lead.id,
-      cents,
-      notes
-    );
+    db.prepare(
+      "insert into quotes (lead_id, amount_cents, notes, proposed_for, status) values (?, ?, ?, ?, 'sent')"
+    ).run(lead.id, cents, notes, proposedFor);
     db.prepare("update leads set status = 'quoted' where id = ?").run(lead.id);
   })();
 
@@ -804,6 +938,8 @@ app.post('/admin/leads/:id/quote', requireAdmin, async (req, res) => {
     notes,
     token: lead.public_token,
     workRef: lead.work_ref,
+    service: lead.service,
+    proposedFor,
     revised
   });
 

@@ -257,6 +257,21 @@ job and its lead can never end up with different references.
 the reference on its own opens nothing. Sequential `lead.id` / `job.id` are never
 shown to a customer.
 
+At intake the customer may say when they'd like you — up to two preferred
+dates with a time window, a "flexible" flag and a note. All optional; a lead is
+never refused over them, and a date that cannot be real (free text, Feb 31st,
+last year, five years out) is dropped rather than argued about. They are shown
+on the lead page as **Customer availability**, next to the quote form.
+
+**A preference is not a booking.** Nothing the customer types at intake can
+reach `jobs.scheduled_for`. Only a time the owner proposed, and the customer
+then confirmed, ever fills it.
+
+Preferred dates are bare `YYYY-MM-DD` in local business time, stored exactly as
+picked — the same way `scheduled_for` is wall clock. There is no timezone
+conversion anywhere in scheduling, deliberately: a date rendered through UTC
+prints as the previous day for anyone west of Greenwich.
+
 Scheduling is a proposal the customer answers:
 
 ```
@@ -269,6 +284,24 @@ customer asks again  status = schedule_pending   scheduled_for stays NULL, messa
 A job is never "scheduled" because the owner suggested a time. Only acceptance
 books it. A new proposal replaces the open one, clears the change request, and
 emails again. There is no calendar, no slot picker and no reminders.
+
+### Quote and appointment in one answer
+
+A quote can carry a proposed appointment (`quotes.proposed_for`, optional). When
+it does, the customer's page offers one button for both — **Approve quote &
+confirm time** — and the job is created already scheduled. They can instead
+approve and ask for a different time, which creates the job `schedule_pending`
+with their message attached and `scheduled_for` still NULL. A quote sent without
+a time behaves exactly as it always has: approve, and the job arrives
+`unscheduled` for the owner to propose a time later.
+
+The approval is one transaction, and the "is this quote still open?" check lives
+inside it, so a double-tapped Approve cannot produce two jobs. A unique index on
+`jobs(quote_id)` is the backstop: one quote, one job, enforced by the database
+rather than by remembering to check.
+
+The quote email adapts — `Your quote from RYDJA — $450.00` with no time
+attached, `Quote & proposed appointment from RYDJA — RYDJA-7K4M2Q` with one.
 
 The proposal email needs the same `RESEND_API_KEY` / `EMAIL_FROM` as quotes, and
 like them it cannot cost you the proposal: if it is unconfigured, has no address
@@ -283,13 +316,19 @@ or what the customer wrote:
 [mail] schedule proposal sent for RYDJA-7K4M2Q
 [schedule] RYDJA-7K4M2Q change requested by customer
 [schedule] RYDJA-7K4M2Q confirmed by customer
+[job] RYDJA-7K4M2Q quote scheduled by customer
+[question] RYDJA-7K4M2Q asked a question
 ```
+
+A scheduling note, a change request and a customer's question are all their own
+words and stay out of the log entirely — the owner reads them in the admin.
 
 ### Upgrading an existing deployment
 
-Nothing to do. `migrate()` in `db.js` runs on boot: it adds `leads.work_ref` and
-the four `jobs.schedule_*` columns if they are missing, assigns a reference to
-every lead that has none, and creates the unique index. It is additive and
+Nothing to do. `migrate()` in `db.js` runs on boot: it adds `leads.work_ref`,
+the four `jobs.schedule_*` columns, the six `leads` preference columns and
+`quotes.proposed_for` if they are missing, assigns a reference to every lead
+that has none, and creates the unique indexes. It is additive and
 idempotent — tokens, quotes, jobs, photos, expenses and salvage rows are never
 touched, existing bookmarks keep working, and a second boot is a no-op. Take a
 backup first anyway (`npm run backup`); that advice never changes.

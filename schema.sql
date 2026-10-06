@@ -46,6 +46,19 @@ create table if not exists leads (
   access        text,
   timing        text,
   status        text    not null default 'new',   -- new | quoted | approved | declined | converted
+  -- What the customer said they would like, at intake. Preferences only: these
+  -- never reach jobs.scheduled_for. Dates are bare YYYY-MM-DD in local business
+  -- time, stored exactly as typed -- the same way scheduled_for is wall clock.
+  pref_date_1   text,
+  pref_window_1 text,                            -- morning | midday | afternoon | evening | flexible
+  pref_date_2   text,
+  pref_window_2 text,
+  scheduling_flexible integer not null default 0,
+  scheduling_note text,
+  -- "Ask a question" from the customer's own page. Latest one wins; the owner
+  -- reads it on the lead and answers by phone.
+  customer_message    text,
+  customer_message_at text,
   created_at    text    not null default (datetime('now'))
 );
 
@@ -62,6 +75,10 @@ create table if not exists quotes (
   amount_cents integer not null,
   notes        text,
   status       text    not null default 'sent',   -- sent | approved | declined
+  -- An appointment the owner attached when sending this quote, so the customer
+  -- can agree to the price and the time in one click. Still only a proposal:
+  -- it reaches jobs.scheduled_for only if they confirm it.
+  proposed_for text,
   created_at   text    not null default (datetime('now')),
   responded_at text
 );

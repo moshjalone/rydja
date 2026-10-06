@@ -118,6 +118,12 @@ function migrate() {
   for (const col of ['proposed_for', 'proposed_at', 'schedule_responded_at', 'schedule_message']) {
     addColumn('jobs', col, 'text');
   }
+  for (const col of ['pref_date_1', 'pref_window_1', 'pref_date_2', 'pref_window_2', 'scheduling_note',
+                     'customer_message', 'customer_message_at']) {
+    addColumn('leads', col, 'text');
+  }
+  addColumn('leads', 'scheduling_flexible', 'integer not null default 0');
+  addColumn('quotes', 'proposed_for', 'text');
 
   // Backfill before the unique index exists, so a half-migrated database with
   // several NULLs cannot trip over it on the way.
@@ -133,6 +139,22 @@ function migrate() {
   }
 
   db.exec('create unique index if not exists idx_leads_work_ref on leads(work_ref)');
+
+  // One quote can only ever become one job. The handler guards this inside a
+  // transaction, but a double-clicked Approve is exactly the case where a
+  // guard in application code is the wrong place to put the guarantee.
+  const duplicates = db
+    .prepare('select quote_id, count(*) as n from jobs group by quote_id having n > 1')
+    .all();
+  if (duplicates.length) {
+    // Never seen in practice; left as data rather than deleted behind the
+    // owner's back, because a job carries expenses and photos.
+    console.warn(
+      `[migrate] ${duplicates.length} quote(s) have more than one job; skipping the unique index on jobs(quote_id)`
+    );
+  } else {
+    db.exec('create unique index if not exists idx_jobs_quote on jobs(quote_id)');
+  }
 }
 
 migrate();

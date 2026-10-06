@@ -30,6 +30,28 @@
       </dl>
       <p class="desc-block"><%= lead.description %></p>
 
+      <%# ---- what the customer asked for at intake ---- %>
+      <% if (lead.pref_date_1 || lead.pref_date_2 || lead.scheduling_flexible || lead.scheduling_note) { %>
+        <h3 class="sub-head">Customer availability</h3>
+        <p class="price-note">Preferences from their request &mdash; not a booking.</p>
+        <dl class="kv">
+          <% if (lead.pref_date_1) { %>
+            <div><dt>1st choice</dt><dd><%= prettyPrefDate(lead.pref_date_1) %><br><%= windowLabels[lead.pref_window_1] || lead.pref_window_1 %></dd></div>
+          <% } %>
+          <% if (lead.pref_date_2) { %>
+            <div><dt>2nd choice</dt><dd><%= prettyPrefDate(lead.pref_date_2) %><br><%= windowLabels[lead.pref_window_2] || lead.pref_window_2 %></dd></div>
+          <% } %>
+          <div><dt>Flexible</dt><dd><%= lead.scheduling_flexible ? 'Yes' : 'No' %></dd></div>
+          <% if (lead.scheduling_note) { %><div><dt>Note</dt><dd><%= lead.scheduling_note %></dd></div><% } %>
+        </dl>
+      <% } %>
+
+      <% if (lead.customer_message) { %>
+        <h3 class="sub-head">They asked a question</h3>
+        <div class="customer-msg"><%= lead.customer_message %></div>
+        <p class="price-note">Sent <%= prettyDate(lead.customer_message_at) %>. Call them back.</p>
+      <% } %>
+
       <% if (history.length) { %>
         <h3 class="sub-head">Earlier requests from this customer</h3>
         <ul class="plain-list">
@@ -80,6 +102,20 @@
           <label>Notes shown to the customer <span class="hint">optional</span>
             <textarea name="notes" rows="4" placeholder="Includes labor, hauling and dump fees. Price assumes driveway access and nothing from the attic."><%= quote && quote.status !== 'approved' ? (quote.notes || '') : '' %></textarea>
           </label>
+
+          <%# Optional. With a time attached the customer can agree to both at
+              once; without one the quote behaves exactly as it always has. %>
+          <label>Propose an appointment <span class="hint">optional &mdash; they confirm it with the quote</span>
+            <input type="datetime-local" name="proposed_for" value="<%= quote && quote.status === 'sent' && quote.proposed_for ? quote.proposed_for.replace(' ', 'T').slice(0, 16) : '' %>">
+          </label>
+          <% if (lead.pref_date_1 || lead.pref_date_2) { %>
+            <small class="fineprint">
+              They asked for
+              <% if (lead.pref_date_1) { %><strong><%= prettyPrefDate(lead.pref_date_1) %>, <%= (windowLabels[lead.pref_window_1] || '').toLowerCase() %></strong><% } %>
+              <% if (lead.pref_date_2) { %> or <strong><%= prettyPrefDate(lead.pref_date_2) %>, <%= (windowLabels[lead.pref_window_2] || '').toLowerCase() %></strong><% } %>.
+              Use one of those or pick your own.
+            </small>
+          <% } %>
           <button class="button full" type="submit"><%= quote ? 'Send revised quote' : 'Send quote' %></button>
           <small class="fineprint">Then text the customer their link: <code>/q/<%= lead.public_token %></code></small>
         </form>
