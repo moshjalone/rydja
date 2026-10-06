@@ -44,18 +44,35 @@ test('the reference is not the database id, and leaks no sequence', async () => 
   const first = app.read.prepare('select * from leads order by id limit 1').get();
   const second = await createLead({ phone: '6165550201' }, '203.0.113.71');
 
+  // The reference must not be the row id in any dress. Note what is NOT
+  // asserted: that the id's digits are absent from the reference. "2" is in
+  // the alphabet, so roughly one reference in five contains it by chance --
+  // an earlier version of this test checked that and failed 19% of the time.
+  const suffix = second.work_ref.split('-')[1];
   assert.notEqual(second.work_ref, String(second.id));
-  assert.ok(!second.work_ref.includes(String(second.id)), 'the row id must not appear in it');
+  assert.notEqual(suffix, String(second.id));
+  assert.notEqual(suffix, String(second.id).padStart(6, '0'));
+  assert.notEqual(Number(suffix), second.id);
 
-  // Two consecutive rows must not produce adjacent references — that is the
-  // whole point of not exposing the primary key.
+  // Two consecutive rows must not produce adjacent references -- that is the
+  // whole point of not exposing the primary key. A counter would change one
+  // character and leave five alone; two random references agreeing in five of
+  // six positions has a probability around 3e-7, so this is a real check
+  // rather than a coin toss.
   assert.notEqual(first.work_ref, second.work_ref);
   assert.equal(second.id, first.id + 1, 'sanity: these really are consecutive rows');
-  assert.notEqual(
-    second.work_ref.slice(-1),
-    String.fromCharCode(first.work_ref.charCodeAt(first.work_ref.length - 1) + 1),
-    'references must not increment'
-  );
+
+  const a = first.work_ref.split('-')[1];
+  let shared = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] === suffix[i]) shared++;
+  assert.ok(shared <= 4, `consecutive references look sequential: ${a} vs ${suffix}`);
+
+  // And across the whole table they must not march in order.
+  const inRowOrder = app.read.prepare('select work_ref from leads order by id').all().map((l) => l.work_ref);
+  if (inRowOrder.length > 2) {
+    const sorted = [...inRowOrder].sort();
+    assert.notDeepEqual(inRowOrder, sorted, 'references must not ascend with the row id');
+  }
 
   // The unambiguous alphabet: nothing that can be misheard or miswritten.
   for (const ref of app.read.prepare('select work_ref from leads').all().map((l) => l.work_ref)) {

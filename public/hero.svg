@@ -72,7 +72,7 @@
        cab stepped up behind a sloped windscreen, then a hood dropping away to
        the front. That stepped roofline is what makes it read as a truck at a
        glance instead of a car. -->
-  <g transform="translate(470,0)" fill="#000000">
+  <g transform="translate(368,0)" fill="#000000">
     <!-- trailer deck and uprights -->
     <path d="M506 556h228v10H506z"/>
     <path d="M506 542h8v18h-8zM726 542h8v18h-8z"/>
@@ -92,7 +92,7 @@
   </g>
 
   <!-- lime rim light catching the top edges nearest the glow -->
-  <g transform="translate(470,0)" fill="#d9ff43" opacity=".55">
+  <g transform="translate(368,0)" fill="#d9ff43" opacity=".55">
     <path d="M850 506h56l3 4h-62z"/>
     <path d="M928 534h36l4 4h-44z"/>
     <path d="M578 514h40l1 5h-42zM628 530h48v4h-48zM518 522h44v4h-44z"/>

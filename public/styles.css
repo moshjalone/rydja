@@ -137,7 +137,7 @@ img{max-width:100%;display:block}
 .hero-actions{display:flex;gap:24px;align-items:center;margin-top:30px;flex-wrap:wrap}
 
 /* The quote card is the page's conversion element, so it is the one thing that
-   moves -- not the button beside it, and nothing else on the site. Six and a
+   moves -- not the button beside it, and nothing else on the site. Five and a
    half seconds for five pixels and a third of a degree.
 
    The card ships with a designed rotate(1deg) tilt, and animating `transform`
@@ -152,7 +152,7 @@ img{max-width:100%;display:block}
   75%    {transform:translate3d(-2px,-2.5px,0) rotate(.65deg)}
 }
 .quote-card{
-  animation:card-drift 6.5s cubic-bezier(.45,0,.55,1) infinite;
+  animation:card-drift 5.5s cubic-bezier(.45,0,.55,1) infinite;
   will-change:transform;
 }
 /* Settles the moment anyone reaches for it, including by keyboard. */
