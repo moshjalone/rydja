@@ -5,6 +5,42 @@
   --panel:#fffdf7; --accent:#d9ff43; --dark:#171816;
   --green:#1d7a3e; --red:#b3321f;
 }
+/* ---------- ground ----------
+   One fixed layer behind everything: a low sun off the top-right, a faint
+   tread texture, and the ground darkening toward the bottom of the viewport.
+   Pure gradients -- no image, no request, nothing to optimise -- and `fixed`
+   so scrolling composites rather than repaints.
+
+   Every layer is under 10% alpha. The opaque sections (.dark, .contrast) and
+   every .panel cover it completely, so it only ever shows behind the hero and
+   the open page ground, never behind body copy sitting on a card. */
+body::before,
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+}
+
+/* Light off the top-right, weight in the bottom corner, ground underfoot. */
+body::before{
+  background:
+    radial-gradient(900px 520px at 88% -8%, rgba(217,255,67,.10), transparent 62%),
+    radial-gradient(760px 460px at 2% 6%, rgba(23,24,22,.03), transparent 62%),
+    linear-gradient(to top, rgba(23,24,22,.05), transparent 36%);
+}
+
+/* The texture -- tread, corrugation, the side of a truck bed -- masked to the
+   lower half so it reads as the surface the page stands on. Tiled across the
+   whole viewport it was wallpaper; faded out before it reaches the headline it
+   is just grain. */
+body::after{
+  background:repeating-linear-gradient(135deg, rgba(23,24,22,.022) 0 1px, transparent 1px 14px);
+  -webkit-mask-image:radial-gradient(135% 78% at 50% 112%, #000 20%, transparent 72%);
+  mask-image:radial-gradient(135% 78% at 50% 112%, #000 20%, transparent 72%);
+}
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
@@ -46,6 +82,28 @@ img{max-width:100%;display:block}
 .lede{font-size:21px;line-height:1.5;max-width:700px;color:var(--muted)}
 .lede.smaller{font-size:18px}
 .hero-actions{display:flex;gap:24px;align-items:center;margin-top:30px;flex-wrap:wrap}
+
+/* The homepage's primary call to action, and nothing else on the site. Nine
+   seconds for three pixels and a third of a degree: enough that the eye
+   catches it on the way past, not enough to read as a moving thing. Transform
+   only, so it never costs a layout. */
+@keyframes cta-drift{
+  0%,100%{transform:translate3d(0,0,0) rotate(0deg)}
+  25%    {transform:translate3d(2.5px,-2px,0) rotate(.25deg)}
+  50%    {transform:translate3d(0,-3px,0) rotate(0deg)}
+  75%    {transform:translate3d(-2.5px,-2px,0) rotate(-.25deg)}
+}
+.hero-actions>.button{
+  animation:cta-drift 9s cubic-bezier(.45,0,.55,1) infinite;
+  will-change:transform;
+}
+/* Settles under the cursor rather than drifting away from it. */
+.hero-actions>.button:hover,
+.hero-actions>.button:focus-visible{animation-play-state:paused}
+
+@media (prefers-reduced-motion: reduce){
+  .hero-actions>.button{animation:none}
+}
 .trust-row{display:flex;gap:40px;margin-top:55px;flex-wrap:wrap}
 .trust-row div{display:flex;flex-direction:column}
 .trust-row span{font-size:13px;color:var(--muted);margin-top:4px}

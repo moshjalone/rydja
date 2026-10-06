@@ -82,7 +82,7 @@
 
         <div class="two">
           <label>1st choice <span class="hint">optional</span>
-            <input type="date" name="preferred_date_1" value="<%= v('preferred_date_1') %>">
+            <input type="date" name="preferred_date_1" min="<%= today %>" value="<%= v('preferred_date_1') %>">
           </label>
           <label>Time of day
             <select name="preferred_window_1">
@@ -95,7 +95,7 @@
 
         <div class="two">
           <label>2nd choice <span class="hint">optional</span>
-            <input type="date" name="preferred_date_2" value="<%= v('preferred_date_2') %>">
+            <input type="date" name="preferred_date_2" min="<%= today %>" value="<%= v('preferred_date_2') %>">
           </label>
           <label>Time of day
             <select name="preferred_window_2">

@@ -187,6 +187,20 @@ const cleanWindow = (value) =>
   TIME_WINDOWS.some((w) => w.value === value) ? String(value) : null;
 
 /**
+ * Today, YYYY-MM-DD, in the server's own timezone -- the same clock the
+ * business works to and the same one cleanPrefDate() validates against.
+ *
+ * Built from the local parts, not toISOString(), which is UTC and hands back
+ * tomorrow's date all evening anywhere west of Greenwich. Used only as the
+ * `min` on a date input, so the picker greys out the days the server would
+ * drop anyway; it is a courtesy, not the validation.
+ */
+function todayLocal() {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
+
+/**
  * Where a job stands on scheduling, derived rather than stored -- the columns
  * already say it, and a sixth column to keep in step with them would be one
  * more thing to get wrong.
@@ -406,6 +420,7 @@ app.use((req, res, next) => {
   res.locals.scheduleState = scheduleState;
   res.locals.prettyPrefDate = prettyPrefDate;
   res.locals.timeWindows = TIME_WINDOWS;
+  res.locals.today = todayLocal();
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
