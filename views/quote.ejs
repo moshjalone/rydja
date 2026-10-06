@@ -14,6 +14,14 @@
     <form class="quote-form" method="post" action="/quote" enctype="multipart/form-data">
       <% if (error) { %><div class="form-error"><%= error %></div><% } %>
 
+      <%# Bot filter. Both fields are invisible to people: the decoy is moved
+          off-screen and hidden from screen readers, and the stamp is a signed
+          timestamp so a scripted instant-submit can be told from a real one. %>
+      <div class="nope" aria-hidden="true">
+        <label>Company website<input type="text" name="company_website" tabindex="-1" autocomplete="off"></label>
+      </div>
+      <input type="hidden" name="form_stamp" value="<%= stamp %>">
+
       <div class="two">
         <label>Name<input required name="name" value="<%= v('name') %>" placeholder="Your name"></label>
         <label>Phone<input required name="phone" type="tel" value="<%= v('phone') %>" placeholder="(555) 555-5555"></label>

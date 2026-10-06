@@ -8,6 +8,10 @@ const cookieSession = require('cookie-session');
 const multer = require('multer');
 
 const { db, ownerOperator } = require('./db');
+const { rateLimit, formStamp, checkStamp, honeypotTripped } = require('./security');
+const { runBackup } = require('./backup');
+const { configFromEnv } = require('./s3');
+const scheduleBackup = require('./schedule-backup');
 
 // ---------------------------------------------------------------- config
 //
@@ -58,7 +62,19 @@ const PORT = process.env.PORT || 3000;
 const BRAND = process.env.BRAND_NAME || 'WORKINGBRAND';
 const PHONE = process.env.BUSINESS_PHONE || '';
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
-const SECURE_COOKIES = process.env.SECURE_COOKIES === '1';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Secure cookies are the default in production. SECURE_COOKIES=0 is the escape
+// hatch for the rare production host that terminates TLS somewhere we cannot
+// see; setting it on a plain-HTTP site would stop you logging in.
+const SECURE_COOKIES = process.env.SECURE_COOKIES
+  ? process.env.SECURE_COOKIES === '1'
+  : IS_PRODUCTION;
+
+// Every managed host (Render, Fly, Railway) puts a proxy in front of the app.
+// Without this, req.ip is the proxy's address — which would rate-limit every
+// customer as if they were one person — and req.secure is always false.
+const TRUST_PROXY = process.env.TRUST_PROXY || (IS_PRODUCTION ? '1' : '');
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -252,6 +268,11 @@ const app = express();
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
+
+// '1' = trust one proxy hop, which is what every managed host provides.
+// Trusting blindly would let a client spoof X-Forwarded-For and dodge limits.
+if (TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(TRUST_PROXY) ? Number(TRUST_PROXY) : TRUST_PROXY);
+
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 
 app.use(
@@ -322,6 +343,35 @@ const upload = multer({
   fileFilter: (req, file, cb) => cb(null, ALLOWED_IMAGES.has(file.mimetype))
 });
 
+// ---------------------------------------------------------------- limits
+//
+// Generous enough that a real customer never meets them: a household sending
+// two jobs in a day, or the owner mistyping a password twice, sails through.
+
+const quoteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  name: 'quote-form',
+  onBlock: (req, res) =>
+    res.status(429).render('quote', {
+      service: '',
+      values: {},
+      stamp: formStamp(SESSION_SECRET),
+      error:
+        'That is several requests in a short time. Please wait a little, or call us directly to get this moving.'
+    })
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  name: 'admin-login',
+  onBlock: (req, res, retryAfter) =>
+    res.status(429).render('admin/login', {
+      error: `Too many attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`
+    })
+});
+
 function requireAdmin(req, res, next) {
   if (req.session && req.session.admin) return next();
   req.session.returnTo = req.originalUrl;
@@ -335,11 +385,35 @@ app.get('/', (req, res) => res.render('home'));
 app.get('/services', (req, res) => res.render('services'));
 
 app.get('/quote', (req, res) =>
-  res.render('quote', { service: req.query.service || '', error: null, values: {} })
+  res.render('quote', {
+    service: clean(req.query.service, LIMITS.service),
+    error: null,
+    values: {},
+    stamp: formStamp(SESSION_SECRET)
+  })
 );
 
-app.post('/quote', upload.array('photos', 12), (req, res) => {
+app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
   const b = req.body;
+
+  // Bot filter. A real person takes more than three seconds to fill this in
+  // and never types in a field they cannot see. Both are silent to customers.
+  const stampState = checkStamp(b.form_stamp, SESSION_SECRET);
+  if (honeypotTripped(b) || stampState === 'too_fast' || stampState === 'bad') {
+    for (const file of req.files || []) fs.unlink(file.path, () => {});
+    console.warn(`[spam] rejected submission from ${req.ip} (${honeypotTripped(b) ? 'honeypot' : stampState})`);
+    // Looks like success to a bot, so it does not retune and retry.
+    return res.redirect('/quote?sent=1');
+  }
+  if (stampState === 'expired') {
+    for (const file of req.files || []) fs.unlink(file.path, () => {});
+    return res.status(400).render('quote', {
+      service: clean(b.service, LIMITS.service),
+      values: b,
+      stamp: formStamp(SESSION_SECRET),
+      error: 'This form was open for a while and timed out. Please re-send it — your details are still filled in.'
+    });
+  }
 
   const f = {
     name: clean(b.name, LIMITS.name),
@@ -374,7 +448,12 @@ app.post('/quote', upload.array('photos', 12), (req, res) => {
     // Anything already written to disk for a rejected submission is removed
     // rather than left as an orphan.
     for (const file of req.files || []) fs.unlink(file.path, () => {});
-    return res.status(400).render('quote', { service: f.service, values: f, error });
+    return res.status(400).render('quote', {
+      service: f.service,
+      values: f,
+      stamp: formStamp(SESSION_SECRET),
+      error
+    });
   }
 
   const photos = keepOnlyRealImages(req.files);
@@ -488,7 +567,7 @@ function passwordMatches(attempt) {
   return crypto.timingSafeEqual(a, b);
 }
 
-app.post('/admin/login', (req, res) => {
+app.post('/admin/login', loginLimiter, (req, res) => {
   if (passwordMatches(req.body.password || '')) {
     // New session id on login so a pre-set cookie cannot be reused.
     const back = typeof req.session.returnTo === 'string' && req.session.returnTo.startsWith('/admin')
@@ -770,7 +849,12 @@ app.use((err, req, res, next) => {
           ? 'Please send at most 12 photos.'
           : 'Those photos could not be read. Please try again.';
     if (req.path === '/quote') {
-      return res.status(400).render('quote', { service: '', values: req.body || {}, error: msg });
+      return res.status(400).render('quote', {
+        service: '',
+        values: req.body || {},
+        stamp: formStamp(SESSION_SECRET),
+        error: msg
+      });
     }
     return res.status(400).render('500');
   }
@@ -781,4 +865,21 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`${BRAND} running on http://localhost:${PORT}  (admin: /admin/login)`);
+
+  if (IS_PRODUCTION) {
+    console.log(
+      `[config] secure cookies: ${SECURE_COOKIES ? 'on' : 'OFF'} | ` +
+      `trust proxy: ${TRUST_PROXY || 'off'} | ` +
+      `off-site backup: ${configFromEnv() ? 'configured' : 'NOT CONFIGURED'}`
+    );
+  }
+
+  if (process.env.BACKUP_DAILY !== '0') {
+    const hour = Number(process.env.BACKUP_HOUR);
+    scheduleBackup.start({
+      runBackup,
+      hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 3,
+      stateFile: path.join(process.env.BACKUP_DIR || path.join(__dirname, 'backups'), '.last-run.json')
+    });
+  }
 });

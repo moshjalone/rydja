@@ -93,9 +93,14 @@ them. `VACUUM INTO` always writes one consistent file you can restore from.
 To restore, stop the server and copy the backup's `app.db` to `data/app.db` and
 the backup's `uploads/` contents into `uploads/`.
 
-Run it before any deploy or upgrade, and **copy the folder off this machine** —
-a backup sitting on the same disk as the original is not a backup. There is no
-automatic schedule; run it yourself, or add it to Task Scheduler/cron.
+A backup also runs automatically every day at 03:00 local time (set
+`BACKUP_HOUR`, or `BACKUP_DAILY=0` to turn it off). It checks every 15 minutes
+whether the day's run has happened, so a restart never skips a day.
+
+**A backup on the same disk as the original is not a backup.** Set the
+`BACKUP_S3_*` variables and each run also uploads one `.tar.gz` to object
+storage — Cloudflare R2's free tier covers this entirely. Setup and the full
+restore procedure are in [DEPLOY.md](DEPLOY.md).
 
 ## The flow
 
@@ -132,13 +137,19 @@ you record what the item really sold for. Unsold estimates show as a separate
 ## Files
 
 ```
-server.js      every route (public, customer, admin)
-db.js          SQLite connection + owner-operator seed
-schema.sql     the whole data model
-views/         EJS templates
-public/        styles.css
-uploads/       photos (gitignored)
-data/          app.db (gitignored)
+server.js            every route (public, customer, admin)
+db.js                SQLite connection + owner-operator seed
+schema.sql           the whole data model
+security.js          rate limiting + bot filtering
+backup.js            snapshot the database and photos
+schedule-backup.js   runs the daily backup in-process
+s3.js                signed upload to S3-compatible storage
+tar.js               minimal tar writer for the backup archive
+views/               EJS templates
+public/              styles.css
+uploads/             photos (gitignored)
+data/                app.db (gitignored)
+backups/             snapshots (gitignored)
 ```
 
 ## Configuration
@@ -146,9 +157,8 @@ data/          app.db (gitignored)
 All in `.env` — see `.env.example`. `BRAND_NAME` is used everywhere the business
 name appears, so renaming the company later is a one-line change.
 
-Set `SECURE_COOKIES=1` only once the site is actually served over HTTPS. It
-marks the session cookie secure so it is never sent over plain HTTP; setting it
-while running on `http://` will stop you logging in.
+Setting `NODE_ENV=production` turns on secure cookies and proxy trust together;
+you should not need to set either by hand.
 
 ## What protects what
 
@@ -166,12 +176,12 @@ while running on `http://` will stop you logging in.
 
 ## Deploying
 
-Any host that runs Node and gives you a persistent disk (Fly.io, Render,
-Railway, a VPS). Point `DB_PATH` and `UPLOAD_DIR` at that disk — if they land on
-ephemeral storage you lose your leads and photos on the next deploy.
+See **[DEPLOY.md](DEPLOY.md)** — host comparison, step-by-step setup, DNS and
+HTTPS, every environment variable, off-site backups and the restore procedure.
 
-Serve it over HTTPS and set `SECURE_COOKIES=1`. Without HTTPS your admin
-password crosses the network in the clear.
+Short version: Render Starter with a 1 GB persistent disk, about $8/month.
+Point `DB_PATH` and `UPLOAD_DIR` at the disk, set `NODE_ENV=production`, and
+configure the `BACKUP_S3_*` variables so backups leave the machine.
 
 ## Deliberately not built
 
