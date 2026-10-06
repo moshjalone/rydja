@@ -7,18 +7,95 @@ you see what you actually made.
 Nothing speculative is in here. No marketplace, no bidding, no dispatch, no
 analytics. One owner-operator, real jobs, real money.
 
-## Run it
+## First run
+
+Requires Node 22.5+. SQLite comes from Node itself (`node:sqlite`), so there is
+nothing to compile. Four dependencies: express, ejs, multer, cookie-session.
+
+**1. Install**
 
 ```bash
 npm install
-cp .env.example .env     # then edit .env — at minimum change ADMIN_PASSWORD
-npm run dev              # http://localhost:3000
 ```
 
-`npm start` for production (reads real environment variables instead of `.env`).
+**2. Create your `.env`**
 
-Requires Node 22.5+. SQLite comes from Node itself (`node:sqlite`), so there is
-nothing to compile. Four dependencies total: express, ejs, multer, cookie-session.
+```bash
+cp .env.example .env
+```
+
+**3. Set the two required secrets.** The app refuses to start without them —
+there are no defaults, because a default is how an app ends up live with a
+password of `changeme`.
+
+Generate a session secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Then edit `.env`:
+
+```
+ADMIN_PASSWORD=<your own password, 12+ characters, not a placeholder>
+SESSION_SECRET=<paste the 64-character string from the command above>
+```
+
+**4. Start it**
+
+```bash
+npm run dev     # local, auto-restarts on edits, reads .env
+npm start       # production, reads real environment variables
+```
+
+If a secret is missing, too short, or still a placeholder, the app prints
+exactly what is wrong and exits. It never prints the values themselves.
+
+**5. Open it**
+
+| | |
+|---|---|
+| Public site | <http://localhost:3000> |
+| Quote form | <http://localhost:3000/quote> |
+| Admin sign-in | <http://localhost:3000/admin/login> |
+| Lead inbox | <http://localhost:3000/admin/leads> |
+| Job board | <http://localhost:3000/admin/jobs> |
+
+Customers never sign in. Each request gets a private link at `/q/<token>` —
+that page is where they see the price and approve it. After you send a quote,
+**text them that link**; it is on the lead page in your admin.
+
+## Where your data lives
+
+| What | Path | Configurable with |
+|---|---|---|
+| Database | `./data/app.db` | `DB_PATH` |
+| Photos | `./uploads/` | `UPLOAD_DIR` |
+| Backups | `./backups/` | `BACKUP_DIR` |
+
+All three are gitignored. **Those two directories are the entire business** —
+every lead, every job, every photo. Nothing is stored anywhere else.
+
+## Backing up
+
+```bash
+npm run backup
+```
+
+Writes `backups/<timestamp>/` containing `app.db` plus every photo, and prints
+what it captured.
+
+The database is snapshotted with SQLite's `VACUUM INTO`, not a plain file copy.
+That matters: the database runs in WAL mode, so recent leads can still be
+sitting in `app.db-wal`, and copying `app.db` by itself would silently miss
+them. `VACUUM INTO` always writes one consistent file you can restore from.
+
+To restore, stop the server and copy the backup's `app.db` to `data/app.db` and
+the backup's `uploads/` contents into `uploads/`.
+
+Run it before any deploy or upgrade, and **copy the folder off this machine** —
+a backup sitting on the same disk as the original is not a backup. There is no
+automatic schedule; run it yourself, or add it to Task Scheduler/cron.
 
 ## The flow
 
@@ -66,13 +143,26 @@ data/          app.db (gitignored)
 
 ## Configuration
 
-All in `.env` — see `.env.example`. The two that matter before you go live:
+All in `.env` — see `.env.example`. `BRAND_NAME` is used everywhere the business
+name appears, so renaming the company later is a one-line change.
 
-- `ADMIN_PASSWORD` — the only thing protecting your admin pages
-- `SESSION_SECRET` — any long random string
+Set `SECURE_COOKIES=1` only once the site is actually served over HTTPS. It
+marks the session cookie secure so it is never sent over plain HTTP; setting it
+while running on `http://` will stop you logging in.
 
-`BRAND_NAME` is used everywhere the business name appears, so renaming the
-company later is a one-line change.
+## What protects what
+
+- **Admin pages** — password from `ADMIN_PASSWORD`, compared in constant time,
+  session in a signed `httpOnly` cookie. There is no account system and no
+  password reset; the password *is* the authentication.
+- **Customer pages** — the `/q/<token>` URL is the credential. Tokens are 128
+  bits from `crypto.randomBytes`, so they cannot be guessed or walked
+  sequentially, and the page shows a token-derived reference rather than the
+  internal row id.
+- **Photos** — stored under random 32-character hex names, validated by their
+  actual file signature (not the browser-supplied content type), and served
+  with `nosniff` and a sandbox CSP so a stored file can never execute.
+- **Uploads directory** — no directory listing, no dotfiles, no traversal.
 
 ## Deploying
 
@@ -80,8 +170,8 @@ Any host that runs Node and gives you a persistent disk (Fly.io, Render,
 Railway, a VPS). Point `DB_PATH` and `UPLOAD_DIR` at that disk — if they land on
 ephemeral storage you lose your leads and photos on the next deploy.
 
-Back up by copying `data/app.db` and the `uploads/` folder. That is the whole
-business.
+Serve it over HTTPS and set `SECURE_COOKIES=1`. Without HTTPS your admin
+password crosses the network in the clear.
 
 ## Deliberately not built
 
