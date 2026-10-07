@@ -582,6 +582,19 @@ Customer email — set both or neither:
 | `RESEND_API_KEY` | `re_...`. Unset means no email is sent; quotes still save |
 | `EMAIL_FROM` | Sender on a domain verified in Resend |
 
+### Cookie lifetimes
+
+Two cookies, deliberately configured apart. Both default to 30 days; set either
+on its own.
+
+| Variable | Default | What it controls |
+|---|---|---|
+| `ADMIN_SESSION_DAYS` | `30` | How long an admin stays signed in. This is a credential: shorten it freely, nothing else depends on it |
+| `ATTRIBUTION_DAYS` | `30` | How long `ps_attr` remembers which link brought a visitor, measured from their first visit. Holds no authority and grants nothing |
+
+The boot log prints both in production, so a change to one is never mistaken
+for the other.
+
 ### Escape hatches — leave unset unless something is broken
 
 | Variable | When |

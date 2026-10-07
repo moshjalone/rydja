@@ -78,6 +78,28 @@ const SECURE_COOKIES = process.env.SECURE_COOKIES
   ? process.env.SECURE_COOKIES === '1'
   : IS_PRODUCTION;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Positive number of days from an env var, or the default. */
+const days = (value, fallback) => {
+  const n = Number(value);
+  return isFinite(n) && n > 0 ? n : fallback;
+};
+
+// Two cookies, two lifetimes, set apart on purpose.
+//
+// ADMIN_SESSION_DAYS is how long a sign-in lasts. It is a credential, so the
+// number is a security decision and it is named here rather than inherited from
+// whatever the attribution window happens to be. Shorten it freely; nothing
+// about marketing depends on it.
+//
+// ATTRIBUTION_DAYS is how long we remember which link brought a visitor. It
+// holds no authority and grants nothing, so it can afford to outlive a browser
+// restart -- which it must, or a Facebook click on Monday earns nothing when
+// they come back and book on Thursday.
+const ADMIN_SESSION_DAYS = days(process.env.ADMIN_SESSION_DAYS, 30);
+const ATTRIBUTION_DAYS = days(process.env.ATTRIBUTION_DAYS, 30);
+
 // Every managed host (Render, Fly, Railway) puts a proxy in front of the app.
 // Without this, req.ip is the proxy's address — which would rate-limit every
 // customer as if they were one person — and req.secure is always false.
@@ -456,9 +478,11 @@ app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 
 app.use(
   cookieSession({
+    // Authenticated state only: an admin sign-in and where to send them back
+    // to afterwards. Nothing public belongs in here -- see ps_attr below.
     name: 'ps_session',
     keys: [SESSION_SECRET],
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    maxAge: ADMIN_SESSION_DAYS * DAY_MS,
     sameSite: 'lax',
     httpOnly: true,
     secure: SECURE_COOKIES
@@ -466,27 +490,48 @@ app.use(
 );
 
 /**
- * Remember which link brought this visitor, for as long as the visit lasts.
+ * Remember which link brought this visitor.
  *
  * Deliberately the smallest thing that works: the campaign parameters already
- * in the URL, plus the referring host the browser sends anyway, kept in the
- * session cookie that cookie-session is already managing. No script runs, no
- * third party is contacted, no identifier is minted, and nothing follows anyone
+ * in the URL, plus the referring host the browser sends anyway, in one signed
+ * first-party cookie of its own. No script runs, no third party is contacted,
+ * no identifier is minted, no timestamp is stored, and nothing follows anyone
  * off this site.
  *
- * Only the first public page of a visit is recorded. A visitor who arrives on
- * /junk-removal from an ad and then clicks through to /quote is still credited
- * to the ad -- which is the entire point, and the reason this cannot be done
- * from the quote form alone.
+ * First touch wins, permanently. A visitor who arrives on /junk-removal from an
+ * ad and then clicks through to /quote is credited to the ad -- and so is the
+ * same person coming back a fortnight later and typing the address in directly,
+ * because the cookie is already there and is never rewritten. That is the whole
+ * reason this cannot be done from the quote form alone.
+ *
+ * The cookie is written once and then left alone. Refreshing it on every page
+ * view would slide its expiry forward and turn "thirty days from the click"
+ * into "thirty days from whenever they last looked", which is a different
+ * measurement and not the one being claimed.
  */
 const ATTRIBUTABLE = /^\/(?!admin|q\/|uploads\/|api\/)[^.]*$/;
 
 app.use((req, res, next) => {
   // GET only, public pages only, and never a request for a file. The admin's
   // own browsing and a customer's private page say nothing about marketing.
-  if (req.method !== 'GET' || !req.session || !ATTRIBUTABLE.test(req.path)) return next();
-  // First one wins. A later page in the same visit never overwrites it.
-  if (!req.session.attr) req.session.attr = attribution.capture(req, SITE_URL);
+  if (req.method !== 'GET' || !ATTRIBUTABLE.test(req.path)) return next();
+
+  // Already attributed? Then there is nothing to do, today or ever again.
+  if (attribution.fromRequest(req, SESSION_SECRET)) return next();
+
+  // Attribution used to live inside ps_session. Carry anything still there
+  // across rather than relabelling a visitor who arrived before the split.
+  const legacy = req.session && req.session.attr;
+  const attr = legacy && typeof legacy === 'object' ? legacy : attribution.capture(req, SITE_URL);
+  if (req.session && req.session.attr) delete req.session.attr;
+
+  res.cookie(attribution.COOKIE_NAME, attribution.sign(attr, SESSION_SECRET), {
+    maxAge: ATTRIBUTION_DAYS * DAY_MS,
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: SECURE_COOKIES
+  });
   next();
 });
 
@@ -936,9 +981,9 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
         f.prefDate2 ? f.prefWindow2 || 'flexible' : null,
         f.schedulingFlexible,
         f.schedulingNote || null,
-        // Whatever the first page of this visit recorded. A visit we never saw
-        // writes nulls here rather than a guessed 'direct'.
-        ...attribution.leadValues(req.session && req.session.attr)
+        // Whatever the visitor's first page recorded, however long ago. A
+        // visitor we never saw writes nulls rather than a guessed 'direct'.
+        ...attribution.leadValues(attribution.fromRequest(req, SESSION_SECRET))
       );
 
     const addPhoto = db.prepare('insert into lead_photos (lead_id, filename) values (?, ?)');
@@ -1709,6 +1754,8 @@ app.listen(PORT, () => {
     console.log(
       `[config] secure cookies: ${SECURE_COOKIES ? 'on' : 'OFF'} | ` +
       `trust proxy: ${TRUST_PROXY || 'off'} | ` +
+      // Printed apart so a change to one is never mistaken for the other.
+      `admin session: ${ADMIN_SESSION_DAYS}d | attribution: ${ATTRIBUTION_DAYS}d | ` +
       `off-site backup: ${configFromEnv() ? 'configured' : 'NOT CONFIGURED'}`
     );
   }

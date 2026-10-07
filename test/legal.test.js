@@ -339,22 +339,25 @@ test('the site still ships no analytics, pixels or third-party scripts', async (
   }
 });
 
-// A public page now sets one cookie: our own session, holding which link
-// brought the visitor so their quote can be credited to it. That is a real
-// change from setting none, so what it may contain is pinned down here rather
-// than left to drift -- and the privacy policy has to keep saying so.
+// A public page sets exactly one cookie: ps_attr, holding which link brought
+// the visitor so their quote can be credited to it. Never ps_session -- that
+// one carries an admin sign-in and a visitor has no business holding it.
 test('public pages set one first-party cookie and nothing else', async () => {
   for (const path of ['/', '/services', '/quote', ...LEGAL_PAGES]) {
     const res = await app.get(path);
     const cookies = res.headers.getSetCookie();
 
-    assert.ok(cookies.length <= 2, path + ' sets too many cookies: ' + cookies.join(' | '));
-    for (const cookie of cookies) {
-      const name = cookie.split('=')[0];
-      assert.match(name, /^ps_session/, path + ' set an unexpected cookie: ' + name);
-      assert.match(cookie, /HttpOnly/i, 'the attribution cookie must not be readable by script');
-      assert.match(cookie, /SameSite=lax/i, 'it must not travel on a cross-site request');
-    }
+    assert.equal(cookies.length, 1, path + ' should set exactly one cookie: ' + cookies.join(' | '));
+    const [cookie] = cookies;
+    assert.match(cookie, /^ps_attr=/, path + ' set an unexpected cookie: ' + cookie.split('=')[0]);
+    assert.match(cookie, /HttpOnly/i, 'the attribution cookie must not be readable by script');
+    assert.match(cookie, /SameSite=Lax/i, 'it must not travel on a cross-site request');
+    assert.match(cookie, /Path=\//i, 'it has to be readable on every page of the site');
+
+    assert.ok(
+      !cookies.some((c) => c.startsWith('ps_session')),
+      path + ' must never hand a visitor the admin session cookie'
+    );
   }
 });
 

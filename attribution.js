@@ -143,6 +143,73 @@ function leadValues(stored) {
   return LEAD_COLUMNS.map((key) => clean(stored[key]));
 }
 
+// ------------------------------------------------------------------ the cookie
+//
+// Attribution lives in its own cookie, separate from the session that carries
+// an admin sign-in. They want opposite things: attribution is public, holds no
+// authority, and has to outlive a browser restart so a click today still earns
+// the lead next week; a sign-in is a credential and its lifetime is a security
+// decision. Sharing one cookie means every change to one is a change to the
+// other, and logging in used to wipe a visitor's attribution outright.
+//
+// Signed the same way the form stamp is -- HMAC-SHA256 over the payload, with a
+// constant-time compare -- so a visitor cannot invent a campaign for themselves
+// and nothing has to be trusted off the wire.
+
+const crypto = require('crypto');
+
+const COOKIE_NAME = 'ps_attr';
+
+/** `<payload>.<signature>`, both base64url. */
+function sign(value, secret) {
+  const body = Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', secret).update(body).digest('base64url').slice(0, 32);
+  return body + '.' + sig;
+}
+
+/** The value back, or null for anything at all suspicious. */
+function unsign(raw, secret) {
+  const [body, sig] = String(raw || '').split('.');
+  if (!body || !sig) return null;
+
+  const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url').slice(0, 32);
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  try {
+    const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cookies off the request. Express does not parse them without cookie-parser,
+ * and one small reader is a better trade than another dependency.
+ */
+function readCookie(req, name) {
+  const header = req.headers && req.headers.cookie;
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
+    try {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** What this browser was already carrying, verified. Null if it had nothing. */
+function fromRequest(req, secret) {
+  return unsign(readCookie(req, COOKIE_NAME), secret);
+}
+
 /** How a source reads in the admin. Unknown is an absence, not a bucket. */
 const SOURCE_LABELS = {
   google: 'Google',
@@ -159,9 +226,14 @@ module.exports = {
   UTM_KEYS,
   LEAD_COLUMNS,
   SOURCE_LABELS,
+  COOKIE_NAME,
   capture,
   leadValues,
   normalizeSource,
   referrerHost,
-  sourceLabel
+  sourceLabel,
+  sign,
+  unsign,
+  readCookie,
+  fromRequest
 };

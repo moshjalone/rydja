@@ -12,7 +12,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startServer, freshStamp, submission } = require('./helpers');
+const { startServer, freshStamp, submission, ADMIN_PASSWORD } = require('./helpers');
 const attribution = require('../attribution');
 
 const SITE = 'https://getrydja.com';
@@ -496,5 +496,199 @@ test('the attribution columns are additive and survive being migrated twice', as
   } catch (err) {
     try { fresh.stop(); } catch { /* already stopped */ }
     throw err;
+  }
+});
+
+// ------------------------------------------------------- the cookie itself
+//
+// ps_session used to carry both the admin sign-in and public attribution. They
+// are separate cookies now, and these tests exist to keep them that way: a
+// marketing window and a credential lifetime should never be one number.
+
+/** The Set-Cookie line for one cookie name, or null. */
+const setCookie = (res, name) =>
+  res.headers.getSetCookie().find((c) => c.startsWith(name + '=')) || null;
+
+const maxAge = (cookie) => {
+  const m = /max-age=(\d+)/i.exec(cookie || '');
+  return m ? Number(m[1]) : null;
+};
+
+/** The signed payload, decoded. It is signed, not secret. */
+const payloadOf = (cookie) => {
+  const value = decodeURIComponent(cookie.split('=').slice(1).join('=').split(';')[0]);
+  return JSON.parse(Buffer.from(value.split('.')[0], 'base64url').toString('utf8'));
+};
+
+test('attribution has its own cookie, and it is not the admin session', async () => {
+  const res = await app.get('/junk-removal?utm_source=google&utm_medium=cpc');
+
+  const attr = setCookie(res, 'ps_attr');
+  assert.ok(attr, 'a public page should set ps_attr');
+  assert.equal(setCookie(res, 'ps_session'), null, 'and must not set the admin session');
+
+  // 30 days, to the second.
+  assert.equal(maxAge(attr), 30 * 24 * 60 * 60);
+  assert.match(attr, /HttpOnly/i);
+  assert.match(attr, /SameSite=Lax/i);
+  assert.match(attr, /Path=\//i);
+});
+
+test('the attribution cookie is signed, and a forged one is ignored', async () => {
+  const res = await app.get('/?utm_source=facebook&utm_campaign=launch');
+  const cookie = setCookie(res, 'ps_attr');
+  assert.equal(payloadOf(cookie).source, 'facebook', 'the payload is readable: signed, not secret');
+
+  const value = decodeURIComponent(cookie.split('=').slice(1).join('=').split(';')[0]);
+  const sig = value.split('.')[1];
+
+  // Hand-written attribution must not be believed. A visitor who could forge
+  // this could credit any campaign they liked, which would quietly corrupt
+  // every number on the dashboard.
+  const forged =
+    Buffer.from(JSON.stringify({ source: 'google', campaign: 'not-ours', landing_path: '/' }))
+      .toString('base64url') + '.' + sig;
+
+  const submitted = await app.post('/quote',
+    submission({ phone: '6165550111', form_stamp: await freshStamp(app) }),
+    { ip: '203.0.113.90', headers: { cookie: 'ps_attr=' + encodeURIComponent(forged) } });
+  assert.equal(submitted.status, 302);
+
+  const lead = app.read.prepare('select * from leads order by id desc limit 1').get();
+  assert.equal(lead.source, null, 'a forged cookie records nothing at all');
+  assert.equal(lead.campaign, null);
+});
+
+test('attribution survives a browser restart', async () => {
+  // A restart drops session cookies and keeps the ones with a lifetime. The
+  // only thing that comes back is ps_attr, so that is all this sends.
+  const first = await app.get('/cleanouts?utm_source=facebook&utm_medium=social&utm_campaign=spring');
+  const jar = setCookie(first, 'ps_attr').split(';')[0];
+
+  // Weeks pass, the browser is closed and reopened, and they type the address
+  // in directly rather than clicking an advert again.
+  const later = await app.get('/', { headers: { cookie: jar } });
+  assert.equal(setCookie(later, 'ps_attr'), null, 'an attributed visitor is never re-cookied');
+
+  const page = await (await app.get('/quote', { headers: { cookie: jar } })).text();
+  const res = await app.post('/quote', submission({
+    phone: '6165550122',
+    form_stamp: page.match(/name="form_stamp" value="([^"]+)"/)[1]
+  }), { ip: '203.0.113.91', headers: { cookie: jar } });
+  assert.equal(res.status, 302);
+
+  const lead = app.read.prepare('select * from leads order by id desc limit 1').get();
+  assert.equal(lead.source, 'facebook', 'the original click still earns the lead');
+  assert.equal(lead.campaign, 'spring');
+  assert.equal(lead.landing_path, '/cleanouts');
+});
+
+test('a later direct visit never overwrites the original source', async () => {
+  const first = await app.get('/junk-removal?utm_source=google&utm_medium=cpc&utm_campaign=brand');
+  const jar = setCookie(first, 'ps_attr').split(';')[0];
+
+  // Several later visits, all untagged and with no referrer: textbook direct.
+  for (const path of ['/', '/services', '/', '/quote']) {
+    const res = await app.get(path, { headers: { cookie: jar } });
+    assert.equal(setCookie(res, 'ps_attr'), null, path + ' must not rewrite attribution');
+  }
+
+  // And a later visit from a different advert does not steal it either.
+  const stolen = await app.get('/?utm_source=facebook&utm_campaign=later', { headers: { cookie: jar } });
+  assert.equal(setCookie(stolen, 'ps_attr'), null, 'first touch is permanent');
+
+  const page = await (await app.get('/quote', { headers: { cookie: jar } })).text();
+  await app.post('/quote', submission({
+    phone: '6165550133',
+    form_stamp: page.match(/name="form_stamp" value="([^"]+)"/)[1]
+  }), { ip: '203.0.113.92', headers: { cookie: jar } });
+
+  const lead = app.read.prepare('select * from leads order by id desc limit 1').get();
+  assert.equal(lead.source, 'google');
+  assert.equal(lead.campaign, 'brand');
+});
+
+test('attribution stops counting once its lifetime is over', async () => {
+  // Expiry is the browser's job: past Max-Age it simply stops sending the
+  // cookie. The server side of that contract is twofold -- advertise the
+  // configured lifetime, and record nothing for a visitor who arrives without
+  // one. Both are checked here against a one-day window.
+  const short = await startServer({ SITE_URL: SITE, ATTRIBUTION_DAYS: '1' });
+  try {
+    const res = await short.get('/?utm_source=google');
+    assert.equal(maxAge(setCookie(res, 'ps_attr')), 24 * 60 * 60, 'a configured lifetime is honoured');
+
+    // The expired browser: no ps_attr, landing straight on the form.
+    const submitted = await short.post('/quote',
+      submission({ form_stamp: await freshStamp(short) }), { ip: '203.0.113.93' });
+    assert.equal(submitted.status, 302);
+
+    const lead = short.read.prepare('select * from leads order by id desc limit 1').get();
+    assert.equal(lead.source, null, 'an expired window attributes nothing rather than guessing');
+    assert.equal(lead.campaign, null);
+  } finally {
+    short.stop();
+  }
+});
+
+test('the admin session keeps its own lifetime and its own security', async () => {
+  const res = await app.post('/admin/login', { password: ADMIN_PASSWORD }, { ip: '203.0.113.94' });
+  assert.equal(res.status, 302);
+
+  const session = setCookie(res, 'ps_session');
+  assert.ok(session, 'signing in should set the session cookie');
+  assert.match(session, /httponly/i);
+  assert.match(session, /samesite=lax/i);
+  assert.match(session, /expires=/i, 'unchanged: the admin session is not session-only');
+
+  assert.equal(setCookie(res, 'ps_attr'), null, 'signing in is not a marketing event');
+});
+
+test('the two lifetimes are configured separately', async () => {
+  const split = await startServer({ SITE_URL: SITE, ATTRIBUTION_DAYS: '1', ADMIN_SESSION_DAYS: '7' });
+  try {
+    assert.equal(maxAge(setCookie(await split.get('/?utm_source=google'), 'ps_attr')),
+      24 * 60 * 60, 'attribution: one day');
+
+    const login = await split.post('/admin/login', { password: ADMIN_PASSWORD }, { ip: '203.0.113.95' });
+    const session = setCookie(login, 'ps_session');
+    const expires = new Date(/expires=([^;]+)/i.exec(session)[1]);
+    const daysAway = Math.round((expires - Date.now()) / (24 * 60 * 60 * 1000));
+
+    // Shortening a credential must never shorten the marketing window, and
+    // widening the marketing window must never extend a credential.
+    assert.equal(daysAway, 7, 'admin session: seven days, independent of attribution');
+    assert.notEqual(daysAway, 1);
+  } finally {
+    split.stop();
+  }
+});
+
+test('signing out clears the session and leaves attribution alone', async () => {
+  const visit = await app.get('/?utm_source=facebook&utm_campaign=keepme');
+  const jar = setCookie(visit, 'ps_attr').split(';')[0];
+  const admin = await app.adminCookie();
+
+  const out = await app.post('/admin/logout', {}, { headers: { cookie: admin + '; ' + jar } });
+  assert.equal(out.status, 302);
+  assert.equal(setCookie(out, 'ps_attr'), null, 'logging out must not touch a visitor cookie');
+});
+
+test('the attribution cookie carries no identifier and no timestamp', async () => {
+  const res = await app.get('/junk-removal?utm_source=google&utm_medium=cpc&utm_campaign=brand');
+  const payload = payloadOf(setCookie(res, 'ps_attr'));
+
+  assert.deepEqual(
+    Object.keys(payload).sort(),
+    ['campaign', 'content', 'landing_path', 'medium', 'referrer', 'source', 'term', 'utm_source'],
+    'exactly the attribution fields, and nothing else'
+  );
+
+  // Nothing that could identify this browser, or say when it was here.
+  const text = JSON.stringify(payload);
+  assert.ok(!/\d{10,}/.test(text), 'no timestamp');
+  assert.ok(!/[0-9a-f]{16,}/i.test(text), 'no identifier');
+  for (const field of ['id', 'uid', 'visitor', 'session', 'ip', 'ua', 'fingerprint', 'seen', 'at']) {
+    assert.ok(!(field in payload), 'must not carry ' + field);
   }
 });
