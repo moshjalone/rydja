@@ -1,14 +1,14 @@
 <%- include('partials/head', {
   title: 'Services',
   canonicalPath: '/services',
-  description: 'Junk and hauling, full cleanouts, yard cleanup, moving and delivery help, light demo. If it involves labor, a truck or getting something handled, send it in.'
+  description: 'Junk removal, garage and basement cleanouts, barn and storage unit cleanouts, estate and rental cleanouts, yard cleanup, furniture and appliance removal, moving help and light demolition.'
 }) %>
 
 <main class="section shell">
   <div class="section-heading">
     <div class="eyebrow">SERVICES</div>
-    <h2>What we take on.</h2>
-    <p class="lede smaller">Labor, a truck, cleanup, or just getting something handled. If it is physical property work, send it in.</p>
+    <h1>What we take on.</h1>
+    <p class="lede smaller">Labor, a truck, cleanup, or just getting something handled. If it is physical property work, send it in. Serving <%= serviceArea %>.</p>
   </div>
 
   <div class="service-grid">
@@ -19,6 +19,18 @@
         <a class="text-link" href="/quote?service=<%= encodeURIComponent(s.name) %>">Get a quote &rarr;</a>
       </article>
     <% }) %>
+  </div>
+
+  <%# The same work again, in the words a customer would actually type. One
+      honest list beats twenty thin pages that say the same thing. %>
+  <div class="panel">
+    <h2 class="sub-head">Every job we handle</h2>
+    <ul class="keyword-list">
+      <% serviceKeywords.forEach(function(k) { %><li><%= k.charAt(0).toUpperCase() + k.slice(1) %></li><% }) %>
+    </ul>
+    <p class="price-note">
+      Not sure where yours fits? Send a photo and ask &mdash; if it is property work, it is probably on the list.
+    </p>
   </div>
 
   <div class="panel notice">

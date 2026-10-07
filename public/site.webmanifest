@@ -1,0 +1,15 @@
+{
+  "name": "RYDJA",
+  "short_name": "RYDJA",
+  "description": "Junk removal, cleanouts, hauling and property help in West Michigan.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#f3f0e8",
+  "theme_color": "#171816",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

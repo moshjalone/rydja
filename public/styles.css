@@ -203,7 +203,7 @@ img{max-width:100%;display:block}
 .mini-label{font-size:10px;letter-spacing:.16em;font-weight:900;color:var(--accent)}
 .section{padding:90px 0}
 .section-heading{max-width:760px;margin-bottom:46px}
-.section h2{font-size:clamp(34px,5vw,60px);letter-spacing:-.055em;line-height:1;margin:0 0 16px}
+.section h1,.section h2{font-size:clamp(34px,5vw,60px);letter-spacing:-.055em;line-height:1;margin:0 0 16px}
 .service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .service-grid article{background:var(--panel);padding:30px;border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column;gap:10px}
 .service-grid h3{font-size:22px;margin:0}
@@ -360,6 +360,12 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .prefs legend{font-weight:800;font-size:15px;padding:0 8px}
 .prefs .hint.block{display:block;margin:0 0 16px;font-size:13px;line-height:1.5;color:#a8aaa2}
 .prefs .check{margin-top:4px}
+
+/* The plain-words service list. Two columns of short items, not a wall. */
+.keyword-list{list-style:none;padding:0;margin:14px 0 0;columns:2;column-gap:28px;font-size:15px;line-height:1.9}
+.keyword-list li{break-inside:avoid;color:var(--ink)}
+.keyword-list li::before{content:"—";color:var(--accent);font-weight:900;margin-right:8px}
+@media(max-width:560px){.keyword-list{columns:1}}
 
 /* ---------- date fields ----------
    A native date input looks exactly like a text box until you find the small

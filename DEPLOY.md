@@ -335,6 +335,47 @@ backup first anyway (`npm run backup`); that advice never changes.
 
 ---
 
+## Search engines and sharing
+
+The public surface is three pages: `/`, `/services` and `/quote`. Everything
+else -- the customer's own `/q/<token>` page and the whole admin -- carries
+`noindex,nofollow`, has no canonical and no Open Graph tags, and is kept out of
+the sitemap. A private link pasted into a chat app will not unfurl into a
+preview card.
+
+| URL | What it is |
+|---|---|
+| `/robots.txt` | Allows the public site, disallows `/admin`, `/q/` and `/quote/sent`, points at the sitemap |
+| `/sitemap.xml` | The three public pages, absolute `https://getrydja.com` URLs |
+| `/og-image.jpg` | 1200x630 share card, 39KB |
+| JSON-LD on `/` | `HomeAndConstructionBusiness`: name, url, phone, description, areaServed, logo |
+
+**The structured data claims only what we actually know.** No street address,
+no opening hours, no price range, no ratings, no reviews, no social profiles --
+a knowledge panel that is wrong in public is worse than none, and a test
+asserts those fields stay absent. Add them when they are real.
+
+`SITE_URL` is what every canonical and Open Graph URL is built from, so a
+request arriving on `www.` still canonicalises to the apex and cannot create a
+duplicate. Set it correctly or the whole thing points at the wrong host.
+
+`SERVICE_AREA` and `SERVICE_AREA_PLACES` drive the service-area section, the
+meta descriptions and `areaServed` together, so the page and the markup cannot
+drift apart.
+
+### Icons
+
+`favicon.ico` (16/32/48), `favicon-16x16.png`, `favicon-32x32.png`,
+`apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png` and
+`site.webmanifest`. The mark is a lime R on a charcoal tile: the stacked
+wordmark and the truck silhouette both turn to mush at 16px, and a single bold
+letter does not. Around 25KB for the set.
+
+They were drawn once in a browser canvas and committed; there is no build step
+and no image dependency. To change the mark, redraw and recommit the files.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

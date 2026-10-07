@@ -83,6 +83,15 @@ const TRUST_PROXY = process.env.TRUST_PROXY || (IS_PRODUCTION ? '1' : '');
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// Where we say we work. One source of truth: the page copy, the structured
+// data and the meta description all read from here, so they cannot drift and
+// nobody has to remember to update three places.
+const SERVICE_AREA = (process.env.SERVICE_AREA || 'Lowell, Stanton and surrounding West Michigan communities').trim();
+const SERVICE_AREA_PLACES = (process.env.SERVICE_AREA_PLACES || 'Lowell, Michigan|Stanton, Michigan|West Michigan')
+  .split('|')
+  .map((p) => p.trim())
+  .filter(Boolean);
+
 const SERVICES = [
   { slug: 'junk-hauling', name: 'Junk & Hauling', blurb: 'Furniture, appliances, household junk, scrap, debris and unwanted items.' },
   { slug: 'cleanout', name: 'Full Cleanouts', blurb: 'Garages, basements, barns, storage units, estates and rental turnovers.' },
@@ -90,6 +99,28 @@ const SERVICES = [
   { slug: 'moving-delivery', name: 'Moving & Delivery', blurb: 'Heavy lifting, Marketplace pickups, local delivery, labor-only moving help.' },
   { slug: 'light-demo', name: 'Light Demo', blurb: 'Small sheds, playsets, cabinets and similar tear-down-and-remove projects.' },
   { slug: 'other', name: 'Other Jobs', blurb: 'If it involves labor, a truck, cleanup or getting something handled, send it in.' }
+];
+
+// The work we actually do, in the words a customer would type. Drives the
+// services page copy and the structured data's knowsAbout, so the page and the
+// markup always agree.
+const SERVICE_KEYWORDS = [
+  'junk removal',
+  'garage cleanouts',
+  'basement cleanouts',
+  'barn cleanouts',
+  'storage unit cleanouts',
+  'estate cleanouts',
+  'rental and property cleanouts',
+  'yard cleanup',
+  'brush and debris removal',
+  'furniture removal',
+  'appliance removal',
+  'moving help',
+  'delivery help',
+  'light demolition',
+  'scrap pickup',
+  'property resets'
 ];
 
 const EXPENSE_CATEGORIES = [
@@ -422,6 +453,8 @@ app.use((req, res, next) => {
   res.locals.timeWindows = TIME_WINDOWS;
   res.locals.today = todayLocal();
   res.locals.assetV = ASSET_V;
+  res.locals.serviceArea = SERVICE_AREA;
+  res.locals.serviceKeywords = SERVICE_KEYWORDS;
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
@@ -451,6 +484,11 @@ function assetVersion(file) {
 const ASSET_V = {
   css: assetVersion('styles.css'),
   js: assetVersion('app.js'),
+  // The icon set changes together, so one hash covers it. The share image gets
+  // its own, because a social network caches it by URL and will keep serving
+  // the old card until the URL changes.
+  icons: assetVersion('favicon-32x32.png'),
+  og: assetVersion('og-image.jpg'),
   // The hero art is referenced from the stylesheet, which cannot be templated,
   // so its URL is handed to CSS as a custom property in the page head. Without
   // that it would be the one asset that could still go stale on its own.
@@ -558,7 +596,81 @@ function requireAdmin(req, res, next) {
 
 // ---------------------------------------------------------------- public
 
-app.get('/', (req, res) => res.render('home'));
+// ---------------------------------------------------------------- SEO
+//
+// The public surface is three pages. Everything else -- the customer's own
+// page, the whole admin -- is private, carries noindex, and is kept out of the
+// sitemap and robots.
+
+/** Pages a search engine should actually have. Keep this honest. */
+const PUBLIC_PAGES = [
+  { path: '/', changefreq: 'weekly', priority: '1.0' },
+  { path: '/services', changefreq: 'monthly', priority: '0.8' },
+  { path: '/quote', changefreq: 'monthly', priority: '0.9' }
+];
+
+/**
+ * Structured data for the homepage. Only facts we actually hold: no street
+ * address, no opening hours, no price range, no ratings, no social profiles.
+ * Inventing any of those is how a business ends up with a knowledge panel that
+ * is wrong in public.
+ */
+function businessJsonLd() {
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'HomeAndConstructionBusiness',
+    name: BRAND,
+    url: SITE_URL + '/',
+    description:
+      `Junk removal, cleanouts, hauling, yard cleanup, furniture and appliance removal, ` +
+      `moving help and light demolition serving ${SERVICE_AREA}.`,
+    image: SITE_URL + '/og-image.jpg',
+    logo: SITE_URL + '/icon-512.png',
+    areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name })),
+    knowsAbout: SERVICE_KEYWORDS
+  };
+  if (PHONE) data.telephone = PHONE;
+  return JSON.stringify(data);
+}
+
+app.get('/robots.txt', (req, res) => {
+  // robots.txt is a crawl hint, never a privacy control -- every private page
+  // carries noindex of its own. This just keeps crawlers out of places that
+  // waste their time and ours.
+  res.type('text/plain').send(
+    [
+      'User-agent: *',
+      'Allow: /',
+      'Disallow: /admin',
+      'Disallow: /q/',
+      'Disallow: /quote/sent',
+      '',
+      `Sitemap: ${SITE_URL}/sitemap.xml`,
+      ''
+    ].join('\n')
+  );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const today = todayLocal();
+  const urls = PUBLIC_PAGES.map(
+    (p) =>
+      `  <url>\n    <loc>${SITE_URL}${p.path}</loc>\n` +
+      `    <lastmod>${today}</lastmod>\n` +
+      `    <changefreq>${p.changefreq}</changefreq>\n` +
+      `    <priority>${p.priority}</priority>\n  </url>`
+  ).join('\n');
+
+  res
+    .type('application/xml')
+    .send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>
+`);
+});
+
+app.get('/', (req, res) => res.render('home', { jsonLd: businessJsonLd() }));
 
 app.get('/services', (req, res) => res.render('services'));
 

@@ -2,10 +2,19 @@
   // These come from the include() call in each page. An EJS include has its own
   // scope, so a `var` in the parent template would not be visible here — each
   // page must pass what it wants to override.
-  var pageTitle = locals.title ? locals.title + ' — ' + brand : brand + ' — ' + tagline;
+  // fullTitle wins outright, for a page whose title is not "<thing> — RYDJA".
+  var pageTitle = locals.fullTitle
+    ? locals.fullTitle
+    : locals.title
+      ? locals.title + ' — ' + brand
+      : brand + ' — ' + tagline;
   var pageDescription = locals.description ||
     'Cleanouts, hauling, yard cleanup, furniture removal and moving help. Send photos, get a price, get it handled.';
+  // Private means the customer's own page and the whole admin. These get a hard
+  // noindex and no canonical, no Open Graph, nothing a crawler could index or a
+  // chat app could unfurl.
   var isPrivate = locals.noindex === true;
+  var pageUrl = siteUrl + (locals.canonicalPath || '/');
 %><!doctype html>
 <html lang="en">
 <head>
@@ -16,14 +25,31 @@
   <% if (isPrivate) { %>
     <meta name="robots" content="noindex,nofollow">
   <% } else { %>
-    <link rel="canonical" href="<%= siteUrl %><%= locals.canonicalPath || '/' %>">
+    <link rel="canonical" href="<%= pageUrl %>">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="<%= brand %>">
     <meta property="og:title" content="<%= pageTitle %>">
     <meta property="og:description" content="<%= pageDescription %>">
-    <meta property="og:url" content="<%= siteUrl %><%= locals.canonicalPath || '/' %>">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:url" content="<%= pageUrl %>">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:image" content="<%= siteUrl %>/og-image.jpg?v=<%= assetV.og %>">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="<%= brand %> — <%= tagline %>">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<%= pageTitle %>">
+    <meta name="twitter:description" content="<%= pageDescription %>">
+    <meta name="twitter:image" content="<%= siteUrl %>/og-image.jpg?v=<%= assetV.og %>">
   <% } %>
+
+  <%# The icon set shares one version: the files change together. %>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=<%= assetV.icons %>">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=<%= assetV.icons %>">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=<%= assetV.icons %>">
+  <link rel="manifest" href="/site.webmanifest?v=<%= assetV.icons %>">
+  <meta name="theme-color" content="#171816">
+
   <link rel="stylesheet" href="/styles.css?v=<%= assetV.css %>">
   <%# The stylesheet cannot carry a version into its own url(), so the hero art
       is passed in as a custom property and versioned here instead. %>

@@ -1,4 +1,8 @@
-<%- include('partials/head', { canonicalPath: '/' }) %>
+<%- include('partials/head', {
+  fullTitle: 'RYDJA | Junk Removal, Cleanouts & Property Help in West Michigan',
+  canonicalPath: '/',
+  description: 'Fast local junk removal, cleanouts, yard cleanup and furniture removal in ' + serviceArea + '. Send photos for a quote.'
+}) %>
 
 <main id="top">
   <%# The hero art is full-bleed, so the band wraps the shell rather than
@@ -60,6 +64,20 @@
     </div>
   </section>
 
+  <%# Service area. Named plainly, once, in the words we actually use. %>
+  <section id="area" class="section shell">
+    <div class="section-heading">
+      <div class="eyebrow">SERVICE AREA</div>
+      <h2>Serving <%= serviceArea %>.</h2>
+      <p class="lede smaller">
+        If you are near enough that a truck and a crew can reach you in a morning, send the job in and we will tell
+        you straight away whether we can take it.<% if (businessPhone) { %> Call or text
+        <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> if you would rather ask
+        first.<% } %>
+      </p>
+    </div>
+  </section>
+
   <section class="section shell split">
     <div>
       <div class="eyebrow">REMOVE LESS &bull; RECOVER MORE</div>
@@ -72,5 +90,9 @@
     </div>
   </section>
 </main>
+
+<%# Structured data. Built in server.js from values we actually hold -- no
+    address, hours, prices, ratings or social profiles are invented. %>
+<script type="application/ld+json"><%- jsonLd %></script>
 
 <%- include('partials/foot') %>
