@@ -1,0 +1,80 @@
+<%#
+  Search, filters and sort for a list in the admin.
+
+  One GET form. Every control is a named input inside it, so changing any of
+  them re-runs the same search -- no JavaScript required for any of this, and
+  a filtered list is a URL that can be bookmarked or sent to yourself.
+
+  Expects: action, f (the parsed filters), sorts, and optionally
+  statusOptions, serviceOptions, sourceOptions.
+
+  Those three are named distinctly on purpose. `services` and `sources` are
+  ordinary words, and an EJS include can see the including page's locals --
+  res.locals.services is the homepage's service cards, which leaked in here
+  and rendered a filter full of [object Object]. Each one is also required to
+  be a real array rather than merely defined.
+%>
+<form class="toolbar" method="get" action="<%= action %>">
+  <div class="toolbar-search">
+    <label class="sr-only" for="q">Search</label>
+    <input id="q" type="search" name="q" value="<%= f.q %>"
+           placeholder="Name, phone, reference, city or ZIP" autocomplete="off">
+    <button class="button small" type="submit">Search</button>
+  </div>
+
+  <div class="toolbar-filters">
+    <% if (typeof statusOptions !== 'undefined' && Array.isArray(statusOptions)) { %>
+      <label>
+        <span>Status</span>
+        <select name="status" onchange="this.form.submit()">
+          <option value="">Any</option>
+          <% statusOptions.forEach(function(s) { %>
+            <option value="<%= s %>" <%= f.status === s ? 'selected' : '' %>><%= prettyStatus(s) %></option>
+          <% }) %>
+        </select>
+      </label>
+    <% } %>
+
+    <% if (typeof serviceOptions !== 'undefined' && Array.isArray(serviceOptions)) { %>
+      <label>
+        <span>Service</span>
+        <select name="service" onchange="this.form.submit()">
+          <option value="">Any</option>
+          <option value="__estate__" <%= f.service === '__estate__' ? 'selected' : '' %>>Estate work (any)</option>
+          <% serviceOptions.forEach(function(s) { %>
+            <option value="<%= s %>" <%= f.service === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+      </label>
+    <% } %>
+
+    <% if (typeof sourceOptions !== 'undefined' && Array.isArray(sourceOptions)) { %>
+      <label>
+        <span>Source</span>
+        <select name="source" onchange="this.form.submit()">
+          <option value="">Any</option>
+          <% sourceOptions.forEach(function(s) { %>
+            <option value="<%= s %>" <%= f.source === s ? 'selected' : '' %>><%= sourceLabel(s) %></option>
+          <% }) %>
+          <option value="unknown" <%= f.source === 'unknown' ? 'selected' : '' %>>Unknown</option>
+        </select>
+      </label>
+    <% } %>
+
+    <label>
+      <span>Sort</span>
+      <select name="sort" onchange="this.form.submit()">
+        <% Object.keys(sorts).forEach(function(key) { %>
+          <option value="<%= key %>" <%= f.sort === key ? 'selected' : '' %>><%= sorts[key].label %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <%# Carried through the form so searching inside the archive stays in it. %>
+    <% if (f.archived) { %><input type="hidden" name="view" value="archived"><% } %>
+
+    <% if (f.active) { %>
+      <a class="text-link clear-filters" href="<%= action %><%= f.archived ? '?view=archived' : '' %>">Clear</a>
+    <% } %>
+  </div>
+</form>

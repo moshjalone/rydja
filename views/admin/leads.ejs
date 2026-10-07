@@ -4,46 +4,114 @@
   <div class="dash-head">
     <div>
       <div class="eyebrow">ADMIN</div>
-      <h1>Lead inbox</h1>
+      <h1><%= f.archived ? 'Archived leads' : 'Lead inbox' %></h1>
     </div>
     <div class="dash-actions">
       <a class="button small ghost" href="/admin/dashboard">Dashboard</a>
-      <a class="button small" href="/admin/jobs">Job board &rarr;</a>
+      <a class="button small ghost" href="/admin/jobs">Job board</a>
+      <% if (f.archived) { %>
+        <a class="button small" href="/admin/leads">&larr; Back to inbox</a>
+      <% } else { %>
+        <a class="button small ghost" href="/admin/leads?view=archived">Archived (<%= counts.archived %>)</a>
+      <% } %>
     </div>
   </div>
 
-  <div class="metrics three">
-    <div><span>New</span><strong><%= counts.new %></strong></div>
-    <div><span>Awaiting answer</span><strong><%= counts.quoted %></strong></div>
-    <div><span>Open jobs</span><strong><%= counts.openJobs %></strong></div>
-  </div>
+  <% if (notice) { %><div class="panel notice"><%= notice %></div><% } %>
+
+  <% if (!f.archived) { %>
+    <div class="metrics three">
+      <div><span>New</span><strong><%= counts.new %></strong></div>
+      <div><span>Awaiting answer</span><strong><%= counts.quoted %></strong></div>
+      <div><span>Open jobs</span><strong><%= counts.openJobs %></strong></div>
+    </div>
+  <% } %>
+
+  <%- include('../partials/admin-toolbar', {
+    action: '/admin/leads', f: f, sorts: sorts,
+    statusOptions: statuses, serviceOptions: services, sourceOptions: sources
+  }) %>
 
   <% if (!leads.length) { %>
-    <div class="panel empty">No leads yet. Share the quote form: <code>/quote</code></div>
-  <% } else { %>
-    <div class="jobs">
-      <div class="job-row header-row lead-row">
-        <div>Customer</div><div>Service</div><div>Where</div><div>Source</div><div>Photos</div><div>Quote</div><div>Status</div><div></div>
-      </div>
-      <% leads.forEach(function(l) { %>
-        <div class="job-row lead-row">
-          <div>
-            <strong><%= l.customer_name %></strong>
-            <small><span class="ref-chip"><%= l.work_ref %></span> &middot; <a href="tel:<%= telHref(l.customer_phone) %>"><%= l.customer_phone %></a></small>
-          </div>
-          <div>
-            <% if (isEstateService(l.service)) { %><span class="badge estate">Estate</span><br><% } %>
-            <%= l.service %><small><%= prettyDate(l.created_at) %></small>
-          </div>
-          <div data-label="Where"><%= [l.city, l.zip].filter(Boolean).join(" ") %></div>
-          <div data-label="Source"><span class="src-chip src-<%= l.source || 'unknown' %>"><%= sourceLabel(l.source) %></span></div>
-          <div data-label="Photos"><%= l.photo_count %></div>
-          <div data-label="Quote"><%= l.quote_cents ? money(l.quote_cents) : '—' %></div>
-          <div><span class="badge <%= l.status %>"><%= prettyStatus(l.status) %></span></div>
-          <div><a class="button small" href="/admin/leads/<%= l.id %>">Open</a></div>
-        </div>
-      <% }) %>
+    <div class="panel empty">
+      <% if (f.active) { %>
+        Nothing matches that. <a class="text-link" href="/admin/leads<%= f.archived ? '?view=archived' : '' %>">Clear the filters</a>
+      <% } else if (f.archived) { %>
+        Nothing archived. Leads you archive from the inbox appear here, and can be put back.
+      <% } else { %>
+        No leads yet. Share the quote form: <code>/quote</code>
+      <% } %>
     </div>
+  <% } else { %>
+    <%# One form around the table: the checkboxes in the rows are its inputs,
+        and the bar at the bottom submits them with a named action. The
+        current filters ride along as hidden fields so the redirect comes
+        back to the same view. %>
+    <form method="post" action="/admin/leads/bulk" id="bulk-form" data-bulk="lead">
+      <input type="hidden" name="q" value="<%= f.q %>">
+      <input type="hidden" name="status" value="<%= f.status %>">
+      <input type="hidden" name="service" value="<%= f.service %>">
+      <input type="hidden" name="source" value="<%= f.source %>">
+      <input type="hidden" name="sort" value="<%= f.sort %>">
+      <% if (f.archived) { %><input type="hidden" name="view" value="archived"><% } %>
+
+      <div class="list-count">
+        <%= leads.length %> <%= leads.length === 1 ? 'lead' : 'leads' %><% if (f.active) { %> matching<% } %>
+      </div>
+
+      <div class="jobs selectable">
+        <div class="job-row header-row lead-row">
+          <div class="pick">
+            <input type="checkbox" id="pick-all" data-pick-all aria-label="Select every lead shown">
+          </div>
+          <div>Customer</div><div>Service</div><div>Where</div><div>Source</div>
+          <div>Photos</div><div>Quote</div><div>Status</div><div></div>
+        </div>
+        <% leads.forEach(function(l) { %>
+          <div class="job-row lead-row">
+            <div class="pick">
+              <input type="checkbox" name="ids" value="<%= l.id %>" data-pick
+                     aria-label="Select <%= l.work_ref %>">
+            </div>
+            <div>
+              <strong><%= l.customer_name %></strong>
+              <small><span class="ref-chip"><%= l.work_ref %></span> &middot; <a href="tel:<%= telHref(l.customer_phone) %>"><%= l.customer_phone %></a></small>
+            </div>
+            <div>
+              <% if (isEstateService(l.service)) { %><span class="badge estate">Estate</span><br><% } %>
+              <%= l.service %><small><%= prettyDate(l.created_at) %></small>
+            </div>
+            <div data-label="Where"><%= [l.city, l.zip].filter(Boolean).join(" ") %></div>
+            <div data-label="Source"><span class="src-chip src-<%= l.source || 'unknown' %>"><%= sourceLabel(l.source) %></span></div>
+            <div data-label="Photos"><%= l.photo_count %></div>
+            <div data-label="Quote"><%= l.quote_cents ? money(l.quote_cents) : '—' %></div>
+            <div><span class="badge <%= l.status %>"><%= prettyStatus(l.status) %></span></div>
+            <div class="row-actions">
+              <a class="button small" href="/admin/leads/<%= l.id %>">Open</a>
+              <a class="button small ghost" href="/admin/leads/<%= l.id %>/edit">Edit</a>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <%# Hidden until something is ticked. Without JavaScript it is simply
+          always visible, and still works. %>
+      <div class="bulk-bar" data-bulk-bar hidden>
+        <span class="bulk-count"><span data-bulk-count>0</span> selected</span>
+        <div class="bulk-actions">
+          <% if (f.archived) { %>
+            <button class="button small" type="submit" name="action" value="restore">Restore</button>
+          <% } else { %>
+            <button class="button small ghost" type="submit" name="action" value="archive"
+                    data-confirm="Archive the selected leads? They leave the inbox and all dashboard totals, and can be restored from the archive.">Archive</button>
+          <% } %>
+          <span class="bulk-sep">Set status</span>
+          <% statuses.forEach(function(s) { %>
+            <button class="button small ghost" type="submit" name="action" value="status:<%= s %>"><%= prettyStatus(s) %></button>
+          <% }) %>
+        </div>
+      </div>
+    </form>
   <% } %>
 </main>
 

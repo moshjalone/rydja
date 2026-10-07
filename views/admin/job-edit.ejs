@@ -1,0 +1,76 @@
+<%- include('../partials/head', { title: 'Edit job', noindex: true }) %>
+<%
+  var v = values || job;
+  var val = function (key) { return v[key] == null ? '' : String(v[key]); };
+  // The datetime-local control wants a T where the database keeps a space.
+  var whenValue = val('scheduled_for').replace(' ', 'T');
+%>
+
+<main id="main" tabindex="-1" class="shell dashboard narrow">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN &middot; <%= job.work_ref %></div>
+      <h1>Edit job</h1>
+    </div>
+    <a class="button small ghost" href="/admin/jobs/<%= job.id %>">Cancel</a>
+  </div>
+
+  <% if (error) { %><div class="panel error"><%= error %></div><% } %>
+
+  <div class="panel subtle">
+    <p>
+      <strong><%= job.customer_name %></strong> &middot; <%= job.service %> &middot;
+      <a class="text-link" href="tel:<%= telHref(job.customer_phone) %>"><%= job.customer_phone %></a>
+    </p>
+    <p>To change the customer, the address or the description, <a class="text-link" href="/admin/leads/<%= job.lead_id %>/edit">edit the lead</a>.</p>
+  </div>
+
+  <form method="post" action="/admin/jobs/<%= job.id %>/edit" class="panel form-grid">
+    <h2>Status</h2>
+    <label>Job status
+      <select name="status">
+        <% jobStatuses.forEach(function(s) { %>
+          <option value="<%= s %>" <%= val('status') === s ? 'selected' : '' %>><%= prettyStatus(s) %></option>
+        <% }) %>
+      </select>
+    </label>
+
+    <h2>When</h2>
+    <label>Booked for
+      <input name="scheduled_for" type="datetime-local" value="<%= whenValue %>">
+    </label>
+    <p class="field-note warn">
+      <strong>This is an override.</strong> Normally a job is booked only when the customer accepts a time you
+      proposed, which is what makes the booking something they agreed to. Set it here when you have agreed a time
+      with them directly &mdash; on the phone, or at the door. It sends them nothing.
+      <% if (job.proposed_for) { %>
+        The time currently offered to them is <%= prettyWhen(job.proposed_for) %>.
+      <% } %>
+    </p>
+    <p class="field-note">Clear the field to un-book the job.</p>
+
+    <h2>Money</h2>
+    <label>Customer total
+      <input name="customer_total" inputmode="decimal"
+             value="<%= val('customer_total') || (job.customer_total_cents / 100).toFixed(2) %>">
+    </label>
+    <p class="field-note">
+      What the customer pays for this job, and the revenue figure on the board. It starts as the quote they
+      approved. Expenses and salvage are edited on the <a class="text-link" href="/admin/jobs/<%= job.id %>">job page</a>.
+    </p>
+
+    <div class="form-actions">
+      <button class="button" type="submit">Save changes</button>
+      <a class="text-link" href="/admin/jobs/<%= job.id %>">Cancel</a>
+    </div>
+  </form>
+
+  <div class="panel subtle">
+    <p>
+      Nothing here deletes anything. To take this job off the board and out of every total, archive it from the
+      <a class="text-link" href="/admin/jobs">job board</a> &mdash; it can be restored at any time.
+    </p>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

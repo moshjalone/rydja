@@ -142,6 +142,19 @@ function migrate() {
   }
   db.exec('create index if not exists idx_leads_source on leads(source)');
 
+  // Archiving, which is what the admin's "delete" actually does. NULL means
+  // active. Nothing is ever removed: a lead carries photos, a job carries
+  // expenses and salvage, and both are records of money. An archived row
+  // drops out of the lists and out of every dashboard total, and can be
+  // restored with one click.
+  //
+  // A job has its own flag but is also hidden by its lead's, so archiving a
+  // lead takes its job with it without a second write that could disagree.
+  addColumn('leads', 'archived_at', 'text');
+  addColumn('jobs', 'archived_at', 'text');
+  db.exec('create index if not exists idx_leads_archived on leads(archived_at)');
+  db.exec('create index if not exists idx_jobs_archived on jobs(archived_at)');
+
   addColumn('quotes', 'proposed_for', 'text');
   // Deliberately not backfilled. A quote approved before the Terms existed did
   // not accept them, and writing a version into those rows would manufacture

@@ -1570,6 +1570,162 @@ function monthPeriod(now = new Date()) {
 /** The six buckets, in the order the owner reads them. */
 const SOURCE_ORDER = ['google', 'facebook', 'bing', 'referral', 'direct', 'other'];
 
+// ------------------------------------------------- searching, sorting, filtering
+//
+// Every list in the admin reads its query string through one of the two
+// functions below. Nothing a visitor types reaches SQL as SQL: a sort is a key
+// into a fixed table of ORDER BY clauses, a status has to be on a list we
+// wrote, and everything else is a bound parameter.
+
+/** Lead statuses the admin can filter and set. */
+const LEAD_STATUSES = ['new', 'quoted', 'declined', 'converted'];
+
+// Job statuses are JOB_STATUSES, declared with the rest of the job model above.
+
+/** The service filter's own value for "any estate job", incl. the old label. */
+const ESTATE_FILTER = '__estate__';
+
+/**
+ * ORDER BY clauses, by key. The keys are what appear in a URL; the SQL is
+ * ours and is never built from input.
+ */
+const LEAD_SORTS = {
+  smart: { label: 'Needs attention', sql: "case l.status when 'new' then 0 when 'quoted' then 1 else 2 end, l.id desc" },
+  newest: { label: 'Newest first', sql: 'l.id desc' },
+  oldest: { label: 'Oldest first', sql: 'l.id asc' },
+  name: { label: 'Customer A–Z', sql: 'c.name collate nocase asc, l.id desc' },
+  quote_high: { label: 'Quote, highest', sql: 'coalesce(quote_cents, -1) desc, l.id desc' },
+  quote_low: { label: 'Quote, lowest', sql: 'coalesce(quote_cents, 999999999) asc, l.id desc' }
+};
+
+const JOB_SORTS = {
+  smart: {
+    label: 'Workflow order',
+    sql: `case j.status when 'in_progress' then 0 when 'scheduled' then 1
+                       when 'schedule_pending' then 2 when 'unscheduled' then 3
+                       when 'complete' then 4 else 5 end,
+          coalesce(j.scheduled_for, j.created_at)`
+  },
+  soonest: { label: 'Soonest first', sql: 'coalesce(j.scheduled_for, j.proposed_for, j.created_at) asc' },
+  latest: { label: 'Latest first', sql: 'coalesce(j.scheduled_for, j.proposed_for, j.created_at) desc' },
+  newest: { label: 'Newest job', sql: 'j.id desc' },
+  name: { label: 'Customer A–Z', sql: 'c.name collate nocase asc, j.id desc' },
+  // Revenue is a stored column; net is computed per job in JS and sorted after.
+  revenue: { label: 'Revenue, highest', sql: 'j.customer_total_cents desc, j.id desc' },
+  net: { label: 'Net, highest', sql: 'j.id desc', after: (a, b) => b.profit.net - a.profit.net }
+};
+
+// Archived rows exist but do not count. Every total, every counter and every
+// money figure in the admin is filtered through one of these two, so a lead
+// archived to tidy the inbox cannot quietly change what last month earned.
+const LEAD_ACTIVE = 'archived_at is null';
+const JOB_ACTIVE = 'archived_at is null and lead_id in (select id from leads where archived_at is null)';
+const QUOTE_ACTIVE = 'lead_id in (select id from leads where archived_at is null)';
+
+/** A LIKE pattern that treats the user's % and _ as literal characters. */
+function likePattern(value) {
+  return '%' + String(value).replace(/[\\%_]/g, (ch) => '\\' + ch) + '%';
+}
+
+/** One key from a fixed set, or the first key as the default. */
+const pick = (value, allowed, fallback) =>
+  allowed.includes(String(value || '')) ? String(value) : fallback;
+
+/** The lead list's query string, cleaned into something safe to build SQL from. */
+function leadFilters(query) {
+  const q = clean(query.q, 120);
+  return {
+    q,
+    like: likePattern(q),
+    // The phone column is searched with its punctuation stripped, so the
+    // needle has to lose its own too.
+    likeDigits: q.replace(/\D/g, '') ? likePattern(q.replace(/\D/g, '')) : null,
+    status: pick(query.status, LEAD_STATUSES, ''),
+    service: pick(query.service, [ESTATE_FILTER, ...QUOTE_SERVICES], ''),
+    source: pick(query.source, [...SOURCE_ORDER, 'unknown'], ''),
+    sort: pick(query.sort, Object.keys(LEAD_SORTS), 'smart'),
+    archived: query.view === 'archived',
+    // Whether anything is narrowing the list, for the "clear" affordance.
+    get active() {
+      return Boolean(this.q || this.status || this.service || this.source);
+    }
+  };
+}
+
+/** The job list's query string, same contract. */
+function jobFilters(query) {
+  const q = clean(query.q, 120);
+  return {
+    q,
+    like: likePattern(q),
+    likeDigits: q.replace(/\D/g, '') ? likePattern(q.replace(/\D/g, '')) : null,
+    status: pick(query.status, JOB_STATUSES, ''),
+    sort: pick(query.sort, Object.keys(JOB_SORTS), 'smart'),
+    archived: query.view === 'archived',
+    get active() {
+      return Boolean(this.q || this.status);
+    }
+  };
+}
+
+/** What a bulk action or an edit just did, for the banner at the top. */
+function leadNotice(done, n) {
+  const count = Math.max(0, Math.min(999, parseInt(n, 10) || 0));
+  const plural = count === 1 ? '' : 's';
+  const messages = {
+    archived: `${count} lead${plural} archived.`,
+    restored: `${count} lead${plural} restored.`,
+    status: `Status changed on ${count} lead${plural}.`,
+    saved: 'Changes saved.',
+    nothing: 'Nothing was selected.'
+  };
+  return messages[String(done || '')] || '';
+}
+
+/** The same, for jobs. */
+function jobNotice(done, n) {
+  const count = Math.max(0, Math.min(999, parseInt(n, 10) || 0));
+  const plural = count === 1 ? '' : 's';
+  const messages = {
+    archived: `${count} job${plural} archived.`,
+    restored: `${count} job${plural} restored.`,
+    status: `Status changed on ${count} job${plural}.`,
+    saved: 'Changes saved.',
+    nothing: 'Nothing was selected.'
+  };
+  return messages[String(done || '')] || '';
+}
+
+/**
+ * The ids a bulk form submitted, as positive integers and nothing else.
+ *
+ * A checkbox group arrives as a string when one is ticked and an array when
+ * several are. Anything that is not a plain id is dropped rather than
+ * argued about -- the action then applies to the ids that were real.
+ */
+function selectedIds(input) {
+  const raw = [].concat(input == null ? [] : input);
+  const ids = raw
+    .map((v) => parseInt(String(v), 10))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  // Deduplicated, and capped so one request cannot ask for unbounded work.
+  return [...new Set(ids)].slice(0, 500);
+}
+
+/** `?a=1&b=2` from a filter object, so a redirect lands back where you were. */
+function filterQuery(f, extra = {}) {
+  const params = new URLSearchParams();
+  if (f.q) params.set('q', f.q);
+  if (f.status) params.set('status', f.status);
+  if (f.service) params.set('service', f.service);
+  if (f.source) params.set('source', f.source);
+  if (f.sort && f.sort !== 'smart') params.set('sort', f.sort);
+  if (f.archived) params.set('view', 'archived');
+  for (const [k, v] of Object.entries(extra)) if (v !== '' && v != null) params.set(k, String(v));
+  const s = params.toString();
+  return s ? '?' + s : '';
+}
+
 /**
  * Leads and approvals per source.
  *
@@ -1588,7 +1744,7 @@ function sourceBreakdown(period) {
                     select 1 from quotes q where q.lead_id = l.id and q.status = 'approved'
                   ) then 1 else 0 end) as approved
          from leads l
-        where l.created_at >= ? and l.created_at < ?
+        where l.archived_at is null and l.created_at >= ? and l.created_at < ?
         group by coalesce(l.source, '')`
     )
     .all(period.utcStart, period.utcEnd);
@@ -1621,14 +1777,16 @@ function monthMoney(period) {
       `select coalesce(sum(j.customer_total_cents), 0) as revenue,
               coalesce((select sum(e.amount_cents) from job_expenses e
                          where e.job_id in (select id from jobs
-                                             where status = 'complete'
+                                             where ${JOB_ACTIVE} and status = 'complete'
                                                and completed_at >= ? and completed_at < ?)), 0) as expenses,
               coalesce((select sum(s.realized_value_cents) from salvage_items s
                          where s.job_id in (select id from jobs
-                                             where status = 'complete'
+                                             where ${JOB_ACTIVE} and status = 'complete'
                                                and completed_at >= ? and completed_at < ?)), 0) as salvage
          from jobs j
-        where j.status = 'complete' and j.completed_at >= ? and j.completed_at < ?`
+        where j.archived_at is null
+          and j.lead_id in (select id from leads where archived_at is null)
+          and j.status = 'complete' and j.completed_at >= ? and j.completed_at < ?`
     )
     .get(
       period.utcStart, period.utcEnd,
@@ -1651,19 +1809,22 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
   const one = (sql, ...args) => db.prepare(sql).get(...args).n;
 
   const month = {
-    leads: one('select count(*) as n from leads where created_at >= ? and created_at < ?',
+    leads: one(`select count(*) as n from leads where ${LEAD_ACTIVE} and created_at >= ? and created_at < ?`,
       period.utcStart, period.utcEnd),
-    quotesSent: one('select count(*) as n from quotes where created_at >= ? and created_at < ?',
+    quotesSent: one(
+      `select count(*) as n from quotes where ${QUOTE_ACTIVE} and created_at >= ? and created_at < ?`,
       period.utcStart, period.utcEnd),
     quotesApproved: one(
-      "select count(*) as n from quotes where status = 'approved' and responded_at >= ? and responded_at < ?",
+      `select count(*) as n from quotes
+        where ${QUOTE_ACTIVE} and status = 'approved' and responded_at >= ? and responded_at < ?`,
       period.utcStart, period.utcEnd),
     // scheduled_for is wall clock, so this one is a date comparison.
     jobsScheduled: one(
-      'select count(*) as n from jobs where scheduled_for >= ? and scheduled_for < ?',
+      `select count(*) as n from jobs where ${JOB_ACTIVE} and scheduled_for >= ? and scheduled_for < ?`,
       period.dateStart, period.dateEnd),
     jobsCompleted: one(
-      "select count(*) as n from jobs where status = 'complete' and completed_at >= ? and completed_at < ?",
+      `select count(*) as n from jobs
+        where ${JOB_ACTIVE} and status = 'complete' and completed_at >= ? and completed_at < ?`,
       period.utcStart, period.utcEnd)
   };
 
@@ -1674,35 +1835,37 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
       label: 'New leads without a quote',
       href: '/admin/leads',
       n: one(`select count(*) as n from leads l
-               where l.status = 'new'
+               where l.archived_at is null and l.status = 'new'
                  and not exists (select 1 from quotes q where q.lead_id = l.id)`)
     },
     {
       label: 'Quotes awaiting an answer',
       href: '/admin/leads',
-      n: one("select count(*) as n from quotes where status = 'sent' and responded_at is null")
+      n: one(`select count(*) as n from quotes
+               where ${QUOTE_ACTIVE} and status = 'sent' and responded_at is null`)
     },
     {
       label: 'Approved jobs not yet scheduled',
       href: '/admin/jobs',
-      n: one("select count(*) as n from jobs where status = 'unscheduled'")
+      n: one(`select count(*) as n from jobs where ${JOB_ACTIVE} and status = 'unscheduled'`)
     },
     {
       label: 'Schedule change requested',
       href: '/admin/jobs',
       n: one(`select count(*) as n from jobs
-               where schedule_message is not null and schedule_message != ''
+               where ${JOB_ACTIVE}
+                 and schedule_message is not null and schedule_message != ''
                  and status not in ('complete', 'cancelled')`)
     },
     {
       label: 'Jobs in progress',
       href: '/admin/jobs',
-      n: one("select count(*) as n from jobs where status = 'in_progress'")
+      n: one(`select count(*) as n from jobs where ${JOB_ACTIVE} and status = 'in_progress'`)
     },
     {
       label: 'Completed jobs',
       href: '/admin/jobs',
-      n: one("select count(*) as n from jobs where status = 'complete'")
+      n: one(`select count(*) as n from jobs where ${JOB_ACTIVE} and status = 'complete'`)
     }
   ];
 
@@ -1720,23 +1883,85 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
 app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/dashboard'));
 
 app.get('/admin/leads', requireAdmin, (req, res) => {
+  const f = leadFilters(req.query);
+
+  // Built as fragments rather than string-interpolated values: every piece of
+  // the query below is either a constant chosen from a fixed list, or a '?'.
+  const where = [f.archived ? 'l.archived_at is not null' : 'l.archived_at is null'];
+  const params = [];
+
+  if (f.status) {
+    where.push('l.status = ?');
+    params.push(f.status);
+  }
+  if (f.service === ESTATE_FILTER) {
+    // Estate work under any of its labels, including the one leads taken
+    // before the rename still carry.
+    const labels = [ESTATE_SERVICE, ...LEGACY_ESTATE_SERVICES];
+    where.push(`l.service in (${labels.map(() => '?').join(', ')})`);
+    params.push(...labels);
+  } else if (f.service) {
+    where.push('l.service = ?');
+    params.push(f.service);
+  }
+  if (f.source) {
+    // 'unknown' is the absence of a source, not a value it can hold.
+    if (f.source === 'unknown') where.push('(l.source is null or l.source = \'\')');
+    else {
+      where.push('l.source = ?');
+      params.push(f.source);
+    }
+  }
+  if (f.q) {
+    // One box over everything the owner might have in their hand: a name, a
+    // number read off a missed call, a reference from a text message.
+    // Digits-only for the phone, so "(616) 555-0144" finds 6165550144.
+    where.push(`(
+      c.name like ? escape '\\' or c.email like ? escape '\\'
+      or replace(replace(replace(replace(c.phone, ' ', ''), '-', ''), '(', ''), ')', '') like ? escape '\\'
+      or l.work_ref like ? escape '\\' or l.city like ? escape '\\' or l.zip like ? escape '\\'
+      or l.address like ? escape '\\'
+    )`);
+    params.push(f.like, f.like, f.likeDigits, f.like, f.like, f.like, f.like);
+  }
+
   const leads = db
     .prepare(
-      `select l.*, c.name as customer_name, c.phone as customer_phone,
+      `select l.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email,
               (select count(*) from lead_photos p where p.lead_id = l.id) as photo_count,
-              (select amount_cents from quotes q where q.lead_id = l.id order by q.id desc limit 1) as quote_cents
+              (select amount_cents from quotes q where q.lead_id = l.id order by q.id desc limit 1) as quote_cents,
+              (select j.id from jobs j where j.lead_id = l.id order by j.id desc limit 1) as job_id
          from leads l join customers c on c.id = l.customer_id
-        order by case l.status when 'new' then 0 when 'quoted' then 1 else 2 end, l.id desc`
+        where ${where.join(' and ')}
+        order by ${LEAD_SORTS[f.sort].sql}`
     )
-    .all();
+    .all(...params);
 
-  const counts = {
-    new: leads.filter((l) => l.status === 'new').length,
-    quoted: leads.filter((l) => l.status === 'quoted').length,
-    openJobs: db.prepare("select count(*) as n from jobs where status not in ('complete','cancelled')").get().n
-  };
+  // Counts describe the whole active inbox, not the filtered view: they are
+  // how the owner decides what to filter to, so narrowing the list must not
+  // move them.
+  const counts = db
+    .prepare(
+      `select
+         (select count(*) from leads where status = 'new' and archived_at is null) as new,
+         (select count(*) from leads where status = 'quoted' and archived_at is null) as quoted,
+         (select count(*) from jobs j join leads l on l.id = j.lead_id
+           where j.status not in ('complete','cancelled')
+             and j.archived_at is null and l.archived_at is null) as openJobs,
+         (select count(*) from leads where archived_at is not null) as archived`
+    )
+    .get();
 
-  res.render('admin/leads', { leads, counts });
+  res.render('admin/leads', {
+    leads,
+    counts,
+    f,
+    sorts: LEAD_SORTS,
+    statuses: LEAD_STATUSES,
+    services: QUOTE_SERVICES,
+    sources: SOURCE_ORDER,
+    notice: leadNotice(req.query.done, req.query.n)
+  });
 });
 
 app.get('/admin/leads/:id', requireAdmin, (req, res) => {
@@ -1834,26 +2059,230 @@ app.post('/admin/leads/:id/status', requireAdmin, (req, res) => {
   res.redirect('/admin/leads/' + req.params.id);
 });
 
+// ------------------------------------------------- editing and bulk actions
+//
+// Nothing here deletes. "Archive" sets a timestamp, the lists read it, and
+// every dashboard total ignores it -- a lead carries photos and a job carries
+// expenses and salvage, and all of that is a record of money. Restoring is
+// the same write in reverse.
+
+/**
+ * Edit a lead: the customer, the job details, the status, and the money.
+ *
+ * The money is the part to be careful with. Changing the amount of a quote
+ * the customer has already approved rewrites what they agreed to, so the
+ * form says so plainly and the original stays on the record: the acceptance
+ * row keeps its responded_at and terms_version, and the note records what the
+ * figure was before. The alternative -- silently overwriting the number a
+ * customer said yes to -- is the one thing this must not do quietly.
+ */
+app.get('/admin/leads/:id/edit', requireAdmin, (req, res) => {
+  const lead = db
+    .prepare(
+      `select l.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
+         from leads l join customers c on c.id = l.customer_id where l.id = ?`
+    )
+    .get(req.params.id);
+  if (!lead) return res.status(404).render('404');
+
+  const quote = db.prepare('select * from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
+  res.render('admin/lead-edit', { lead, quote, error: null, values: null });
+});
+
+app.post('/admin/leads/:id/edit', requireAdmin, (req, res) => {
+  const lead = db
+    .prepare(
+      `select l.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
+         from leads l join customers c on c.id = l.customer_id where l.id = ?`
+    )
+    .get(req.params.id);
+  if (!lead) return res.status(404).render('404');
+
+  const quote = db.prepare('select * from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
+  const b = req.body;
+
+  const f = {
+    name: clean(b.name, LIMITS.name),
+    phone: clean(b.phone, LIMITS.phone),
+    email: clean(b.email, LIMITS.email),
+    service: clean(b.service, LIMITS.service),
+    address: clean(b.address, LIMITS.address),
+    city: clean(b.city, LIMITS.city),
+    state: clean(b.state, LIMITS.state),
+    zip: clean(b.zip, LIMITS.zip),
+    access: clean(b.access, LIMITS.access),
+    timing: clean(b.timing, LIMITS.timing),
+    description: clean(b.description, LIMITS.description),
+    status: LEAD_STATUSES.includes(b.status) ? b.status : lead.status
+  };
+
+  // The same rules the public form applies. An admin typo is still a typo,
+  // and a lead with no phone number is not a lead anyone can act on.
+  const errors = [];
+  if (!f.name) errors.push('a name');
+  if (!f.phone) errors.push('a phone number');
+  else if (!validPhone(f.phone)) errors.push('a valid phone number (10 digits)');
+  if (!f.zip) errors.push('a ZIP code');
+  else if (!validZip(f.zip)) errors.push('a valid ZIP code');
+  if (!f.service) errors.push('a service');
+  if (!f.description) errors.push('a description');
+  if (f.email && !validEmail(f.email)) errors.push('a valid email address (or leave it blank)');
+
+  // phone is the customers table's unique key, so moving a lead onto a number
+  // another customer already holds would collide. Say so rather than throw.
+  const clash = db.prepare('select id from customers where phone = ? and id != ?').get(f.phone, lead.customer_id);
+  if (clash) errors.push('a phone number not already used by another customer');
+
+  const amountRaw = String(b.amount == null ? '' : b.amount).trim();
+  let amountCents = null;
+  if (quote && amountRaw !== '') {
+    amountCents = toCents(amountRaw);
+    if (amountCents == null || !saneCents(amountCents) || amountCents <= 0) errors.push('a valid quote amount');
+  }
+
+  if (errors.length) {
+    return res.status(400).render('admin/lead-edit', {
+      lead,
+      quote,
+      values: Object.assign({}, lead, b, {
+        customer_name: f.name,
+        customer_phone: f.phone,
+        customer_email: f.email
+      }),
+      error: 'Please give ' + errors.join(', ') + '.'
+    });
+  }
+
+  db.transaction(() => {
+    db.prepare('update customers set name = ?, phone = ?, email = ? where id = ?').run(
+      f.name,
+      f.phone,
+      f.email || null,
+      lead.customer_id
+    );
+    db.prepare(
+      `update leads set service = ?, address = ?, city = ?, state = ?, zip = ?,
+                        access = ?, timing = ?, description = ?, status = ?
+        where id = ?`
+    ).run(
+      f.service,
+      f.address || null,
+      f.city || null,
+      f.state || null,
+      f.zip,
+      f.access || null,
+      f.timing || null,
+      f.description,
+      f.status,
+      lead.id
+    );
+
+    if (quote && amountCents != null && amountCents !== quote.amount_cents) {
+      const was = money(quote.amount_cents);
+      db.prepare('update quotes set amount_cents = ? where id = ?').run(amountCents, quote.id);
+
+      // An approved quote is a record of agreement. The figure can be
+      // corrected, but what it used to be is appended to the notes rather
+      // than lost, and responded_at / terms_version are left exactly as the
+      // customer left them.
+      if (quote.status === 'approved') {
+        const stamp = `[Amount edited by admin ${nowIso()}: was ${was}]`;
+        db.prepare('update quotes set notes = trim(coalesce(notes, \'\') || ? ) where id = ?').run(
+          (quote.notes ? '\n\n' : '') + stamp,
+          quote.id
+        );
+        console.log(`[edit] ${lead.work_ref} approved quote amount changed by admin`);
+      }
+
+      // A job quotes its own total at the moment it was created. Keep the two
+      // in step, but never reopen a job that is already finished and paid.
+      db.prepare(
+        "update jobs set customer_total_cents = ? where quote_id = ? and status not in ('complete','cancelled')"
+      ).run(amountCents, quote.id);
+    }
+  })();
+
+  console.log(`[edit] lead #${lead.id} ${lead.work_ref} edited by admin`);
+  res.redirect('/admin/leads/' + lead.id + '?done=saved');
+});
+
+/** Archive, restore, or set a status on everything that was ticked. */
+app.post('/admin/leads/bulk', requireAdmin, (req, res) => {
+  const f = leadFilters(req.body);
+  const ids = selectedIds(req.body.ids);
+  const action = String(req.body.action || '');
+  const back = '/admin/leads' + filterQuery(f);
+
+  if (!ids.length) return res.redirect(back + (back.includes('?') ? '&' : '?') + 'done=nothing');
+
+  const marks = ids.map(() => '?').join(', ');
+  let done = '';
+
+  if (action === 'archive') {
+    db.prepare(`update leads set archived_at = ? where id in (${marks}) and archived_at is null`).run(nowIso(), ...ids);
+    done = 'archived';
+  } else if (action === 'restore') {
+    db.prepare(`update leads set archived_at = null where id in (${marks})`).run(...ids);
+    done = 'restored';
+  } else if (action.startsWith('status:')) {
+    const status = action.slice('status:'.length);
+    if (!LEAD_STATUSES.includes(status)) return res.redirect(back);
+    db.prepare(`update leads set status = ? where id in (${marks})`).run(status, ...ids);
+    done = 'status';
+  } else {
+    return res.redirect(back);
+  }
+
+  console.log(`[bulk] ${done} ${ids.length} lead(s)`);
+  res.redirect(back + (back.includes('?') ? '&' : '?') + 'done=' + done + '&n=' + ids.length);
+});
+
 // ---------------------------------------------------------------- admin jobs
 
 app.get('/admin/jobs', requireAdmin, (req, res) => {
+  const f = jobFilters(req.query);
+
+  // A job is hidden by its own archive flag or by its lead's, so archiving a
+  // lead takes its jobs off the board without a second write.
+  const where = [f.archived ? '(j.archived_at is not null or l.archived_at is not null)' : 'j.archived_at is null and l.archived_at is null'];
+  const params = [];
+
+  if (f.status) {
+    where.push('j.status = ?');
+    params.push(f.status);
+  }
+  if (f.q) {
+    where.push(`(
+      c.name like ? escape '\\' or c.email like ? escape '\\'
+      or replace(replace(replace(replace(c.phone, ' ', ''), '-', ''), '(', ''), ')', '') like ? escape '\\'
+      or l.work_ref like ? escape '\\' or l.city like ? escape '\\' or l.zip like ? escape '\\'
+      or l.address like ? escape '\\'
+    )`);
+    params.push(f.like, f.like, f.likeDigits, f.like, f.like, f.like, f.like);
+  }
+
   const jobs = db
     .prepare(
       `select j.*, l.service, l.address, l.city, l.zip, l.public_token, l.work_ref,
+              l.archived_at as lead_archived_at,
               c.name as customer_name, c.phone as customer_phone, o.name as operator_name
          from jobs j
          join leads l on l.id = j.lead_id
          join customers c on c.id = l.customer_id
          join operators o on o.id = j.operator_id
-        order by case j.status
-                   when 'in_progress' then 0 when 'scheduled' then 1
-                   when 'schedule_pending' then 2
-                   when 'unscheduled' then 3 when 'complete' then 4 else 5 end,
-                 coalesce(j.scheduled_for, j.created_at)`
+        where ${where.join(' and ')}
+        order by ${JOB_SORTS[f.sort].sql}`
     )
-    .all();
+    .all(...params);
 
   const board = jobs.map((j) => Object.assign({}, j, { profit: jobProfit(j.id) }));
+  // Net is arithmetic over three tables rather than a column, so the one sort
+  // that needs it happens here instead of in SQL.
+  if (JOB_SORTS[f.sort].after) board.sort(JOB_SORTS[f.sort].after);
+
+  // Totals follow the filtered view -- unlike the lead counts, these are a
+  // readout of what is on screen, so filtering to one month or one status and
+  // reading the money for it is the point.
   const totals = board.reduce(
     (acc, j) => {
       if (j.status === 'complete') {
@@ -1866,7 +2295,22 @@ app.get('/admin/jobs', requireAdmin, (req, res) => {
     { revenue: 0, net: 0, done: 0 }
   );
 
-  res.render('admin/jobs', { jobs: board, totals });
+  const archivedCount = db
+    .prepare(
+      `select count(*) as n from jobs j join leads l on l.id = j.lead_id
+        where j.archived_at is not null or l.archived_at is not null`
+    )
+    .get().n;
+
+  res.render('admin/jobs', {
+    jobs: board,
+    totals,
+    f,
+    sorts: JOB_SORTS,
+    statuses: JOB_STATUSES,
+    archivedCount,
+    notice: jobNotice(req.query.done, req.query.n)
+  });
 });
 
 app.get('/admin/jobs/:id', requireAdmin, (req, res) => {
@@ -1915,6 +2359,121 @@ app.post('/admin/jobs/:id/status', requireAdmin, (req, res) => {
   args.push(req.params.id);
   db.prepare(`update jobs set ${sets.join(', ')} where id = ?`).run(...args);
   res.redirect('/admin/jobs/' + req.params.id);
+});
+
+/**
+ * Edit a job: its status, the time, and the total.
+ *
+ * scheduled_for is normally set by the customer accepting an offer and by
+ * nothing else, which is the rule the whole scheduling model rests on. This
+ * form is the deliberate exception -- the phone call where they agree a time
+ * with you directly -- so it is labelled as an override rather than presented
+ * as the ordinary way to book something.
+ */
+app.get('/admin/jobs/:id/edit', requireAdmin, (req, res) => {
+  const job = db
+    .prepare(
+      `select j.*, l.service, l.work_ref, c.name as customer_name, c.phone as customer_phone
+         from jobs j join leads l on l.id = j.lead_id join customers c on c.id = l.customer_id
+        where j.id = ?`
+    )
+    .get(req.params.id);
+  if (!job) return res.status(404).render('404');
+
+  res.render('admin/job-edit', { job, jobStatuses: JOB_STATUSES, error: null, values: null });
+});
+
+app.post('/admin/jobs/:id/edit', requireAdmin, (req, res) => {
+  const job = db
+    .prepare(
+      `select j.*, l.service, l.work_ref, c.name as customer_name, c.phone as customer_phone
+         from jobs j join leads l on l.id = j.lead_id join customers c on c.id = l.customer_id
+        where j.id = ?`
+    )
+    .get(req.params.id);
+  if (!job) return res.status(404).render('404');
+
+  const b = req.body;
+  const status = JOB_STATUSES.includes(b.status) ? b.status : job.status;
+  const when = String(b.scheduled_for || '').trim().replace('T', ' ');
+  const totalRaw = String(b.customer_total == null ? '' : b.customer_total).trim();
+
+  const errors = [];
+  const total = toCents(totalRaw);
+  if (totalRaw === '' || total == null || !saneCents(total) || total <= 0) errors.push('a valid customer total');
+  // Wall-clock, stored exactly as typed, same as everywhere else.
+  if (when && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(when)) errors.push('a date and time, or nothing');
+
+  if (errors.length) {
+    return res.status(400).render('admin/job-edit', {
+      job,
+      jobStatuses: JOB_STATUSES,
+      values: Object.assign({}, job, b),
+      error: 'Please give ' + errors.join(', ') + '.'
+    });
+  }
+
+  const sets = ['status = ?', 'customer_total_cents = ?', 'scheduled_for = ?'];
+  const args = [status, total, when || null];
+
+  // The same timestamp bookkeeping the status button does, so the two routes
+  // cannot leave a job in states they disagree about.
+  if (status === 'in_progress') sets.push('started_at = coalesce(started_at, ?)'), args.push(nowIso());
+  if (status === 'complete') sets.push('completed_at = coalesce(completed_at, ?)'), args.push(nowIso());
+  if (status === 'scheduled' || status === 'unscheduled') sets.push('completed_at = null');
+
+  args.push(job.id);
+  db.prepare(`update jobs set ${sets.join(', ')} where id = ?`).run(...args);
+
+  console.log(`[edit] job #${job.id} ${job.work_ref} edited by admin`);
+  res.redirect('/admin/jobs/' + job.id + '?done=saved');
+});
+
+/** Archive, restore, or set a status on everything that was ticked. */
+app.post('/admin/jobs/bulk', requireAdmin, (req, res) => {
+  const f = jobFilters(req.body);
+  const ids = selectedIds(req.body.ids);
+  const action = String(req.body.action || '');
+  const back = '/admin/jobs' + filterQuery(f);
+
+  if (!ids.length) return res.redirect(back + (back.includes('?') ? '&' : '?') + 'done=nothing');
+
+  const marks = ids.map(() => '?').join(', ');
+  let done = '';
+
+  if (action === 'archive') {
+    db.prepare(`update jobs set archived_at = ? where id in (${marks}) and archived_at is null`).run(nowIso(), ...ids);
+    done = 'archived';
+  } else if (action === 'restore') {
+    // A job hidden only because its lead is archived cannot be restored from
+    // here -- the lead is what is hiding it. Its own flag is cleared anyway,
+    // so restoring the lead brings it straight back.
+    db.prepare(`update jobs set archived_at = null where id in (${marks})`).run(...ids);
+    done = 'restored';
+  } else if (action.startsWith('status:')) {
+    const status = action.slice('status:'.length);
+    if (!JOB_STATUSES.includes(status)) return res.redirect(back);
+    const stamp = nowIso();
+    if (status === 'complete') {
+      db.prepare(
+        `update jobs set status = ?, completed_at = coalesce(completed_at, ?) where id in (${marks})`
+      ).run(status, stamp, ...ids);
+    } else if (status === 'in_progress') {
+      db.prepare(
+        `update jobs set status = ?, started_at = coalesce(started_at, ?) where id in (${marks})`
+      ).run(status, stamp, ...ids);
+    } else if (status === 'scheduled' || status === 'unscheduled') {
+      db.prepare(`update jobs set status = ?, completed_at = null where id in (${marks})`).run(status, ...ids);
+    } else {
+      db.prepare(`update jobs set status = ? where id in (${marks})`).run(status, ...ids);
+    }
+    done = 'status';
+  } else {
+    return res.redirect(back);
+  }
+
+  console.log(`[bulk] ${done} ${ids.length} job(s)`);
+  res.redirect(back + (back.includes('?') ? '&' : '?') + 'done=' + done + '&n=' + ids.length);
 });
 
 // The owner offers a time; only the customer's acceptance books it. A second

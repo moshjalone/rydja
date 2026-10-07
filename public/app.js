@@ -73,3 +73,77 @@
   select.addEventListener('change', sync);
   sync();
 })();
+
+/* Bulk selection on the admin lists.
+ *
+ * Progressive enhancement, strictly. The form, the checkboxes and the action
+ * buttons are all real HTML that works with this file blocked: the bar is
+ * only hidden because this script is here to show it again, so the first
+ * thing it does is reveal it. Everything else -- the count, select-all, the
+ * shift-click range, the confirm on archive -- is convenience on top.
+ *
+ * Nothing here knows whether it is looking at leads or jobs. Both lists use
+ * the same attributes, and the server decides what the actions mean. */
+(function () {
+  'use strict';
+
+  var form = document.querySelector('[data-bulk]');
+  if (!form) return;
+
+  var bar = form.querySelector('[data-bulk-bar]');
+  var count = form.querySelector('[data-bulk-count]');
+  var all = form.querySelector('[data-pick-all]');
+  var boxes = Array.prototype.slice.call(form.querySelectorAll('[data-pick]'));
+  if (!bar || !boxes.length) return;
+
+  // The server-rendered markup hides the bar on the assumption that this runs.
+  // If it did not, the bar stays visible and the whole thing still works.
+  var hideWhenEmpty = true;
+
+  function picked() {
+    return boxes.filter(function (b) { return b.checked; });
+  }
+
+  function sync() {
+    var n = picked().length;
+    if (count) count.textContent = String(n);
+    if (hideWhenEmpty) bar.hidden = n === 0;
+    if (all) {
+      all.checked = n > 0 && n === boxes.length;
+      // Neither on nor off: some of them.
+      all.indeterminate = n > 0 && n < boxes.length;
+    }
+  }
+
+  if (all) {
+    all.addEventListener('change', function () {
+      boxes.forEach(function (b) { b.checked = all.checked; });
+      sync();
+    });
+  }
+
+  // Shift-click selects the range, the way a file manager does. Worth the
+  // dozen lines: the alternative on a long list is a lot of clicking.
+  var anchor = null;
+  boxes.forEach(function (box, i) {
+    box.addEventListener('click', function (e) {
+      if (e.shiftKey && anchor !== null) {
+        var from = Math.min(anchor, i);
+        var to = Math.max(anchor, i);
+        for (var j = from; j <= to; j++) boxes[j].checked = box.checked;
+      }
+      anchor = i;
+      sync();
+    });
+    box.addEventListener('change', sync);
+  });
+
+  // Archive is reversible, but it still moves things out from under you.
+  form.addEventListener('submit', function (e) {
+    var button = e.submitter;
+    var question = button && button.getAttribute('data-confirm');
+    if (question && !window.confirm(question)) e.preventDefault();
+  });
+
+  sync();
+})();

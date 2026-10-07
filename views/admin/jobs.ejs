@@ -4,43 +4,115 @@
   <div class="dash-head">
     <div>
       <div class="eyebrow">ADMIN</div>
-      <h1>Job board</h1>
+      <h1><%= f.archived ? 'Archived jobs' : 'Job board' %></h1>
     </div>
-    <a class="button small" href="/admin/leads">Lead inbox &rarr;</a>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/dashboard">Dashboard</a>
+      <a class="button small ghost" href="/admin/leads">Lead inbox</a>
+      <% if (f.archived) { %>
+        <a class="button small" href="/admin/jobs">&larr; Back to the board</a>
+      <% } else { %>
+        <a class="button small ghost" href="/admin/jobs?view=archived">Archived (<%= archivedCount %>)</a>
+      <% } %>
+    </div>
   </div>
+
+  <% if (notice) { %><div class="panel notice"><%= notice %></div><% } %>
 
   <div class="metrics three">
     <div><span>Jobs completed</span><strong><%= totals.done %></strong></div>
     <div><span>Revenue collected</span><strong><%= money(totals.revenue) %></strong></div>
     <div><span>Net contribution</span><strong class="<%= totals.net < 0 ? 'neg' : 'pos' %>"><%= money(totals.net) %></strong></div>
   </div>
+  <% if (f.active) { %>
+    <p class="metrics-note">Those totals cover the <%= jobs.length %> <%= jobs.length === 1 ? 'job' : 'jobs' %> matching this filter, not the whole board.</p>
+  <% } %>
+
+  <%- include('../partials/admin-toolbar', {
+    action: '/admin/jobs', f: f, sorts: sorts,
+    statusOptions: statuses, serviceOptions: null, sourceOptions: null
+  }) %>
 
   <% if (!jobs.length) { %>
-    <div class="panel empty">No jobs yet. A job appears here the moment a customer approves a quote.</div>
-  <% } else { %>
-    <div class="jobs">
-      <div class="job-row header-row">
-        <div>Customer</div><div>Service</div><div>When</div><div>Revenue</div><div>Net</div><div>Status</div><div></div>
-      </div>
-      <% jobs.forEach(function(j) { %>
-        <div class="job-row">
-          <div>
-            <strong><%= j.customer_name %></strong>
-            <small><span class="ref-chip"><%= j.work_ref %></span> &middot; <a href="tel:<%= telHref(j.customer_phone) %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
-          </div>
-          <div><%= j.service %><small><%= j.operator_name %></small></div>
-          <div data-label="When">
-            <% if (j.scheduled_for && j.status === 'scheduled') { %><%= prettyWhen(j.scheduled_for) %>
-            <% } else if (j.proposed_for) { %><%= prettyWhen(j.proposed_for) %><small>proposed</small>
-            <% } else { %>—<% } %>
-          </div>
-          <div data-label="Revenue"><%= money(j.profit.revenue) %></div>
-          <div data-label="Net" class="<%= j.profit.net < 0 ? 'neg' : 'pos' %>"><%= money(j.profit.net) %></div>
-          <div><span class="badge <%= j.status %>"><%= prettyStatus(j.status) %></span></div>
-          <div><a class="button small" href="/admin/jobs/<%= j.id %>">Open</a></div>
-        </div>
-      <% }) %>
+    <div class="panel empty">
+      <% if (f.active) { %>
+        Nothing matches that. <a class="text-link" href="/admin/jobs<%= f.archived ? '?view=archived' : '' %>">Clear the filters</a>
+      <% } else if (f.archived) { %>
+        Nothing archived. Jobs you archive from the board appear here, and can be put back.
+      <% } else { %>
+        No jobs yet. A job appears here the moment a customer approves a quote.
+      <% } %>
     </div>
+  <% } else { %>
+    <form method="post" action="/admin/jobs/bulk" id="bulk-form" data-bulk="job">
+      <input type="hidden" name="q" value="<%= f.q %>">
+      <input type="hidden" name="status" value="<%= f.status %>">
+      <input type="hidden" name="sort" value="<%= f.sort %>">
+      <% if (f.archived) { %><input type="hidden" name="view" value="archived"><% } %>
+
+      <div class="list-count">
+        <%= jobs.length %> <%= jobs.length === 1 ? 'job' : 'jobs' %><% if (f.active) { %> matching<% } %>
+      </div>
+
+      <div class="jobs selectable">
+        <div class="job-row header-row">
+          <div class="pick">
+            <input type="checkbox" id="pick-all" data-pick-all aria-label="Select every job shown">
+          </div>
+          <div>Customer</div><div>Service</div><div>When</div>
+          <div>Revenue</div><div>Net</div><div>Status</div><div></div>
+        </div>
+        <% jobs.forEach(function(j) { %>
+          <div class="job-row">
+            <div class="pick">
+              <input type="checkbox" name="ids" value="<%= j.id %>" data-pick
+                     aria-label="Select <%= j.work_ref %>">
+            </div>
+            <div>
+              <strong><%= j.customer_name %></strong>
+              <small><span class="ref-chip"><%= j.work_ref %></span> &middot; <a href="tel:<%= telHref(j.customer_phone) %>"><%= j.customer_phone %></a> &middot; <%= [j.city, j.zip].filter(Boolean).join(' ') %></small>
+            </div>
+            <div><%= j.service %><small><%= j.operator_name %></small></div>
+            <div data-label="When">
+              <% if (j.scheduled_for && j.status === 'scheduled') { %><%= prettyWhen(j.scheduled_for) %>
+              <% } else if (j.proposed_for) { %><%= prettyWhen(j.proposed_for) %><small>proposed</small>
+              <% } else { %>—<% } %>
+            </div>
+            <div data-label="Revenue"><%= money(j.profit.revenue) %></div>
+            <div data-label="Net" class="<%= j.profit.net < 0 ? 'neg' : 'pos' %>"><%= money(j.profit.net) %></div>
+            <div>
+              <span class="badge <%= j.status %>"><%= prettyStatus(j.status) %></span>
+              <%# A job can be on this page because its lead was archived
+                  rather than the job itself. Restoring it here would not
+                  bring it back, so say which it is. %>
+              <% if (f.archived && j.lead_archived_at && !j.archived_at) { %>
+                <small>via archived lead</small>
+              <% } %>
+            </div>
+            <div class="row-actions">
+              <a class="button small" href="/admin/jobs/<%= j.id %>">Open</a>
+              <a class="button small ghost" href="/admin/jobs/<%= j.id %>/edit">Edit</a>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="bulk-bar" data-bulk-bar hidden>
+        <span class="bulk-count"><span data-bulk-count>0</span> selected</span>
+        <div class="bulk-actions">
+          <% if (f.archived) { %>
+            <button class="button small" type="submit" name="action" value="restore">Restore</button>
+          <% } else { %>
+            <button class="button small ghost" type="submit" name="action" value="archive"
+                    data-confirm="Archive the selected jobs? They leave the board and all dashboard totals, and can be restored from the archive.">Archive</button>
+          <% } %>
+          <span class="bulk-sep">Set status</span>
+          <% statuses.forEach(function(s) { %>
+            <button class="button small ghost" type="submit" name="action" value="status:<%= s %>"><%= prettyStatus(s) %></button>
+          <% }) %>
+        </div>
+      </div>
+    </form>
   <% } %>
 </main>
 

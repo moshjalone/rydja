@@ -131,6 +131,12 @@
       <% if (job) { %>
         <div class="big-price"><%= money(quote.amount_cents) %></div>
         <p class="price-note">Approved <%= prettyDate(quote.responded_at) %>. This is now a job.</p>
+        <%# An amount edited after the customer approved it. The note is the
+            only place the original figure survives, so it has to be visible
+            here rather than only in the database. %>
+        <% if (quote.notes && quote.notes.indexOf('[Amount edited by admin') !== -1) { %>
+          <p class="price-note warn-note"><%= quote.notes.slice(quote.notes.indexOf('[Amount edited by admin')) %></p>
+        <% } %>
         <a class="button full" href="/admin/jobs/<%= job.id %>">Open job #<%= job.id %> &rarr;</a>
       <% } else { %>
         <% if (quote && quote.status === 'sent') { %>
