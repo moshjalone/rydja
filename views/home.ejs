@@ -72,6 +72,34 @@
     </div>
   </section>
 
+  <%# Owner. One photograph, used once, with his permission and his agreement
+      to be named. No biography, no address, no family. %>
+  <section id="owner" class="section shell owner-strip">
+    <figure class="owner-photo">
+      <picture>
+        <source srcset="/img/josh-owner-rydja.webp?v=<%= assetV.img %>" type="image/webp">
+        <img src="/img/josh-owner-rydja.jpg?v=<%= assetV.img %>"
+             width="720" height="540" loading="lazy" decoding="async"
+             alt="Josh, owner of RYDJA, beside a RYDJA work truck">
+      </picture>
+    </figure>
+    <div class="owner-copy">
+      <div class="eyebrow">LOCALLY OWNED</div>
+      <h2>Locally owned. Personally handled.</h2>
+      <p class="lede smaller">
+        RYDJA is owner-operated. The person who reads your photos and prices your job is the person who turns up to
+        do it.
+      </p>
+      <p class="owner-name"><strong>Josh</strong> &mdash; Owner/Operator</p>
+      <% if (businessPhone) { %>
+        <p class="price-note">
+          Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a>, or
+          <a class="text-link" href="/quote">send photos for a quote</a>.
+        </p>
+      <% } %>
+    </div>
+  </section>
+
   <%# Service area. Named plainly, once, in the words we actually use. %>
   <section id="area" class="section shell">
     <div class="section-heading">

@@ -411,6 +411,68 @@ test('the images used are optimised and declare their size', async () => {
   }
 });
 
+test('the owner appears once, named, with no biography and no address', async () => {
+  const doc = await html('/');
+
+  assert.match(doc, /Locally owned\. Personally handled\./);
+  assert.match(doc, /Josh<\/strong> &mdash; Owner\/Operator/);
+  assert.match(doc, /owner-operated/i);
+
+  // One photograph, used once, sized, lazy, and described.
+  const owner = doc.match(/<img[^>]*josh-owner-rydja[^>]*>/g) || [];
+  assert.equal(owner.length, 1, 'the owner photo should appear exactly once');
+  assert.match(owner[0], /alt="Josh, owner of RYDJA, beside a RYDJA work truck"/);
+  assert.match(owner[0], /width="720"/);
+  assert.match(owner[0], /height="540"/);
+  assert.match(owner[0], /loading="lazy"/);
+  assert.match(doc, /<source srcset="\/img\/josh-owner-rydja\.webp/, 'a modern format with a fallback');
+
+  // It is a trust element, not a biography, and it carries nothing private.
+  const section = doc.slice(doc.indexOf('id="owner"'), doc.indexOf('id="area"'));
+  const words = section.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').length;
+  assert.ok(words < 90, 'the owner section is a trust element, not a life story (' + words + ' words)');
+
+  // Whole words only: "son" lives inside "Personally handled", which is the
+  // heading we actually want.
+  const lower = section.toLowerCase();
+  for (const overshare of ['wife', 'husband', 'kids', 'children', 'son', 'daughter', 'family',
+                           'born in', 'grew up', 'lives at', 'home address']) {
+    assert.doesNotMatch(
+      lower,
+      new RegExp('\\b' + overshare.replace(/ /g, '\\s+') + '\\b'),
+      'the owner section must not include: ' + overshare
+    );
+  }
+  assert.doesNotMatch(
+    section.replace(/placeholder="[^"]*"/g, ''),
+    /\d{1,5}\s+[A-Z][a-z]+\s+(Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr)/,
+    'no address beside the owner'
+  );
+});
+
+test('only the approved images are served to the public', async () => {
+  // The site serves derivatives, never the multi-megabyte originals, and only
+  // the ones chosen for a page. Everything else stays local.
+  const allowed = new Set([
+    '/img/rydja-logo.jpg', '/img/rydja-logo.webp',
+    '/img/rydja-truck-trailer.jpg', '/img/rydja-truck-trailer.webp',
+    '/img/josh-owner-rydja.jpg', '/img/josh-owner-rydja.webp'
+  ]);
+
+  const seen = new Set();
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+    for (const m of doc.matchAll(/(?:src|srcset)="(\/img\/[^"?]+)/g)) seen.add(m[1]);
+  }
+  for (const ref of seen) assert.ok(allowed.has(ref), 'unexpected image on a public page: ' + ref);
+
+  // Nothing from the source folder is reachable over HTTP.
+  for (const original of ['/images/RYDJA%20Hauling%20Logo.png', '/images/originals/RYDJA%20Hauling%20Logo.png',
+                          '/img/originals/logo.png']) {
+    assert.ok((await app.get(original)).status >= 400, original + ' must not be served');
+  }
+});
+
 test('no promotional image is presented as a documented customer job', async () => {
   for (const path of INDEXABLE) {
     const doc = await html(path);

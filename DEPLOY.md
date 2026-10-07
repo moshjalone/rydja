@@ -465,10 +465,30 @@ individually and a range would be a claim we cannot stand behind.
 
 ### Images
 
-`images/` holds the original brand assets. `public/img/` holds the two the site
-actually uses, resized and re-encoded once in a browser and committed: the logo
-(12KB) and one truck photograph (86KB WebP with a JPEG fallback). There is no
-build step.
+Two folders, and the split matters:
+
+| Folder | What | Tracked by git? |
+|---|---|---|
+| `images/originals/` | Full-resolution source artwork, ~18MB | **No** &mdash; gitignored |
+| `public/img/` | What the site actually serves, ~430KB | Yes |
+
+The originals stay on the owner's machine. Render clones this repo on every
+deploy and has no use for 18MB of source PNGs, so they are gitignored and were
+untracked with `git rm --cached` &mdash; the local files were never touched.
+**Do not delete `images/originals/`:** it is the source the derivatives are
+generated from, and nothing regenerates them automatically.
+
+`public/img/` holds the three images the site uses, resized and re-encoded once
+in a browser and committed: the logo (12KB), one truck photograph (86KB WebP
+with a JPEG fallback) and the owner photograph (63KB WebP with a fallback).
+There is no build step; to change one, regenerate it and commit the result.
+
+A test walks every image referenced by every page and asserts each one is both
+served and tracked, so a derivative can never go missing from a deploy.
+
+The owner photograph appears once, on the homepage, with Josh's permission and
+his agreement to be named as Owner/Operator. No biography, no address, no
+family. A test holds the section under 90 words and checks for both.
 
 **Promotional photography is never captioned as a customer's job.** A test
 checks every `alt` and `figcaption` for it. Real before/after work goes in the

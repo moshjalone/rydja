@@ -16,3 +16,10 @@ backups/*
 !backups/.gitkeep
 
 *.log
+
+# Full-resolution source artwork. Kept on the owner's machine, never deployed:
+# Render clones this repo on every deploy and has no use for 18MB of originals.
+# What the site actually serves lives in public/img, generated from these once
+# and committed. Never delete this folder locally -- it is the source of truth
+# the derivatives come from.
+images/originals/

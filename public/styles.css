@@ -497,6 +497,12 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .area-figure{margin:28px 0 34px}
 .area-figure img{width:100%;height:auto;border-radius:14px;display:block}
 .area-figure figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+/* Owner strip. Two columns on desktop, stacked on a phone. */
+.owner-strip{display:grid;grid-template-columns:.9fr 1.1fr;gap:48px;align-items:center}
+.owner-photo{margin:0}
+.owner-photo img{width:100%;height:auto;border-radius:18px;display:block;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+.owner-copy h2{font-size:clamp(28px,3.4vw,44px);letter-spacing:-.04em;line-height:1.05;margin:0 0 14px}
+.owner-name{font-size:15px;margin:18px 0 6px;color:var(--ink)}
 .review-ask{margin-top:30px}
 .review-ask .button{margin-top:14px}
 
@@ -509,7 +515,8 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
      moves into it, at the far left where the links used to start, still facing
      the wordmark and the button beyond it. */
   .nav::after{display:block;grid-area:1/1;justify-self:start;width:104px;height:24px;opacity:.7}
-  .hero,.split,.form-shell,.dash-grid,.phase-grid{grid-template-columns:1fr}
+  .hero,.split,.form-shell,.dash-grid,.phase-grid,.owner-strip{grid-template-columns:1fr}
+  .owner-strip{gap:26px}
   /* Room under the quote card for the rig to sit in. */
   .hero{padding:40px 0;gap:30px;min-height:0}
   .hero-band .hero{padding-bottom:140px}
