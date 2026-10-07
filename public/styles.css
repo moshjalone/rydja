@@ -318,6 +318,42 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .job-row:first-child{border-top:0}
 .job-row small{display:block;color:var(--muted);margin-top:4px;font-size:12px}
 .header-row{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.08em;background:#f6f3eb}
+/* The lead row carries one more column than the job row: where it came from. */
+.lead-row{grid-template-columns:1.4fr 1fr .9fr .8fr .6fr .8fr .8fr auto}
+
+/* ---------- dashboard ---------- */
+.metrics.four{grid-template-columns:repeat(4,1fr)}
+.metrics.five{grid-template-columns:repeat(5,1fr)}
+.metrics.money-row{margin-top:10px}
+.metrics .net{background:var(--ink);border-color:var(--ink)}
+.metrics .net span{color:#a8aaa2}
+.metrics .net strong{color:var(--accent)}
+.dash-sub{color:var(--muted);font-size:14px;margin:6px 0 0}
+.dash-actions{display:flex;gap:10px;flex-wrap:wrap}
+.dash-h2{font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:38px 0 0}
+.dash-note{color:var(--muted);font-size:13px;margin:12px 0 0;line-height:1.5}
+.attention{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 0}
+.attention-item{display:flex;align-items:baseline;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;text-decoration:none;color:var(--ink)}
+.attention-item:hover{border-color:var(--ink)}
+.attention-item strong{font-size:26px;letter-spacing:-.03em;min-width:1.2em}
+.attention-item span{font-size:13px;color:var(--muted);line-height:1.35}
+/* Nothing waiting is good news, so it recedes rather than shouting zero. */
+.attention-item.quiet strong{color:var(--muted);font-weight:400}
+.rows thead th{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:0 0 10px}
+.rows thead th.num{text-align:right;padding-left:12px}
+.quiet-kv dd{font-weight:400}
+.quiet-kv small{display:block;color:var(--muted);font-size:12px;font-weight:400;margin-top:3px}
+
+/* ---------- lead source chips ---------- */
+.src-chip{font-size:11px;font-weight:800;padding:4px 9px;border-radius:999px;width:max-content;white-space:nowrap;background:#e9e5da;color:var(--ink)}
+.src-google{background:#dce7ff}
+.src-facebook{background:#d8ddff}
+.src-bing{background:#d4ecec}
+.src-referral{background:#ffe9c7}
+.src-direct{background:#e5e5e5}
+.src-other{background:#ece7f5}
+.src-unknown{background:transparent;color:var(--muted);border:1px dashed var(--line);font-weight:700}
+
 
 /* ---------- badges ---------- */
 .badge{font-size:10px;font-weight:900;padding:6px 9px;border-radius:999px;width:max-content;text-transform:uppercase;letter-spacing:.06em;background:#e9e5da;white-space:nowrap}
@@ -577,6 +613,16 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   .rows tr{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:14px 0;border-top:1px solid var(--line)}
   .rows tr:first-child{border-top:0;padding-top:0}
   .rows .num{text-align:left;padding-left:0}
+  .rows thead{display:none}
+  .rows .num[data-label]::before{content:attr(data-label) ": ";font-weight:700;color:var(--muted)}
+  .metrics.four,.metrics.five{grid-template-columns:1fr 1fr}
+  .attention{grid-template-columns:1fr}
+  /* Status stays on the top line; everything else stacks under the name. */
+  .lead-row{grid-template-columns:1fr auto}
+  .lead-row>*:nth-child(2),.lead-row>*:nth-child(3),.lead-row>*:nth-child(4),
+  .lead-row>*:nth-child(5),.lead-row>*:nth-child(6){grid-column:1;font-size:13px;color:var(--muted)}
+  .lead-row>*:nth-child(1){grid-column:1;grid-row:1}
+  .lead-row>*:nth-child(7){grid-column:2;grid-row:1}
 }
 
 /* The rig, the wordmark and the button need about 311px between them, and a

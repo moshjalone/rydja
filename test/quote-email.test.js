@@ -275,10 +275,13 @@ test('no address, name, phone or token reaches the log', async () => {
   assert.ok(!log.includes(CUSTOMER.phone), 'a phone number must never be logged');
   assert.ok(!log.includes('12 Oak St'), 'nor a street address');
 
+  // The trailing word is the source bucket: one of six fixed words, or
+  // "unknown". It identifies nobody, which is why it is allowed on this line
+  // when a campaign name is not.
   assert.match(
     log,
-    /\[lead\] new lead #\d+ RYDJA-[A-Z0-9]{6} — .+ — \d+ photo\(s\)$/m,
-    'the accepted-lead line keeps its shape, now with the work reference'
+    /\[lead\] new lead #\d+ RYDJA-[A-Z0-9]{6} — .+ — \d+ photo\(s\) — (google|facebook|bing|referral|direct|other|unknown)$/m,
+    'the accepted-lead line keeps its shape, now with the work reference and the source'
   );
 
   const mailLines = log.split('\n').filter((l) => l.includes('[mail]'));

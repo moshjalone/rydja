@@ -59,6 +59,19 @@ create table if not exists leads (
   -- reads it on the lead and answers by phone.
   customer_message    text,
   customer_message_at text,
+  -- Where this lead came from, taken from the first public page of the visit:
+  -- the campaign parameters in the URL we handed out, plus the referring host.
+  -- `source` is the normalised bucket (google | facebook | bing | referral |
+  -- direct | other) and utm_source keeps the raw value beside it. NULL means we
+  -- never saw the visit, which is not the same thing as 'direct'.
+  source        text,
+  utm_source    text,
+  medium        text,
+  campaign      text,
+  content       text,
+  term          text,
+  referrer      text,                            -- host only, never a full URL
+  landing_path  text,                            -- path only, never the query
   created_at    text    not null default (datetime('now'))
 );
 

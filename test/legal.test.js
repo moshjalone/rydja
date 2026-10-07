@@ -339,10 +339,39 @@ test('the site still ships no analytics, pixels or third-party scripts', async (
   }
 });
 
-test('public pages set no cookies at all', async () => {
+// A public page now sets one cookie: our own session, holding which link
+// brought the visitor so their quote can be credited to it. That is a real
+// change from setting none, so what it may contain is pinned down here rather
+// than left to drift -- and the privacy policy has to keep saying so.
+test('public pages set one first-party cookie and nothing else', async () => {
   for (const path of ['/', '/services', '/quote', ...LEGAL_PAGES]) {
     const res = await app.get(path);
-    assert.deepEqual(res.headers.getSetCookie(), [], path + ' must not set a cookie');
+    const cookies = res.headers.getSetCookie();
+
+    assert.ok(cookies.length <= 2, path + ' sets too many cookies: ' + cookies.join(' | '));
+    for (const cookie of cookies) {
+      const name = cookie.split('=')[0];
+      assert.match(name, /^ps_session/, path + ' set an unexpected cookie: ' + name);
+      assert.match(cookie, /HttpOnly/i, 'the attribution cookie must not be readable by script');
+      assert.match(cookie, /SameSite=lax/i, 'it must not travel on a cross-site request');
+    }
+  }
+});
+
+test('the privacy policy discloses the attribution cookie accurately', async () => {
+  const doc = await html('/privacy');
+
+  // It can no longer claim to set nothing.
+  assert.ok(!/sets no cookies at all/i.test(doc), 'that claim is no longer true');
+
+  assert.match(doc, /utm_source/, 'name the campaign labels we actually store');
+  assert.match(doc, /domain only/i, 'say that only the referring domain is kept');
+  assert.match(doc, /no analytics, no advertising pixels/i, 'the standing claim must survive');
+
+  // And it must not have acquired a claim we would be unable to defend.
+  for (const overclaim of ['google analytics', 'advertising cookie', 'advertising cookies',
+                           'we track you', 'third-party cookie']) {
+    assert.ok(!doc.toLowerCase().includes(overclaim), 'privacy policy must not say: ' + overclaim);
   }
 });
 

@@ -1,0 +1,77 @@
+<%- include('../partials/head', { title: 'Dashboard', noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN</div>
+      <h1>Dashboard</h1>
+      <p class="dash-sub"><%= period.label %></p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/leads">Lead inbox</a>
+      <a class="button small" href="/admin/jobs">Job board &rarr;</a>
+    </div>
+  </div>
+
+  <h2 class="dash-h2">This month</h2>
+  <div class="metrics five">
+    <div><span>Leads</span><strong><%= month.leads %></strong></div>
+    <div><span>Quotes sent</span><strong><%= month.quotesSent %></strong></div>
+    <div><span>Quotes approved</span><strong><%= month.quotesApproved %></strong></div>
+    <div><span>Jobs scheduled</span><strong><%= month.jobsScheduled %></strong></div>
+    <div><span>Jobs completed</span><strong><%= month.jobsCompleted %></strong></div>
+  </div>
+
+  <%# Money is counted over the jobs completed inside the month, so revenue,
+      expenses and salvage all describe the same set of work. %>
+  <div class="metrics four money-row">
+    <div><span>Customer revenue</span><strong><%= money(totals.revenue) %></strong></div>
+    <div><span>Recorded expenses</span><strong><%= money(totals.expenses) %></strong></div>
+    <div><span>Realized salvage</span><strong><%= money(totals.salvage) %></strong></div>
+    <div class="net"><span>Net contribution</span><strong><%= money(totals.net) %></strong></div>
+  </div>
+  <p class="dash-note">
+    Counted over jobs marked complete this month. Revenue less recorded expenses, plus salvage actually sold.
+  </p>
+
+  <h2 class="dash-h2">Needs attention</h2>
+  <div class="attention">
+    <% attention.forEach(function(item) { %>
+      <a class="attention-item <%= item.n ? '' : 'quiet' %>" href="<%= item.href %>">
+        <strong><%= item.n %></strong>
+        <span><%= item.label %></span>
+      </a>
+    <% }) %>
+  </div>
+
+  <h2 class="dash-h2">Lead sources</h2>
+  <% if (!sources.length) { %>
+    <div class="panel empty">No leads yet this month.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead>
+          <tr><th>Source</th><th class="num">Leads</th><th class="num">Approved</th><th class="num">Rate</th></tr>
+        </thead>
+        <tbody>
+          <% sources.forEach(function(row) { %>
+            <tr>
+              <td><span class="src-chip src-<%= row.source || 'unknown' %>"><%= row.label %></span></td>
+              <td class="num" data-label="Leads"><%= row.leads %></td>
+              <td class="num" data-label="Approved"><%= row.approved %></td>
+              <%# A rate needs a denominator. No row reaches here with zero
+                  leads, but the template still refuses to print "NaN%". %>
+              <td class="num" data-label="Rate"><%= row.rate === null ? '—' : row.rate + '%' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="dash-note">
+      Leads this month, and how many of them have an approved quote. A lead with no recorded source is shown as
+      Unknown rather than counted as Direct.
+    </p>
+  <% } %>
+</main>
+
+<%- include('../partials/foot') %>

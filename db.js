@@ -123,6 +123,17 @@ function migrate() {
     addColumn('leads', col, 'text');
   }
   addColumn('leads', 'scheduling_flexible', 'integer not null default 0');
+
+  // Lead attribution. Added without a backfill on purpose: a lead taken before
+  // any of this existed has no source, and 'direct' would be a guess recorded
+  // as a fact. NULL reads as Unknown in the admin and is excluded from every
+  // conversion denominator, which is the honest answer.
+  for (const col of ['source', 'utm_source', 'medium', 'campaign', 'content',
+                     'term', 'referrer', 'landing_path']) {
+    addColumn('leads', col, 'text');
+  }
+  db.exec('create index if not exists idx_leads_source on leads(source)');
+
   addColumn('quotes', 'proposed_for', 'text');
   // Deliberately not backfilled. A quote approved before the Terms existed did
   // not accept them, and writing a version into those rows would manufacture

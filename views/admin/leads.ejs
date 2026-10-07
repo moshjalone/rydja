@@ -6,7 +6,10 @@
       <div class="eyebrow">ADMIN</div>
       <h1>Lead inbox</h1>
     </div>
-    <a class="button small" href="/admin/jobs">Job board &rarr;</a>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/dashboard">Dashboard</a>
+      <a class="button small" href="/admin/jobs">Job board &rarr;</a>
+    </div>
   </div>
 
   <div class="metrics three">
@@ -20,7 +23,7 @@
   <% } else { %>
     <div class="jobs">
       <div class="job-row header-row lead-row">
-        <div>Customer</div><div>Service</div><div>Where</div><div>Photos</div><div>Quote</div><div>Status</div><div></div>
+        <div>Customer</div><div>Service</div><div>Where</div><div>Source</div><div>Photos</div><div>Quote</div><div>Status</div><div></div>
       </div>
       <% leads.forEach(function(l) { %>
         <div class="job-row lead-row">
@@ -30,6 +33,7 @@
           </div>
           <div><%= l.service %><small><%= prettyDate(l.created_at) %></small></div>
           <div data-label="Where"><%= [l.city, l.zip].filter(Boolean).join(" ") %></div>
+          <div data-label="Source"><span class="src-chip src-<%= l.source || 'unknown' %>"><%= sourceLabel(l.source) %></span></div>
           <div data-label="Photos"><%= l.photo_count %></div>
           <div data-label="Quote"><%= l.quote_cents ? money(l.quote_cents) : '—' %></div>
           <div><span class="badge <%= l.status %>"><%= prettyStatus(l.status) %></span></div>

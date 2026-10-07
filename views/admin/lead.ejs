@@ -52,6 +52,33 @@
         <p class="price-note">Sent <%= prettyDate(lead.customer_message_at) %>. Call them back.</p>
       <% } %>
 
+      <%# ---- where this lead came from ---- %>
+      <h3 class="sub-head">Lead source</h3>
+      <dl class="kv quiet-kv">
+        <div><dt>Source</dt><dd>
+          <span class="src-chip src-<%= lead.source || 'unknown' %>"><%= sourceLabel(lead.source) %></span>
+          <% if (lead.utm_source && sourceLabel(lead.source).toLowerCase() !== lead.utm_source.toLowerCase()) { %>
+            <small>utm_source: <%= lead.utm_source %></small>
+          <% } %>
+        </dd></div>
+        <% if (lead.campaign) { %>
+          <div><dt>Campaign</dt><dd>
+            <%= lead.campaign %>
+            <% if (lead.medium) { %><small><%= lead.medium %><% if (lead.content) { %> &middot; <%= lead.content %><% } %></small><% } %>
+            <% if (lead.term) { %><small>term: <%= lead.term %></small><% } %>
+          </dd></div>
+        <% } %>
+        <% if (lead.landing_path) { %>
+          <div><dt>Landing page</dt><dd><a class="text-link" href="<%= lead.landing_path %>" target="_blank" rel="noopener"><%= lead.landing_path %></a></dd></div>
+        <% } %>
+        <% if (lead.referrer) { %>
+          <div><dt>Referrer</dt><dd><%= lead.referrer %></dd></div>
+        <% } %>
+      </dl>
+      <% if (!lead.source) { %>
+        <p class="price-note">This lead predates source tracking, so there is nothing recorded.</p>
+      <% } %>
+
       <% if (history.length) { %>
         <h3 class="sub-head">Earlier requests from this customer</h3>
         <ul class="plain-list">

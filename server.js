@@ -14,6 +14,7 @@ const mail = require('./mail');
 const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
 const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
+const attribution = require('./attribution');
 
 // ---------------------------------------------------------------- config
 //
@@ -464,6 +465,31 @@ app.use(
   })
 );
 
+/**
+ * Remember which link brought this visitor, for as long as the visit lasts.
+ *
+ * Deliberately the smallest thing that works: the campaign parameters already
+ * in the URL, plus the referring host the browser sends anyway, kept in the
+ * session cookie that cookie-session is already managing. No script runs, no
+ * third party is contacted, no identifier is minted, and nothing follows anyone
+ * off this site.
+ *
+ * Only the first public page of a visit is recorded. A visitor who arrives on
+ * /junk-removal from an ad and then clicks through to /quote is still credited
+ * to the ad -- which is the entire point, and the reason this cannot be done
+ * from the quote form alone.
+ */
+const ATTRIBUTABLE = /^\/(?!admin|q\/|uploads\/|api\/)[^.]*$/;
+
+app.use((req, res, next) => {
+  // GET only, public pages only, and never a request for a file. The admin's
+  // own browsing and a customer's private page say nothing about marketing.
+  if (req.method !== 'GET' || !req.session || !ATTRIBUTABLE.test(req.path)) return next();
+  // First one wins. A later page in the same visit never overwrites it.
+  if (!req.session.attr) req.session.attr = attribution.capture(req, SITE_URL);
+  next();
+});
+
 // Values every template can use. Registered before the static mounts so the
 // 404/500 pages can still render when a static request is what failed.
 app.use((req, res, next) => {
@@ -489,6 +515,7 @@ app.use((req, res, next) => {
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
   res.locals.servicePages = SERVICE_PAGES;
   res.locals.facebookUrl = FACEBOOK_URL;
+  res.locals.sourceLabel = attribution.sourceLabel;
   res.locals.termsVersion = TERMS_VERSION;
   res.locals.year = new Date().getFullYear();
   res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
@@ -886,8 +913,10 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
       .prepare(
         `insert into leads (customer_id, public_token, work_ref, service, description, address, city, state, zip,
                             access, timing, pref_date_1, pref_window_1, pref_date_2, pref_window_2,
-                            scheduling_flexible, scheduling_note)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                            scheduling_flexible, scheduling_note,
+                            ${attribution.LEAD_COLUMNS.join(', ')})
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ${attribution.LEAD_COLUMNS.map(() => '?').join(', ')})`
       )
       .run(
         customer.id,
@@ -906,7 +935,10 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
         f.prefDate2,
         f.prefDate2 ? f.prefWindow2 || 'flexible' : null,
         f.schedulingFlexible,
-        f.schedulingNote || null
+        f.schedulingNote || null,
+        // Whatever the first page of this visit recorded. A visit we never saw
+        // writes nulls here rather than a guessed 'direct'.
+        ...attribution.leadValues(req.session && req.session.attr)
       );
 
     const addPhoto = db.prepare('insert into lead_photos (lead_id, filename) values (?, ?)');
@@ -917,8 +949,15 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
 
   // Reference, service and photo count. The work reference is public by
   // design, so it belongs in a log in a way a name or phone number never did.
-  const { work_ref: workRef } = db.prepare('select work_ref from leads where id = ?').get(leadId);
-  console.log(`[lead] new lead #${leadId} ${workRef} — ${f.service} — ${photos.length} photo(s)`);
+  // The source bucket is one of six fixed words and identifies nobody, so it
+  // belongs here the same way the reference does. The raw campaign values stay
+  // out of the log: a campaign name is ours, but it is not worth a line.
+  const { work_ref: workRef, source } = db
+    .prepare('select work_ref, source from leads where id = ?')
+    .get(leadId);
+  console.log(
+    `[lead] new lead #${leadId} ${workRef} — ${f.service} — ${photos.length} photo(s) — ${source || 'unknown'}`
+  );
 
   // The lead's private status URL (/q/:token) stays live and is what the
   // customer gets when a quote goes out. It is not what they land on here:
@@ -1131,9 +1170,183 @@ app.post('/admin/logout', (req, res) => {
   res.redirect('/');
 });
 
+// ------------------------------------------------------------ admin dashboard
+
+/**
+ * The current calendar month, as the bounds each kind of column needs.
+ *
+ * Two clocks live in this database and mixing them quietly loses a day's work
+ * at every month boundary. created_at / completed_at / responded_at are UTC
+ * instants, so they get UTC bounds derived from the local month. scheduled_for
+ * is wall-clock time the owner typed, so it gets plain local dates.
+ */
+function monthPeriod(now = new Date()) {
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const asUtc = (d) => d.toISOString().slice(0, 19).replace('T', ' ');
+  const asLocalDate = (d) =>
+    [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+
+  return {
+    utcStart: asUtc(first),
+    utcEnd: asUtc(next),
+    dateStart: asLocalDate(first),
+    dateEnd: asLocalDate(next),
+    label: now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  };
+}
+
+/** The six buckets, in the order the owner reads them. */
+const SOURCE_ORDER = ['google', 'facebook', 'bing', 'referral', 'direct', 'other'];
+
+/**
+ * Leads and approvals per source.
+ *
+ * A lead counts as converted once a quote on it has been approved -- that is
+ * the moment money becomes likely, and it is the thing an ad is actually
+ * buying. Rows with no leads at all are dropped rather than printed as a column
+ * of zeroes, and a rate is only shown when there is a denominator to divide by:
+ * "1 of 1, 100%" from a single click is noise dressed up as a number.
+ */
+function sourceBreakdown(period) {
+  const rows = db
+    .prepare(
+      `select coalesce(l.source, '') as source,
+              count(*) as leads,
+              sum(case when exists (
+                    select 1 from quotes q where q.lead_id = l.id and q.status = 'approved'
+                  ) then 1 else 0 end) as approved
+         from leads l
+        where l.created_at >= ? and l.created_at < ?
+        group by coalesce(l.source, '')`
+    )
+    .all(period.utcStart, period.utcEnd);
+
+  const bySource = new Map(rows.map((r) => [r.source, r]));
+  const known = SOURCE_ORDER.filter((s) => bySource.has(s));
+  // An unattributed lead is its own row, never folded into Direct or Other.
+  const order = bySource.has('') ? [...known, ''] : known;
+
+  return order.map((source) => {
+    const row = bySource.get(source);
+    const leads = row.leads;
+    const approved = row.approved || 0;
+    return {
+      source,
+      label: attribution.sourceLabel(source || null),
+      leads,
+      approved,
+      // Guarded twice over: no row reaches here with leads === 0, and the
+      // template still has to handle a null rather than print "NaN%".
+      rate: leads > 0 ? Math.round((approved / leads) * 100) : null
+    };
+  });
+}
+
+/** The money for one month, over the jobs actually completed inside it. */
+function monthMoney(period) {
+  const row = db
+    .prepare(
+      `select coalesce(sum(j.customer_total_cents), 0) as revenue,
+              coalesce((select sum(e.amount_cents) from job_expenses e
+                         where e.job_id in (select id from jobs
+                                             where status = 'complete'
+                                               and completed_at >= ? and completed_at < ?)), 0) as expenses,
+              coalesce((select sum(s.realized_value_cents) from salvage_items s
+                         where s.job_id in (select id from jobs
+                                             where status = 'complete'
+                                               and completed_at >= ? and completed_at < ?)), 0) as salvage
+         from jobs j
+        where j.status = 'complete' and j.completed_at >= ? and j.completed_at < ?`
+    )
+    .get(
+      period.utcStart, period.utcEnd,
+      period.utcStart, period.utcEnd,
+      period.utcStart, period.utcEnd
+    );
+
+  return {
+    revenue: row.revenue,
+    expenses: row.expenses,
+    salvage: row.salvage,
+    // The same arithmetic jobProfit() does per job, so the dashboard and a job
+    // page can never disagree about what a month was worth.
+    net: row.revenue - row.expenses + row.salvage
+  };
+}
+
+app.get('/admin/dashboard', requireAdmin, (req, res) => {
+  const period = monthPeriod();
+  const one = (sql, ...args) => db.prepare(sql).get(...args).n;
+
+  const month = {
+    leads: one('select count(*) as n from leads where created_at >= ? and created_at < ?',
+      period.utcStart, period.utcEnd),
+    quotesSent: one('select count(*) as n from quotes where created_at >= ? and created_at < ?',
+      period.utcStart, period.utcEnd),
+    quotesApproved: one(
+      "select count(*) as n from quotes where status = 'approved' and responded_at >= ? and responded_at < ?",
+      period.utcStart, period.utcEnd),
+    // scheduled_for is wall clock, so this one is a date comparison.
+    jobsScheduled: one(
+      'select count(*) as n from jobs where scheduled_for >= ? and scheduled_for < ?',
+      period.dateStart, period.dateEnd),
+    jobsCompleted: one(
+      "select count(*) as n from jobs where status = 'complete' and completed_at >= ? and completed_at < ?",
+      period.utcStart, period.utcEnd)
+  };
+
+  // What is sitting still and waiting for the owner to do something. Counts
+  // only -- no reminder emails, no automation, just the list.
+  const attention = [
+    {
+      label: 'New leads without a quote',
+      href: '/admin/leads',
+      n: one(`select count(*) as n from leads l
+               where l.status = 'new'
+                 and not exists (select 1 from quotes q where q.lead_id = l.id)`)
+    },
+    {
+      label: 'Quotes awaiting an answer',
+      href: '/admin/leads',
+      n: one("select count(*) as n from quotes where status = 'sent' and responded_at is null")
+    },
+    {
+      label: 'Approved jobs not yet scheduled',
+      href: '/admin/jobs',
+      n: one("select count(*) as n from jobs where status = 'unscheduled'")
+    },
+    {
+      label: 'Schedule change requested',
+      href: '/admin/jobs',
+      n: one(`select count(*) as n from jobs
+               where schedule_message is not null and schedule_message != ''
+                 and status not in ('complete', 'cancelled')`)
+    },
+    {
+      label: 'Jobs in progress',
+      href: '/admin/jobs',
+      n: one("select count(*) as n from jobs where status = 'in_progress'")
+    },
+    {
+      label: 'Completed jobs',
+      href: '/admin/jobs',
+      n: one("select count(*) as n from jobs where status = 'complete'")
+    }
+  ];
+
+  res.render('admin/dashboard', {
+    period,
+    month,
+    totals: monthMoney(period),
+    sources: sourceBreakdown(period),
+    attention
+  });
+});
+
 // ---------------------------------------------------------------- admin leads
 
-app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/leads'));
+app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/dashboard'));
 
 app.get('/admin/leads', requireAdmin, (req, res) => {
   const leads = db
