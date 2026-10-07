@@ -55,6 +55,16 @@ create table if not exists leads (
   pref_window_2 text,
   scheduling_flexible integer not null default 0,
   scheduling_note text,
+  -- Estate / whole-property cleanouts, and only those. Three optional
+  -- answers from the quote form, stored as the customer gave them: areas is
+  -- the ticked list joined with ', ', scope is one of a fixed set of phrases,
+  -- and deadline is free text because "before the closing on the 14th" is a
+  -- more useful answer than a date field would allow. All NULL on every other
+  -- kind of lead, which is what makes an estate lead recognisable in the admin
+  -- without a second table or a flag that could disagree with the service.
+  estate_areas    text,
+  estate_scope    text,
+  estate_deadline text,
   -- "Ask a question" from the customer's own page. Latest one wins; the owner
   -- reads it on the lead and answers by phone.
   customer_message    text,

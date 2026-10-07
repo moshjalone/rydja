@@ -42,7 +42,10 @@
       <label>What do you need?
         <select required name="service">
           <option value="">Choose a service</option>
-          <% var options = ['Junk / hauling','Garage / basement cleanout','Storage unit cleanout','Estate cleanout','Rental / property turnover','Yard / brush cleanup','Furniture / appliance removal','Moving / delivery help','Light demolition','Other'];
+          <%# The list lives in server.js, so the server can recognise what
+              the customer picked rather than matching on a string the
+              template owns. %>
+          <% var options = quoteServices;
              var preset = v('service', service); %>
           <% options.forEach(function(o) { %>
             <option<%= preset === o ? ' selected' : '' %>><%= o %></option>
@@ -71,6 +74,42 @@
           </select>
         </label>
       </div>
+
+      <%# ---- optional: estate / whole-property detail ----
+          Revealed for the flagship service only. Nothing here is required:
+          the point is to save a phone call, not to make somebody inventory a
+          house they have just inherited. %>
+      <% var estateOpen = isEstateService(preset) %>
+      <fieldset class="prefs estate-fields" data-estate-fields data-estate-service="<%= estateService %>"<%= estateOpen ? '' : ' hidden' %>>
+        <legend>About the property</legend>
+        <p class="hint block">
+          Optional, and useful rather than required &mdash; it helps us price the job from your photos.
+          Don&rsquo;t worry about listing individual items.
+        </p>
+
+        <fieldset class="checks">
+          <legend>Which areas need clearing?</legend>
+          <% estateAreas.forEach(function(area) { %>
+            <label class="check">
+              <input type="checkbox" name="estate_areas" value="<%= area %>"<%= (values && [].concat(values.estate_areas || []).indexOf(area) !== -1) ? ' checked' : '' %>>
+              <%= area %>
+            </label>
+          <% }) %>
+        </fieldset>
+
+        <label>Roughly how much of it?
+          <select name="estate_scope">
+            <option value="">Choose one &mdash; optional</option>
+            <% estateScopes.forEach(function(scope) { %>
+              <option<%= v('estate_scope') === scope ? ' selected' : '' %>><%= scope %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>Is there a deadline, closing date or move-out date? <span class="hint">optional</span>
+          <input name="estate_deadline" maxlength="200" value="<%= v('estate_deadline') %>" placeholder="Example: has to be empty before the closing on the 14th">
+        </label>
+      </fieldset>
 
       <%# ---- optional: when would suit them ---- %>
       <fieldset class="prefs">

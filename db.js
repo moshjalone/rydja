@@ -124,6 +124,14 @@ function migrate() {
   }
   addColumn('leads', 'scheduling_flexible', 'integer not null default 0');
 
+  // Estate / whole-property detail. Additive and never backfilled: a lead
+  // taken before these questions existed was not asked them, and guessing an
+  // answer from the service alone would be a record of something the customer
+  // never said. NULL reads as "not asked" in the admin.
+  for (const col of ['estate_areas', 'estate_scope', 'estate_deadline']) {
+    addColumn('leads', col, 'text');
+  }
+
   // Lead attribution. Added without a backfill on purpose: a lead taken before
   // any of this existed has no source, and 'direct' would be a guess recorded
   // as a fact. NULL reads as Unknown in the admin and is excluded from every

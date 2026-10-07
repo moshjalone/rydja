@@ -238,6 +238,21 @@ main:focus{outline:none}
 .steps p{color:var(--muted);line-height:1.5;margin:0}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center}
 .split .button{margin-top:26px}
+/* ---------- homepage flagship band ----------
+   Estate and whole-property cleanouts, named ahead of the service grid. Shares
+   .split's geometry on purpose -- the page already has one loud surface. */
+.flagship{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center;padding-bottom:0}
+.flagship h2{font-size:clamp(30px,4vw,48px);margin:0 0 16px}
+.flagship .hero-actions{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:26px}
+.flagship-list{list-style:none;padding:26px 28px;margin:0;background:var(--panel);border:1px solid var(--line);border-radius:20px;line-height:1.9;font-weight:700;font-size:15px}
+.flagship-list li{display:flex;gap:10px;align-items:baseline}
+.flagship-list li::before{content:"—";color:var(--accent);font-weight:900;flex:0 0 auto}
+@media(max-width:860px){.flagship{grid-template-columns:1fr;gap:30px}}
+
+/* The same service as a card on /services. One border, nothing else. */
+.service-grid .flagship-card{border-color:var(--ink);box-shadow:0 1px 0 var(--ink)}
+.service-grid .flagship-card .eyebrow{margin:0}
+
 .recovery-flow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .recovery-flow div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-weight:900;font-size:13px}
 
@@ -363,6 +378,8 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .badge.schedule_pending{background:#dce7ff}
 .badge.in_progress{background:#ffd79a}
 .badge.complete{background:#cfe9d4}
+.badge.estate{background:var(--accent);color:#111}
+.badge-stack{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .badge.declined,.badge.cancelled{background:#f3d2cb}
 
 /* ---------- inline tables (expenses, salvage) ---------- */
@@ -417,6 +434,12 @@ code{background:#e9e5da;padding:2px 6px;border-radius:5px;font-size:.9em}
 .prefs legend{font-weight:800;font-size:15px;padding:0 8px}
 .prefs .hint.block{display:block;margin:0 0 16px;font-size:13px;line-height:1.5;color:#a8aaa2}
 .prefs .check{margin-top:4px}
+.prefs .checks{border:0;padding:0;margin:0 0 18px;min-width:0}
+.prefs .checks legend{font-size:13px;font-weight:800;padding:0;margin-bottom:10px}
+.prefs .checks .check{margin:0}
+.estate-fields .checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+.estate-fields .checks legend{grid-column:1/-1}
+@media(max-width:560px){.estate-fields .checks{grid-template-columns:1fr}}
 
 /* The plain-words service list. Two columns of short items, not a wall. */
 .keyword-list{list-style:none;padding:0;margin:14px 0 0;columns:2;column-gap:28px;font-size:15px;line-height:1.9}

@@ -31,7 +31,10 @@
             <strong><%= l.customer_name %></strong>
             <small><span class="ref-chip"><%= l.work_ref %></span> &middot; <a href="tel:<%= telHref(l.customer_phone) %>"><%= l.customer_phone %></a></small>
           </div>
-          <div><%= l.service %><small><%= prettyDate(l.created_at) %></small></div>
+          <div>
+            <% if (isEstateService(l.service)) { %><span class="badge estate">Estate</span><br><% } %>
+            <%= l.service %><small><%= prettyDate(l.created_at) %></small>
+          </div>
           <div data-label="Where"><%= [l.city, l.zip].filter(Boolean).join(" ") %></div>
           <div data-label="Source"><span class="src-chip src-<%= l.source || 'unknown' %>"><%= sourceLabel(l.source) %></span></div>
           <div data-label="Photos"><%= l.photo_count %></div>

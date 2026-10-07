@@ -148,8 +148,19 @@ const SAME_AS = [FACEBOOK_URL].filter(Boolean);
 const RECENT_WORK = [];
 
 const SERVICES = [
+  {
+    slug: 'estate-cleanout',
+    name: 'Estate & Whole-Property Cleanouts',
+    blurb:
+      'One room or an entire property. House, garage, basement, barn and outbuildings cleared, at the pace the family needs.',
+    href: '/estate-cleanouts',
+    // What the card's "get a quote" link prefills. A card's name is marketing
+    // copy; the form's option is a stored value, and they are allowed to differ.
+    quote: 'Estate / whole-property cleanout',
+    flagship: true
+  },
   { slug: 'junk-hauling', name: 'Junk & Hauling', blurb: 'Furniture, appliances, household junk, scrap, debris and unwanted items.' },
-  { slug: 'cleanout', name: 'Full Cleanouts', blurb: 'Garages, basements, barns, storage units, estates and rental turnovers.' },
+  { slug: 'cleanout', name: 'Full Cleanouts', blurb: 'Garages, basements, barns, storage units and rental turnovers.' },
   { slug: 'yard-cleanup', name: 'Yard Cleanup', blurb: 'Brush, branches, storm debris, leaves and outdoor clutter.' },
   { slug: 'moving-delivery', name: 'Moving & Delivery', blurb: 'Heavy lifting, Marketplace pickups, local delivery, labor-only moving help.' },
   { slug: 'light-demo', name: 'Light Demo', blurb: 'Small sheds, playsets, cabinets and similar tear-down-and-remove projects.' },
@@ -160,12 +171,16 @@ const SERVICES = [
 // services page copy and the structured data's knowsAbout, so the page and the
 // markup always agree.
 const SERVICE_KEYWORDS = [
+  'estate cleanouts',
+  'whole house cleanouts',
+  'inherited home cleanouts',
+  'property cleanouts',
+  'downsizing help',
   'junk removal',
   'garage cleanouts',
   'basement cleanouts',
   'barn cleanouts',
   'storage unit cleanouts',
-  'estate cleanouts',
   'rental and property cleanouts',
   'yard cleanup',
   'brush and debris removal',
@@ -177,6 +192,65 @@ const SERVICE_KEYWORDS = [
   'scrap pickup',
   'property resets'
 ];
+
+// The exact label for the flagship service, named once. Everything that has
+// to recognise an estate lead -- the conditional fields, the admin badge, the
+// front-end toggle -- compares against this and nothing else.
+const ESTATE_SERVICE = 'Estate / whole-property cleanout';
+
+const QUOTE_SERVICES = [
+  ESTATE_SERVICE,
+  'Junk / hauling',
+  'Garage / basement cleanout',
+  'Storage unit cleanout',
+  'Rental / property turnover',
+  'Yard / brush cleanup',
+  'Furniture / appliance removal',
+  'Moving / delivery help',
+  'Light demolition',
+  'Other'
+];
+
+/**
+ * Is this lead an estate / whole-property job?
+ *
+ * Deliberately exact rather than a /estate/i test. 'Estate cleanout' was the
+ * old label and leads still carry it, so it is listed too -- but a customer
+ * typing the word into a description must not turn their lead into one.
+ */
+const LEGACY_ESTATE_SERVICES = ['Estate cleanout'];
+const isEstateService = (service) =>
+  service === ESTATE_SERVICE || LEGACY_ESTATE_SERVICES.includes(service);
+
+// The extra questions an estate job gets asked, and the only answers accepted.
+// Anything not on these lists is dropped rather than stored: these are fixed
+// vocabularies, so a tampered form cannot write free text into them.
+const ESTATE_AREAS = ['House', 'Garage', 'Basement', 'Attic', 'Barn', 'Shed/outbuildings', 'Yard', 'Other'];
+const ESTATE_SCOPES = [
+  'A few rooms',
+  'Most of the house',
+  'Whole house',
+  'Whole property / multiple buildings',
+  'Not sure'
+];
+
+/** The areas the customer ticked, in our order, joined for storage. */
+function cleanEstateAreas(input) {
+  const picked = new Set([].concat(input == null ? [] : input).map((v) => String(v)));
+  const kept = ESTATE_AREAS.filter((a) => picked.has(a));
+  return kept.length ? kept.join(', ') : null;
+}
+
+const cleanEstateScope = (input) => (ESTATE_SCOPES.includes(String(input)) ? String(input) : null);
+
+// A CTA that prefills a service the form does not offer silently produces a
+// lead labelled something nothing else recognises. Cheap to check, and a
+// startup failure is far easier to notice than a quietly mislabelled lead.
+for (const source of [...SERVICE_PAGES.map((p) => p.quoteService), ...SERVICES.map((s) => s.quote)]) {
+  if (source && !QUOTE_SERVICES.includes(source)) {
+    throw new Error(`"${source}" is prefilled somewhere but is not an option on the quote form`);
+  }
+}
 
 const EXPENSE_CATEGORIES = [
   { value: 'dump', label: 'Dump / disposal fee' },
@@ -352,7 +426,8 @@ function clean(input, maxLen) {
 const LIMITS = {
   name: 80, phone: 25, email: 120, address: 120, city: 60,
   state: 30, zip: 12, service: 60, description: 4000, access: 60, timing: 40,
-  note: 200, title: 120, notes: 2000, schedulingNote: 300, question: 1000
+  note: 200, title: 120, notes: 2000, schedulingNote: 300, question: 1000,
+  estateDeadline: 200
 };
 
 const digitsOnly = (s) => String(s).replace(/\D/g, '');
@@ -565,6 +640,11 @@ app.use((req, res, next) => {
   res.locals.year = new Date().getFullYear();
   res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
   res.locals.serviceKeywords = SERVICE_KEYWORDS;
+  res.locals.quoteServices = QUOTE_SERVICES;
+  res.locals.estateService = ESTATE_SERVICE;
+  res.locals.estateAreas = ESTATE_AREAS;
+  res.locals.estateScopes = ESTATE_SCOPES;
+  res.locals.isEstateService = isEstateService;
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
@@ -828,7 +908,7 @@ app.get('/services', (req, res) => res.render('services'));
 
 // Public and indexable on purpose: a customer should be able to read these
 // before they hand over a photo of their garage.
-// One layout, six genuinely different pages. The content lives in
+// One layout, seven genuinely different pages. The content lives in
 // content/service-pages.js so a page is a content change, not a template.
 for (const page of SERVICE_PAGES) {
   app.get('/' + page.slug, (req, res) =>
@@ -905,6 +985,17 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     schedulingNote: clean(b.scheduling_note, LIMITS.schedulingNote)
   };
 
+  // The estate questions, and only for an estate job. A non-estate submission
+  // that carried them anyway -- a stale form, a bot replaying fields -- writes
+  // nulls, so the columns never describe a lead they do not belong to.
+  const estate = isEstateService(f.service)
+    ? {
+        areas: cleanEstateAreas(b.estate_areas),
+        scope: cleanEstateScope(b.estate_scope),
+        deadline: clean(b.estate_deadline, LIMITS.estateDeadline) || null
+      }
+    : { areas: null, scope: null, deadline: null };
+
   const errors = [];
   if (!f.name) errors.push('your name');
   if (!f.phone) errors.push('a phone number');
@@ -959,8 +1050,9 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
         `insert into leads (customer_id, public_token, work_ref, service, description, address, city, state, zip,
                             access, timing, pref_date_1, pref_window_1, pref_date_2, pref_window_2,
                             scheduling_flexible, scheduling_note,
+                            estate_areas, estate_scope, estate_deadline,
                             ${attribution.LEAD_COLUMNS.join(', ')})
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  ${attribution.LEAD_COLUMNS.map(() => '?').join(', ')})`
       )
       .run(
@@ -981,6 +1073,9 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
         f.prefDate2 ? f.prefWindow2 || 'flexible' : null,
         f.schedulingFlexible,
         f.schedulingNote || null,
+        estate.areas,
+        estate.scope,
+        estate.deadline,
         // Whatever the visitor's first page recorded, however long ago. A
         // visitor we never saw writes nulls rather than a guessed 'direct'.
         ...attribution.leadValues(attribution.fromRequest(req, SESSION_SECRET))

@@ -2,7 +2,7 @@
 
 // The service pages, the service area page, and the review link.
 //
-// The assertion that matters most here is the one about duplication: six pages
+// The assertion that matters most here is the one about duplication: seven pages
 // that are one template with the nouns swapped are doorway pages, and would
 // deserve to be treated as such. So this measures how different they actually
 // are rather than trusting that they were written separately.
@@ -36,11 +36,19 @@ const bodyText = (doc) =>
 
 // ---------------------------------------------------------------- the pages
 
-test('the six service pages exist and are the ones we meant to build', () => {
-  assert.deepEqual(SERVICE_PATHS.sort(), [
-    '/cleanouts', '/furniture-appliance-removal', '/hauling-moving-help',
+test('the service pages exist and are the ones we meant to build', () => {
+  assert.deepEqual(SERVICE_PATHS.slice().sort(), [
+    '/cleanouts', '/estate-cleanouts', '/furniture-appliance-removal', '/hauling-moving-help',
     '/junk-removal', '/light-demolition', '/yard-cleanup'
   ]);
+});
+
+// The order of SERVICE_PAGES *is* the service hierarchy: it drives the
+// homepage grid, the service-area list, the offer catalog and the sitemap.
+// Estate and whole-property work is the flagship, so it comes first, and this
+// is the test that notices when a later edit quietly demotes it.
+test('the flagship service leads the hierarchy', () => {
+  assert.equal(SERVICE_PATHS[0], '/estate-cleanouts');
 });
 
 test('every indexable page returns 200 with one h1 and a correct canonical', async () => {

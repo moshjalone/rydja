@@ -13,6 +13,187 @@
 // hazardous material, and nothing about price beyond "we quote it".
 
 const PAGES = [
+  // -------------------------------------------------------- estate cleanouts
+  //
+  // The flagship. First in this array on purpose: the order here drives the
+  // homepage grid, the service-area list, the offer catalog and the sitemap,
+  // so "position in the hierarchy" is a one-line change rather than six.
+  //
+  // This page is held to a higher standard than the rest of the file, because
+  // the people reading it are often sorting out a house after a death. Nothing
+  // here may read as an offer to buy the contents, to value them, or to decide
+  // on the customer's behalf what is worth keeping. Everything RYDJA may do
+  // with an item is something the customer authorized first.
+  {
+    slug: 'estate-cleanouts',
+    nav: 'Estate Cleanouts',
+    // The quote form's own option for this work. The nav label is shorter than
+    // the form's wording, and a CTA has to prefill something the select
+    // actually offers -- server.js checks that at boot.
+    quoteService: 'Estate / whole-property cleanout',
+    title: 'Estate Cleanouts in West Michigan | RYDJA',
+    h1: 'Estate and whole-property cleanouts',
+    description:
+      'Estate, inherited-home and whole-property cleanouts across West Michigan. House, garage, basement, barn and outbuildings cleared. Send photos for a quote.',
+    lede:
+      'When a house has to be emptied and there is far more in it than one family can shift, this is the work we do. House, garage, basement, attic, barn and outbuildings &mdash; cleared at the pace you need.',
+    intro: [
+      'An estate cleanout is rarely about junk. It is a house full of a life, and someone &mdash; an executor, an adult child, a surviving spouse, a new owner, a property manager &mdash; is now responsible for emptying it, usually on a deadline they did not choose. The volume is the obvious problem. The decisions are the harder one.',
+      'RYDJA handles the physical side of that: the lifting, the stairs, the loads, the disposal, and the sweep-up at the end. You decide what goes. We clear what you have told us to clear, and we keep you informed while we do it.',
+      'You do not need to know what every box holds before you contact us. Send photographs of the rooms and the buildings involved and we will come back with a price and an honest read on how long it will take.'
+    ],
+    jobsHeading: 'The whole-property work we take on',
+    jobs: [
+      '<strong>Estate cleanouts</strong> &mdash; a full property emptied after a death, for the family or the executor',
+      '<strong>Inherited-home cleanouts</strong> &mdash; a house you now own and have never lived in',
+      '<strong>Whole-house cleanouts</strong> &mdash; every room, plus whatever is in the roof and under the stairs',
+      '<strong>Downsizing</strong> &mdash; moving to somewhere smaller, and deciding what does not come along',
+      '<strong>Moving and relocation cleanouts</strong> &mdash; everything the movers would not take or you chose to leave',
+      '<strong>Garage, basement, attic and barn clearing</strong> &mdash; the outbuildings an estate accumulates, as part of the same job',
+      '<strong>Property preparation before sale</strong> &mdash; getting a house empty, swept and photographable for a listing',
+      '<strong>Landlord and property-manager clearing</strong> &mdash; a whole unit or a whole building returned to empty'
+    ],
+    expect: [
+      {
+        h: 'Nothing is loaded until you have said it can be',
+        p: 'The single most important part of this job happens before we start. Walk the property, and set aside or clearly mark anything that is staying &mdash; for you, for a relative, for an auction, for a buyer. We work from what you tell us. A sealed box of papers and a sealed box of nothing look identical from the doorway, and we will not guess which is which.'
+      },
+      {
+        h: 'It can run at the pace the family needs',
+        p: 'Some properties get cleared in a day because the family has already been through everything. Others need two or three visits, with time in between for relatives to come and collect what they want. Both are normal. Tell us which one you are, and we will plan the job around that rather than around our calendar.'
+      },
+      {
+        h: 'You choose the order, room by room',
+        p: 'If the garage and basement need to be gone this week and the bedrooms can wait a fortnight, say so. It is often easier to stand in one empty room than to face eleven full ones, and there is no reason the work has to start at the front door.'
+      },
+      {
+        h: 'Deadlines get a straight answer',
+        p: 'Closings, listing dates, move-out dates and probate timelines are real, and we would rather turn a job down than miss one. Send the date with your request and we will tell you plainly whether it is workable &mdash; before you are relying on it.'
+      },
+      {
+        h: 'If the scope turns out to be bigger, we talk to you',
+        p: 'A full attic nobody had opened, or a crawl space nobody mentioned, changes the job. When that happens we stop and discuss it with you rather than quietly adding to the bill. The number you approved is the number, unless you agree to a different one.'
+      }
+    ],
+    // Rendered after "What to expect". These are the two things that make an
+    // estate job different from every other page in this file, and neither of
+    // them survives being compressed into a bullet.
+    sections: [
+      {
+        h: 'Before we load: what to take out yourself',
+        paras: [
+          'Once a property is actively being cleared, small things are easy to lose, and some of them cannot be replaced. Please go through the rooms first &mdash; or ask us to hold off on a particular area until you have &mdash; and pull out anything of this kind yourself.'
+        ],
+        list: [
+          'Identification, passports, birth certificates and immigration papers',
+          'Financial records, cheque books, bank statements and tax paperwork',
+          'Wills, deeds, titles, insurance policies and other legal documents',
+          'Family photographs, letters, albums and keepsakes',
+          'Medication, medical equipment and medical records',
+          'Firearms, ammunition and weapons of any kind',
+          'Jewellery, cash, coins, collections and anything of unusual or sentimental value',
+          'Computers, phones, drives and anything else holding personal data',
+          'Hazardous material &mdash; chemicals, fuels, solvents, paint, propane, batteries &mdash; which we are not equipped to take at all'
+        ],
+        note:
+          'If you find something of this kind after work has started, tell the crew immediately and we will stop and set it aside. Our full position on this is in the <a class="text-link" href="/terms#removal">terms</a>, and it has not changed for this page: we remove what you designate for removal, and nothing else.'
+      },
+      {
+        h: 'Not everything in the house is treated as trash',
+        paras: [
+          'This is the part of the job most people expect to be worse than it is. A dumpster-and-done operation prices the fastest possible route to a landfill, because that is the only outcome it has. We would rather the usable things stayed usable.',
+          'Where it is practical, and only where you have authorized it, items coming out of a property can be separated instead of buried. In practice that means sorting as we load:'
+        ],
+        list: [
+          '<strong>Keep</strong> &mdash; set aside for you, a relative or a buyer, and left where you want it',
+          '<strong>Donate</strong> &mdash; furniture, household goods and clothing still fit for someone else to use',
+          '<strong>Recycle</strong> &mdash; cardboard, paper, electronics and material with a stream to go into',
+          '<strong>Scrap</strong> &mdash; metal, appliances and anything with salvage weight to it',
+          '<strong>Reuse or salvage</strong> &mdash; tools, fixtures, timber and working equipment with life left in them',
+          '<strong>Dispose</strong> &mdash; what genuinely has nowhere else to go'
+        ],
+        note:
+          'Two honest limits on that. We are not appraisers: we do not value antiques, art or collectibles, and if you think something in the house might be worth real money, have it looked at by someone who does that for a living <em>before</em> we arrive. And recovery is not a discount you are owed &mdash; if a particular job includes a credit for what comes out of it, that is agreed in writing on that job, in the quote, and never assumed.'
+      },
+      {
+        h: 'Executors, agents and property managers',
+        paras: [
+          'A good share of this work comes from people clearing a property they do not live in. Executors and personal representatives settling an estate. Agents and owners getting a house empty before photographs are taken. Landlords and property managers turning over a unit or an entire building.',
+          'What we need from you is the same in every case: the authority to have the contents removed, safe and lawful access to the property, and a clear statement of what stays. We handle the physical clearing only &mdash; we are not involved in probate, title, tenancy law or anything an attorney should be handling, and we will say so rather than offer an opinion we have no business having.'
+        ]
+      }
+    ],
+    // The five steps, in the order the system actually runs them.
+    stepsHeading: 'How an estate cleanout runs',
+    steps: [
+      {
+        h: 'Send photographs',
+        p: 'Room by room, plus the garage, basement, attic, barn and anything else involved. Include the route out to where a truck can park &mdash; on a big property that matters as much as the volume does.'
+      },
+      {
+        h: 'Tell us which areas need clearing',
+        p: 'The whole property, or three rooms and the garage. Mention a deadline if you have one, and anything that is definitely staying.'
+      },
+      {
+        h: 'We send a price',
+        p: 'Based on volume, access, labour, how much sorting is involved and what disposal will cost. No obligation, and nothing is booked yet.'
+      },
+      {
+        h: 'You approve it and confirm a time',
+        p: 'Approve from your phone. If we have proposed an appointment with the quote, confirming it schedules the job on the spot; if that time does not suit, ask for another.'
+      },
+      {
+        h: 'We clear it',
+        p: 'We load, haul and dispose of what you authorized, separate what can be reused, and sweep up behind us where that makes sense. Multiple loads and multiple visits are normal on a property this size.'
+      }
+    ],
+    limits: [
+      'No hazardous waste, asbestos, chemicals, fuels, solvents, paint, propane or batteries',
+      'No biohazards, regulated medical waste, or contaminated or soiled material',
+      'We do not appraise, value or purchase estate contents, and we do not offer cash for a property&rsquo;s belongings',
+      'We are not a cleaning service &mdash; we clear and sweep, we do not deep clean or prepare a surface for paint',
+      'No probate, legal, title or tenancy work: that is an attorney&rsquo;s job, not ours',
+      'Nothing structural, and no asbestos-era material we are not equipped for',
+      'Anything that is staying has to be identified before we load'
+    ],
+    faqs: [
+      {
+        q: 'How do you price a whole-property cleanout?',
+        a: 'From photographs, the same as any other job, and then a conversation. What moves the number is volume, access, how many buildings are involved, how much sorting we are doing rather than straight loading, and what the disposal weighs. A one-bedroom apartment and a farmhouse with a barn are not the same job, which is why there is no flat rate on this page.'
+      },
+      {
+        q: 'Do we have to sort everything out before you come?',
+        a: 'No. Sorting is part of the work and we expect to do it. The one thing only you can do is decide what stays &mdash; so go through the rooms for documents, photographs, medication and anything valuable or sentimental, and mark or remove whatever is not going. Everything after that is ours.'
+      },
+      {
+        q: 'Can you clear the house, garage and barn in the same job?',
+        a: 'Yes, and that is usually how it is quoted &mdash; one job, several buildings, however many loads it takes. Photograph each building separately when you send the request so the price covers all of it rather than being revised later.'
+      },
+      {
+        q: 'Will you buy what is in the house?',
+        a: 'No. We are not buyers, dealers or appraisers, and we will not make you an offer on the contents of a property. If you believe there is something genuinely valuable in there, speak to an estate-sale company, an auction house or a specialist appraiser first. We are the people who clear what is left afterwards.'
+      },
+      {
+        q: 'Can you work to a closing date or a move-out date?',
+        a: 'Send the date with your request. We will give you a straight answer about whether it is workable rather than an optimistic one, because a missed closing is a far bigger problem than a job we turned down.'
+      },
+      {
+        q: 'Does the family need to be there while you work?',
+        a: 'Not necessarily. What matters is that we have safe and lawful access, that someone with the authority to authorize the work has done so, and that anything staying has already been pointed out. Plenty of these jobs are arranged by someone two states away; tell us the access arrangements when you send the request.'
+      },
+      {
+        q: 'What happens to everything you take?',
+        a: 'Items you designate for removal may be disposed of, recycled, donated, scrapped, reused or resold. Where it is practical and you have authorized it, we separate the usable from the genuinely finished rather than sending it all the same way. We cannot retrieve anything once it has been processed, which is why the pass through the rooms beforehand matters so much.'
+      }
+    ],
+    related: [
+      { href: '/cleanouts', label: 'a single garage, basement or storage unit rather than a whole property' },
+      { href: '/junk-removal', label: 'one load of household junk, with no sorting involved' },
+      { href: '/hauling-moving-help', label: 'moving or delivering the things you are keeping' },
+      { href: '/light-demolition', label: 'taking down shelving, sheds or built-ins once a space is empty' }
+    ]
+  },
+
   // ------------------------------------------------------------------ junk
   {
     slug: 'junk-removal',
@@ -73,6 +254,7 @@ const PAGES = [
     ],
     related: [
       { href: '/cleanouts', label: 'clearing a whole garage, basement or storage unit' },
+      { href: '/estate-cleanouts', label: 'emptying an entire house or property' },
       { href: '/furniture-appliance-removal', label: 'single furniture and appliance pickups' },
       { href: '/hauling-moving-help', label: 'hauling and moving labour' }
     ]
@@ -141,6 +323,7 @@ const PAGES = [
       }
     ],
     related: [
+      { href: '/estate-cleanouts', label: 'a whole property, or an estate the family is settling' },
       { href: '/junk-removal', label: 'a single load rather than a whole space' },
       { href: '/furniture-appliance-removal', label: 'furniture and appliances on their own' },
       { href: '/light-demolition', label: 'taking down shelving, sheds or built-ins first' }
@@ -338,6 +521,7 @@ const PAGES = [
     related: [
       { href: '/furniture-appliance-removal', label: 'removing a heavy item rather than moving it' },
       { href: '/junk-removal', label: 'getting rid of what the movers left' },
+      { href: '/estate-cleanouts', label: 'clearing a whole property after a move or a death' },
       { href: '/yard-cleanup', label: 'clearing the yard before a sale' }
     ]
   },

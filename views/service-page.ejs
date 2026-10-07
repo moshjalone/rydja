@@ -4,6 +4,11 @@
   description: page.description
 }) %>
 
+<%# What a CTA on this page prefills the quote form with. Defaults to the
+    nav label, which is the right answer for every page whose nav label is one
+    of the form's options. %>
+<% var quoteFor = page.quoteService || page.nav %>
+
 <main id="main" tabindex="-1" class="section shell narrow legal service-page">
   <nav class="crumbs" aria-label="Breadcrumb">
     <a href="/">Home</a> <span aria-hidden="true">&rsaquo;</span>
@@ -17,7 +22,7 @@
   <% page.intro.forEach(function(para) { %><p><%- para %></p><% }) %>
 
   <p class="cta-inline">
-    <a class="button" href="/quote?service=<%= encodeURIComponent(page.nav) %>">Send photos for a quote</a>
+    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Send photos for a quote</a>
     <% if (businessPhone) { %>
       <span class="or-call">or call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
     <% } %>
@@ -28,18 +33,50 @@
     <% page.jobs.forEach(function(job) { %><li><%- job %></li><% }) %>
   </ul>
 
-  <h2>How the quote works</h2>
-  <p>
-    Send photos of the job through the <a class="text-link" href="/quote">quote form</a> along with a short
-    description and where the property is. We look at volume, access, labour and disposal, then send you a price.
-    Nothing is booked and nothing is owed until you approve it &mdash; and if you approve a time we have proposed,
-    the job is scheduled the moment you confirm it.
-  </p>
+  <%# How a job runs. A page may write its own version of this -- the flagship
+      does, because a whole property is several visits and several loads and
+      the shared paragraph is too short to be useful there. Either the page's
+      own steps or the shared explanation, never both: they cover the same
+      ground, and printing them one after the other reads as padding. %>
+  <% if (page.steps) { %>
+    <h2><%= page.stepsHeading %></h2>
+    <ol class="area-steps">
+      <% page.steps.forEach(function(step) { %>
+        <li><strong><%= step.h %></strong> &mdash; <%- step.p %></li>
+      <% }) %>
+    </ol>
+    <p>
+      Nothing is booked and nothing is owed until you approve the quote. Send the job through the
+      <a class="text-link" href="/quote">quote form</a> whenever you are ready.
+    </p>
+  <% } else { %>
+    <h2>How the quote works</h2>
+    <p>
+      Send photos of the job through the <a class="text-link" href="/quote">quote form</a> along with a short
+      description and where the property is. We look at volume, access, labour and disposal, then send you a price.
+      Nothing is booked and nothing is owed until you approve it &mdash; and if you approve a time we have proposed,
+      the job is scheduled the moment you confirm it.
+    </p>
+  <% } %>
 
   <h2>What to expect</h2>
   <% page.expect.forEach(function(item) { %>
     <h3><%= item.h %></h3>
     <p><%- item.p %></p>
+  <% }) %>
+
+  <%# Optional prose sections, for what a page needs to say at length and
+      would be a lie as a bullet. Each carries paragraphs, an optional list
+      and an optional closing note. %>
+  <% (page.sections || []).forEach(function(block) { %>
+    <h2><%= block.h %></h2>
+    <% (block.paras || []).forEach(function(para) { %><p><%- para %></p><% }) %>
+    <% if (block.list) { %>
+      <ul>
+        <% block.list.forEach(function(item) { %><li><%- item %></li><% }) %>
+      </ul>
+    <% } %>
+    <% if (block.note) { %><p><%- block.note %></p><% } %>
   <% }) %>
 
   <div class="panel notice">
@@ -71,7 +108,7 @@
   </ul>
 
   <p class="cta-inline">
-    <a class="button" href="/quote?service=<%= encodeURIComponent(page.nav) %>">Request a quote</a>
+    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Request a quote</a>
   </p>
 </main>
 

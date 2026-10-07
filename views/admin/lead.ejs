@@ -11,7 +11,12 @@
         <% if (lead.customer_email) { %> &middot; <a class="text-link" href="mailto:<%= lead.customer_email %>"><%= lead.customer_email %></a><% } %>
       </p>
     </div>
-    <span class="badge <%= lead.status %>"><%= prettyStatus(lead.status) %></span>
+    <div class="badge-stack">
+      <% if (isEstateService(lead.service)) { %>
+        <span class="badge estate">Estate cleanout</span>
+      <% } %>
+      <span class="badge <%= lead.status %>"><%= prettyStatus(lead.status) %></span>
+    </div>
   </div>
 
   <div class="dash-grid">
@@ -28,6 +33,19 @@
         <div><dt>Submitted</dt><dd><%= prettyDate(lead.created_at) %></dd></div>
         <div><dt>Customer link</dt><dd><a class="text-link" href="/q/<%= lead.public_token %>" target="_blank" rel="noopener">/q/<%= lead.public_token.slice(0, 8) %>… &nearr;</a></dd></div>
       </dl>
+      <%# Estate detail, when the customer gave any. A lead taken before
+          these questions existed shows nothing rather than a row of dashes. %>
+      <% if (lead.estate_areas || lead.estate_scope || lead.estate_deadline) { %>
+        <h3 class="sub-head">Estate / whole-property scope</h3>
+        <dl class="kv">
+          <% if (lead.estate_areas) { %><div><dt>Areas</dt><dd><%= lead.estate_areas %></dd></div><% } %>
+          <% if (lead.estate_scope) { %><div><dt>Scope</dt><dd><%= lead.estate_scope %></dd></div><% } %>
+          <% if (lead.estate_deadline) { %><div><dt>Deadline</dt><dd><%= lead.estate_deadline %></dd></div><% } %>
+        </dl>
+      <% } else if (isEstateService(lead.service)) { %>
+        <p class="price-note">Estate job, but no areas or scope given &mdash; worth asking when you call.</p>
+      <% } %>
+
       <p class="desc-block"><%= lead.description %></p>
 
       <%# ---- what the customer asked for at intake ---- %>
