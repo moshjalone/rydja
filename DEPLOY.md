@@ -586,6 +586,28 @@ Customer email — set both or neither:
 The Reply-To on that mail comes from `BUSINESS_EMAIL`, not from `EMAIL_FROM`.
 Unset it and mail still sends, carrying no Reply-To at all.
 
+### Business notifications
+
+With `RESEND_API_KEY`, `EMAIL_FROM` and `BUSINESS_EMAIL` all set, the app also
+emails **you** whenever a customer does something that needs a human:
+
+| Event | Subject | Reply goes to |
+|---|---|---|
+| Quote form submitted | `New quote request — RYDJA-XXXXXX` | the customer |
+| Question from the customer's page | `Customer question — RYDJA-XXXXXX` | the customer |
+| Quote approved, no time agreed | `Quote approved — RYDJA-XXXXXX` | you |
+| Quote declined | `Quote declined — RYDJA-XXXXXX` | you |
+| Proposed time accepted | `Appointment confirmed — RYDJA-XXXXXX` | you |
+| Another time requested | `Customer requested a different time — RYDJA-XXXXXX` | the customer |
+
+Each one carries a link into the admin, which still asks for the password. The
+customer's private `/q/:token` link is never in one of these.
+
+Unset `BUSINESS_EMAIL` and the notifications simply stop; nothing else changes.
+A send that fails logs `[notify] RYDJA-XXXXXX — not sent (reason)` and nothing
+more — the lead, the approval and the booking were all committed first and are
+never affected.
+
 ### Cookie lifetimes
 
 Two cookies, deliberately configured apart. Both default to 30 days; set either

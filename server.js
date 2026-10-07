@@ -829,6 +829,56 @@ function requireAdmin(req, res, next) {
 
 // ---------------------------------------------------------------- public
 
+// ------------------------------------------------- notifying ourselves
+//
+// The owner should not have to sit refreshing the admin to find out that
+// something happened. Every customer-driven event that needs a human sends one
+// email to BUSINESS_EMAIL.
+//
+// Three rules hold at every call site below, and the tests enforce them:
+//
+//   1. The database commit happens first and is never conditional on the mail.
+//      sendBusinessNotification resolves rather than throwing, so a provider
+//      outage cannot lose a lead, undo an approval or unbook a job.
+//   2. The customer's private token never appears in one of these. The admin
+//      link is the way in, and it asks for a password.
+//   3. The log gets a reference and a reason code. Never a name, a number, an
+//      address, a message, or anything the provider said back.
+
+/**
+ * Send one business notification, and absorb anything that goes wrong.
+ *
+ * @param {string} workRef  for the log line, the only identifier it carries
+ * @param {object} parts    passed through to mail.sendBusinessNotification
+ */
+async function notifyBusiness(workRef, parts) {
+  try {
+    const { ok, reason } = await mail.sendBusinessNotification(parts);
+    if (ok) return true;
+    // not_configured is the ordinary state of a dev machine and of production
+    // before the address was set. It is not a failure worth a warning.
+    if (reason === 'not_configured') return false;
+    console.warn(`[notify] ${workRef} — not sent (${reason})`);
+    return false;
+  } catch (err) {
+    // sendBusinessNotification resolves rather than rejecting, so this should
+    // be unreachable. It is here because the alternative to catching is a 500
+    // served to a customer whose lead was already committed -- the work is
+    // done, and they would be told it failed. A notification is never worth
+    // that. The error name only: a message could quote data back.
+    console.warn(`[notify] ${workRef} — not sent (threw: ${err?.name || 'Error'})`);
+    return false;
+  }
+}
+
+/** How a preferred date and window read in a notification. */
+function prefLine(date, window) {
+  const day = prettyPrefDate(date);
+  if (!day) return '';
+  const label = WINDOW_LABELS[window] || '';
+  return label ? `${day} (${label})` : day;
+}
+
 // ---------------------------------------------------------------- SEO
 //
 // The public surface is the marketing pages and the legal pages. Everything
@@ -950,7 +1000,7 @@ app.get('/quote', (req, res) =>
   })
 );
 
-app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
+app.post('/quote', quoteLimiter, upload.array('photos', 12), async (req, res) => {
   const b = req.body;
 
   // Bot filter, entire: the form must be one this server issued, and issued
@@ -1112,6 +1162,40 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), (req, res) => {
     `[lead] new lead #${leadId} ${workRef} — ${f.service} — ${photos.length} photo(s) — ${source || 'unknown'}`
   );
 
+  // Committed above, in a transaction, before anything here runs. The lead is
+  // safe whatever the provider does with the next few lines.
+  await notifyBusiness(workRef, {
+    title: 'New quote request',
+    workRef,
+    replyTo: f.email,
+    rows: [
+      ['Service', f.service],
+      ['Name', f.name],
+      ['Phone', f.phone],
+      ['Email', f.email],
+      ['Location', [f.city, f.state].filter(Boolean).join(', ') || f.zip],
+      ['ZIP', f.zip],
+      ['Access', f.access],
+      ['Timing', f.timing],
+      ['Preferred', prefLine(f.prefDate1, f.prefWindow1)],
+      ['Also works', prefLine(f.prefDate2, f.prefWindow2)],
+      ['Flexible', f.schedulingFlexible ? 'Yes' : ''],
+      // Estate columns are null on every other kind of lead, so these three
+      // rows simply disappear unless this is estate work.
+      ['Estate areas', estate.areas],
+      ['Estate scope', estate.scope],
+      ['Estate deadline', estate.deadline],
+      ['Photos', String(photos.length)],
+      ['Source', source || 'unknown']
+    ],
+    blocks: [
+      { heading: 'Description', body: f.description },
+      { heading: 'Scheduling note', body: f.schedulingNote }
+    ],
+    adminPath: '/admin/leads/' + leadId,
+    adminLabel: 'Open this lead'
+  });
+
   // The lead's private status URL (/q/:token) stays live and is what the
   // customer gets when a quote goes out. It is not what they land on here:
   // an empty status page reads like nothing happened, so the confirmation
@@ -1163,7 +1247,7 @@ app.get('/q/:token', (req, res) => {
  * second pass and changes nothing -- and if it somehow got that far, the unique
  * index on jobs(quote_id) refuses the second row outright.
  */
-app.post('/q/:token/respond', (req, res) => {
+app.post('/q/:token/respond', async (req, res) => {
   const lead = db.prepare('select * from leads where public_token = ?').get(req.params.token);
   if (!lead) return res.status(404).render('404');
 
@@ -1224,25 +1308,106 @@ app.post('/q/:token/respond', (req, res) => {
 
   // Reference and outcome only -- never the token, and never what they wrote.
   if (outcome !== 'already_answered') console.log(`[job] ${lead.work_ref} quote ${outcome} by customer`);
+
+  // 'already_answered' is the second click of a double click: the transaction
+  // above saw the quote was no longer 'sent' and changed nothing, so there is
+  // nothing to announce. That check is the duplicate protection -- this just
+  // reads its result.
+  if (outcome !== 'already_answered') {
+    const customer = db
+      .prepare('select name, phone, email from customers where id = ?')
+      .get(lead.customer_id);
+    const job = db.prepare('select id, proposed_for from jobs where lead_id = ? order by id desc limit 1').get(lead.id);
+    const quote = db.prepare('select amount_cents from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
+
+    // Four outcomes, four different things the owner has to do about it.
+    const titles = {
+      declined: 'Quote declined',
+      scheduled: 'Appointment confirmed',
+      schedule_pending: 'Customer requested a different time',
+      approved: 'Quote approved'
+    };
+    const nextSteps = {
+      declined: '',
+      scheduled: 'Nothing to do — the time you proposed is booked.',
+      schedule_pending: 'Propose another time.',
+      approved: 'Approved with no time agreed. Propose one.'
+    };
+
+    await notifyBusiness(lead.work_ref, {
+      title: titles[outcome],
+      workRef: lead.work_ref,
+      // A status event: replying to "quote declined" reaches nobody useful,
+      // so Reply goes to us. The exception is the customer asking for another
+      // time, which is a request and deserves an answer.
+      replyTo: outcome === 'schedule_pending' ? customer?.email : '',
+      rows: [
+        ['Service', lead.service],
+        ['Name', customer?.name],
+        ['Phone', customer?.phone],
+        ['Email', customer?.email],
+        ['Amount', quote ? money(quote.amount_cents) : ''],
+        ['Confirmed for', outcome === 'scheduled' ? prettyWhen(job?.proposed_for) : ''],
+        ['Time offered', outcome === 'schedule_pending' ? prettyWhen(job?.proposed_for) : ''],
+        ['Next step', nextSteps[outcome]]
+      ],
+      blocks: [{ heading: 'What they said', body: outcome === 'schedule_pending' ? message : '' }],
+      // A declined quote never became a job, so the lead is the only thing
+      // there is to open.
+      adminPath: job && outcome !== 'declined' ? '/admin/jobs/' + job.id : '/admin/leads/' + lead.id,
+      adminLabel: job && outcome !== 'declined' ? 'Open this job' : 'Open this lead'
+    });
+  }
+
   res.redirect('/q/' + lead.public_token);
 });
 
 /** "Ask a question" -- saved on the lead for the owner to answer by phone. */
-app.post('/q/:token/ask', (req, res) => {
-  const lead = db.prepare('select id, public_token, work_ref from leads where public_token = ?').get(req.params.token);
+app.post('/q/:token/ask', async (req, res) => {
+  const lead = db
+    .prepare(
+      `select l.id, l.public_token, l.work_ref, l.customer_message,
+              c.name as customer_name, c.phone as customer_phone, c.email as customer_email
+         from leads l join customers c on c.id = l.customer_id
+        where l.public_token = ?`
+    )
+    .get(req.params.token);
   if (!lead) return res.status(404).render('404');
 
   const question = clean(req.body.question, LIMITS.question);
   if (!question) return res.redirect('/q/' + lead.public_token + '#ask');
 
-  db.prepare('update leads set customer_message = ?, customer_message_at = ? where id = ?').run(
-    question,
-    nowIso(),
-    lead.id
-  );
+  // A resend of the same question -- a double click, a refreshed POST -- is
+  // not a second question. The message is already stored and the owner has
+  // already been told, so this writes nothing and sends nothing.
+  const repeat = lead.customer_message === question;
 
-  // The question is the customer's words; the owner reads it in the admin.
-  console.log(`[question] ${lead.work_ref} asked a question`);
+  if (!repeat) {
+    db.prepare('update leads set customer_message = ?, customer_message_at = ? where id = ?').run(
+      question,
+      nowIso(),
+      lead.id
+    );
+
+    // The question is the customer's words; the owner reads it in the admin.
+    console.log(`[question] ${lead.work_ref} asked a question`);
+
+    await notifyBusiness(lead.work_ref, {
+      title: 'Customer question',
+      workRef: lead.work_ref,
+      // They asked something, so Reply should reach them.
+      replyTo: lead.customer_email,
+      rows: [
+        ['Name', lead.customer_name],
+        ['Phone', lead.customer_phone],
+        ['Email', lead.customer_email]
+      ],
+      blocks: [{ heading: 'Their question', body: question }],
+      adminPath: '/admin/leads/' + lead.id,
+      adminLabel: 'Open this lead'
+    });
+  }
+
   res.redirect('/q/' + lead.public_token + '?asked=1#ask');
 });
 
@@ -1251,7 +1416,7 @@ app.post('/q/:token/ask', (req, res) => {
  * that books it; asking for another time leaves the offer open and hands the
  * owner a sentence to act on.
  */
-app.post('/q/:token/schedule', (req, res) => {
+app.post('/q/:token/schedule', async (req, res) => {
   const lead = db.prepare('select * from leads where public_token = ?').get(req.params.token);
   if (!lead) return res.status(404).render('404');
 
@@ -1266,14 +1431,41 @@ app.post('/q/:token/schedule', (req, res) => {
   // Nothing to answer unless there is an open offer.
   if (!job || !job.proposed_for) return res.redirect('/q/' + lead.public_token);
 
+  const customer = db.prepare('select name, phone, email from customers where id = ?').get(lead.customer_id);
+
   if (req.body.decision === 'accept') {
-    db.prepare(
-      `update jobs
-          set scheduled_for = proposed_for, schedule_responded_at = ?,
-              schedule_message = null, status = 'scheduled'
-        where id = ?`
-    ).run(nowIso(), job.id);
-    console.log(`[schedule] ${lead.work_ref} confirmed by customer`);
+    // The guard is the where clause, not a read before it: a second click
+    // races the first, and only one of them can match. Deliberately compared
+    // against proposed_for rather than tested for null -- proposing a new
+    // time leaves the old scheduled_for in place, and that customer must
+    // still be able to accept.
+    const { changes } = db
+      .prepare(
+        `update jobs
+            set scheduled_for = proposed_for, schedule_responded_at = ?,
+                schedule_message = null, status = 'scheduled'
+          where id = ? and (scheduled_for is null or scheduled_for != proposed_for)`
+      )
+      .run(nowIso(), job.id);
+
+    if (changes) {
+      console.log(`[schedule] ${lead.work_ref} confirmed by customer`);
+      await notifyBusiness(lead.work_ref, {
+        title: 'Appointment confirmed',
+        workRef: lead.work_ref,
+        // A status event. Nothing is being asked of us.
+        rows: [
+          ['Service', lead.service],
+          ['Name', customer?.name],
+          ['Phone', customer?.phone],
+          ['Confirmed for', prettyWhen(job.proposed_for)],
+          ['Next step', 'Nothing to do — the time you proposed is booked.']
+        ],
+        adminPath: '/admin/jobs/' + job.id,
+        adminLabel: 'Open this job'
+      });
+    }
+
     return res.redirect('/q/' + lead.public_token);
   }
 
@@ -1282,15 +1474,41 @@ app.post('/q/:token/schedule', (req, res) => {
   const message = clean(req.body.message, LIMITS.notes);
   if (!message) return res.redirect('/q/' + lead.public_token + '#appointment');
 
-  db.prepare(
-    `update jobs
-        set schedule_message = ?, schedule_responded_at = ?, status = 'schedule_pending'
-      where id = ?`
-  ).run(message, nowIso(), job.id);
+  // The same message again is the same message. An UPDATE would report a row
+  // changed even where every value is identical, so this is checked rather
+  // than inferred from the row count.
+  const repeat = job.schedule_message === message && job.status === 'schedule_pending';
 
-  // The message itself is the customer's words -- the owner reads it in the
-  // admin, it does not go to a log file.
-  console.log(`[schedule] ${lead.work_ref} change requested by customer`);
+  if (!repeat) {
+    db.prepare(
+      `update jobs
+          set schedule_message = ?, schedule_responded_at = ?, status = 'schedule_pending'
+        where id = ?`
+    ).run(message, nowIso(), job.id);
+
+    // The message itself is the customer's words -- the owner reads it in the
+    // admin, it does not go to a log file.
+    console.log(`[schedule] ${lead.work_ref} change requested by customer`);
+
+    await notifyBusiness(lead.work_ref, {
+      title: 'Customer requested a different time',
+      workRef: lead.work_ref,
+      // They asked for something. Reply should reach them.
+      replyTo: customer?.email,
+      rows: [
+        ['Service', lead.service],
+        ['Name', customer?.name],
+        ['Phone', customer?.phone],
+        ['Email', customer?.email],
+        ['Time offered', prettyWhen(job.proposed_for)],
+        ['Next step', 'Propose another time.']
+      ],
+      blocks: [{ heading: 'What they said', body: message }],
+      adminPath: '/admin/jobs/' + job.id,
+      adminLabel: 'Open this job'
+    });
+  }
+
   res.redirect('/q/' + lead.public_token + '#appointment');
 });
 

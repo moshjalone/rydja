@@ -105,6 +105,13 @@ test.after(() => {
 
 const html = (url) => app.get(url).then((r) => r.text());
 
+// The stub now receives two kinds of mail: what goes to a customer, and the
+// business notifications that go to us. Most assertions below care about one
+// or the other, never the mixture.
+const toCustomer = () => mailbox.sent.filter((m) => !m.to.includes(BUSINESS_EMAIL));
+const toBusiness = () => mailbox.sent.filter((m) => m.to.includes(BUSINESS_EMAIL));
+const lastToCustomer = () => toCustomer()[toCustomer().length - 1];
+
 /** A lead with an email address, carried as far as the caller needs. */
 async function createLead(phone, ip) {
   const res = await app.post(
@@ -184,14 +191,14 @@ test('the structured data publishes the business email and no other', async () =
 // ---------------------------------------------------------------- outgoing mail
 
 test('the quote email comes from RYDJA and replies to the business address', async () => {
-  const before = mailbox.sent.length;
+  const before = toCustomer().length;
   const lead = await createLead('6165550182', '203.0.113.42');
 
   const res = await sendQuote(lead.id, '525.00');
   assert.match(res.headers.get('location'), /\?mail=sent$/);
-  assert.equal(mailbox.sent.length, before + 1, 'exactly one send');
+  assert.equal(toCustomer().length, before + 1, 'exactly one send to the customer');
 
-  const mail = mailbox.last();
+  const mail = lastToCustomer();
   assert.equal(mail.from, EMAIL_FROM);
   assert.equal(mail.reply_to, BUSINESS_EMAIL, 'a reply must reach the business');
   assert.deepEqual(mail.to, ['dana@example.com'], 'and it goes to the customer, not to us');
@@ -202,7 +209,7 @@ test('the revised quote keeps the same From and Reply-To', async () => {
 
   await sendQuote(lead.id, '600.00');
 
-  const mail = mailbox.last();
+  const mail = lastToCustomer();
   assert.equal(mail.from, EMAIL_FROM);
   assert.equal(mail.reply_to, BUSINESS_EMAIL);
 });
@@ -223,15 +230,22 @@ test('the scheduling email does too', async () => {
   );
   assert.equal(mailbox.sent.length, before + 1, 'proposing a time should send one email');
 
-  const mail = mailbox.last();
+  const mail = lastToCustomer();
   assert.equal(mail.from, EMAIL_FROM);
   assert.equal(mail.reply_to, BUSINESS_EMAIL);
 });
 
-test('no customer mail is ever addressed back to the business', async () => {
+test('customer mail goes to the customer, notifications go to us, nothing to the owner address', async () => {
+  assert.ok(toCustomer().length > 0, 'there should be customer mail to check');
+  for (const mail of toCustomer()) {
+    assert.deepEqual(mail.to, ['dana@example.com'], 'customer mail goes to the customer');
+  }
+  assert.ok(toBusiness().length > 0, 'there should be notifications to check');
+  for (const mail of toBusiness()) {
+    assert.deepEqual(mail.to, [BUSINESS_EMAIL], 'a notification goes to the business address');
+  }
   for (const mail of mailbox.sent) {
-    assert.deepEqual(mail.to, ['dana@example.com'], 'every send goes to the customer');
-    assert.ok(!mail.to.includes(OWNER_EMAIL), 'and never to the owner address');
+    assert.ok(!JSON.stringify(mail).includes(OWNER_EMAIL), 'nothing reaches the owner address');
   }
 });
 
