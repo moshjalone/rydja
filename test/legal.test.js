@@ -253,7 +253,9 @@ test('the footer carries the legal links and the notice, on every public page', 
     assert.match(doc, /href="\/privacy">Privacy</, path + ' needs a Privacy link');
     assert.match(doc, /href="\/terms">Terms</, path + ' needs a Terms link');
     assert.match(doc, /href="\/accessibility">Accessibility</, path + ' needs an Accessibility link');
-    assert.match(doc, />Contact</, path + ' needs a Contact link');
+    assert.match(doc, /href="\/quote">Contact</, path + ' Contact should go to the quote form');
+    // The phone stays separately dialable in the same footer.
+    assert.match(doc, /href="tel:\+16169293360"/, path + ' needs the phone as its own tel: link');
     assert.match(doc, /&copy; 2026 RYDJA\. All rights reserved\./, path + ' needs the copyright notice');
   }
 });
