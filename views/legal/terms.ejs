@@ -1,0 +1,116 @@
+<%- include('../partials/head', {
+  title: 'Terms of Service',
+  canonicalPath: '/terms',
+  description: 'The terms that apply when RYDJA quotes and performs property work: quotes, scheduling, access, and what happens to items you authorize us to remove.'
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal">
+  <div class="eyebrow">TERMS OF SERVICE</div>
+  <h1>Terms of Service</h1>
+  <p class="lede smaller">Effective <%= termsVersion %>. These are the terms that apply when we quote and perform work for you. They are written to be read, not to be skimmed past.</p>
+
+  <h2>Quotes</h2>
+  <p>
+    Sending a quote request does not create a contract, and neither does our sending you a price. Nothing is agreed
+    until you approve a quote.
+  </p>
+  <p>
+    A quote is based on what we can tell from the photos, measurements and description you give us, which means it is
+    only as accurate as that information. If the actual conditions differ materially from what was described &mdash;
+    substantially more volume, restricted access, items that need special handling, material we were not told about
+    &mdash; we may need to revise the scope or the price before continuing. If that happens we will tell you and you
+    can decide how to proceed.
+  </p>
+
+  <h2>Your authority and the property</h2>
+  <p>
+    By requesting work and approving a quote, you confirm that you have the authority to authorize work at the
+    property and to have the items in question removed. If you are a tenant, agent, executor, contractor or anyone
+    acting for someone else, that authority has to be real.
+  </p>
+  <p>
+    <strong>Before we remove anything, it is your responsibility to identify what must stay.</strong> We work from what
+    you point out and what is on the quote. Please go through the area first and set aside or clearly mark anything you
+    want to keep.
+  </p>
+
+  <h2 id="removal">Items you authorize us to remove</h2>
+  <p>
+    Unless we agree otherwise in writing, items you designate for removal may be disposed of, recycled, donated,
+    scrapped, reused or resold at our discretion once removed. We are not able to retrieve items after they have been
+    processed, and we do not hold removed items pending a change of mind.
+  </p>
+  <div class="panel notice">
+    <h3>Please check for these before we arrive</h3>
+    <p>
+      Once a space is being cleared, small things are easy to lose. Please look for and remove anything of this kind
+      yourself:
+    </p>
+    <ul>
+      <li>Identification, passports, birth certificates and immigration documents</li>
+      <li>Financial records, cheque books, bank and tax paperwork</li>
+      <li>Medication, medical equipment and medical records</li>
+      <li>Firearms, ammunition and weapons of any kind</li>
+      <li>Family photographs, letters and keepsakes</li>
+      <li>Wills, deeds, titles, contracts and other legal documents</li>
+      <li>Jewellery, cash, collectibles and anything with sentimental or unusual value</li>
+      <li>Computers, phones, drives and anything else holding personal data</li>
+    </ul>
+    <p>
+      If you find any of these after we have started, tell the crew straight away and we will stop and set them aside.
+    </p>
+  </div>
+
+  <h2>Hazardous and regulated material</h2>
+  <p>
+    You must tell us before work begins about any hazardous or regulated material you are aware of &mdash; asbestos,
+    chemicals, fuels, solvents, paint, batteries, propane, biohazards, medical waste, contaminated material or
+    anything similar. We are not equipped for that work and do not take it on.
+  </p>
+  <p>
+    We may decline or stop any job that we judge to be unsafe, unlawful, beyond the scope we quoted, or outside what
+    we are equipped and permitted to handle. If we stop a job for one of those reasons we will explain why.
+  </p>
+
+  <h2>Scheduling</h2>
+  <p>
+    An appointment time is a proposal until you confirm it. We will send you a proposed date and time; the job is not
+    scheduled until you accept it on your own job page, and you can ask for a different time instead.
+  </p>
+  <p>
+    Dates can move. Weather, equipment trouble, disposal site hours and limits, access problems at an earlier job,
+    traffic, illness and emergencies all happen in this line of work. If we need to move your appointment we will
+    contact you as early as we reasonably can, and we ask the same of you: if you need to cancel or reschedule, please
+    let us know as early as you reasonably can.
+  </p>
+
+  <h2>Access</h2>
+  <p>
+    You are responsible for providing safe and lawful access to the property and to the items being removed &mdash;
+    gates, keys, codes, parking, and a path the crew can actually use. If we cannot safely reach the work, we may need
+    to reschedule.
+  </p>
+
+  <h2>Photographs</h2>
+  <p>
+    Photographs you send are used to assess the job, prepare your quote, plan the work, and document job conditions
+    where that is operationally appropriate. <strong>They are not used for advertising, marketing or social media.</strong>
+    If we ever want to use a photograph that way we will ask you separately and explicitly, and you are free to say no.
+  </p>
+
+  <h2>Changes to these terms</h2>
+  <p>
+    These terms carry an effective date, and the version shown to you when you approve a quote is the version that
+    applies to that job. Updating this page does not change the terms of work you have already approved.
+  </p>
+
+  <h2>Questions</h2>
+  <p>
+    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (contactEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } %>.
+    If something here is unclear, ask before you approve anything.
+  </p>
+
+  <p class="legal-foot">Last updated: October 2026 &middot; Version <%= termsVersion %></p>
+</main>
+
+<%- include('../partials/foot') %>

@@ -1,7 +1,7 @@
 <%- include('../partials/head', { title: 'Job ' + job.work_ref + ' · ' + job.customer_name, noindex: true }) %>
 <% var catLabel = function(v) { var f = expenseCategories.find(function(c) { return c.value === v; }); return f ? f.label : v; } %>
 
-<main class="shell dashboard">
+<main id="main" tabindex="-1" class="shell dashboard">
   <div class="dash-head">
     <div>
       <div class="eyebrow"><a href="/admin/jobs">&larr; Job board</a></div>

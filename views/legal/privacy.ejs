@@ -1,0 +1,135 @@
+<%- include('../partials/head', {
+  title: 'Privacy Policy',
+  canonicalPath: '/privacy',
+  description: 'What information RYDJA collects when you request a quote, why we collect it, who we share it with, and how long we keep it.'
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal">
+  <div class="eyebrow">PRIVACY</div>
+  <h1>Privacy Policy</h1>
+  <p class="lede smaller">
+    This describes what we collect when you ask us to quote a job, what we do with it, and what we do not do with it.
+    It is written plainly because you should be able to tell at a glance.
+  </p>
+
+  <h2>What we collect</h2>
+  <p>When you contact us or request a quote, we may collect:</p>
+  <ul>
+    <li>Your name</li>
+    <li>Your phone number</li>
+    <li>Your email address, if you give us one</li>
+    <li>The service or property address and access details</li>
+    <li>Your description of the job</li>
+    <li>Photographs you upload</li>
+    <li>Preferred dates and times, and any scheduling notes</li>
+    <li>Quote information: amounts, notes and whether you approved or declined</li>
+    <li>Scheduling information: proposed and confirmed appointments, and your replies about them</li>
+    <li>Questions or messages you send us through your job page</li>
+    <li>Records of the work itself: status, dates, photographs taken on the job, and related job records</li>
+    <li>
+      Limited technical information the site generates in the ordinary course of running and protecting itself, such
+      as IP addresses used for rate limiting and records of refused or abusive requests
+    </li>
+  </ul>
+
+  <h2>Why we collect it</h2>
+  <ul>
+    <li>To respond to your quote request</li>
+    <li>To evaluate the job and work out what it involves</li>
+    <li>To send you a quote</li>
+    <li>To propose and confirm a time, and to schedule the work</li>
+    <li>To perform the work you asked for</li>
+    <li>To keep business and job records, including for accounting</li>
+    <li>To prevent abuse, fraud and misuse of the site</li>
+    <li>To operate, maintain and secure the website</li>
+    <li>To meet legal and regulatory obligations</li>
+  </ul>
+
+  <h2>Photographs</h2>
+  <p>
+    Photographs you send are used to assess the job, prepare your quote, plan the work, and document job conditions
+    where that is operationally appropriate.
+  </p>
+  <p>
+    <strong>We do not use your photographs for advertising, marketing or social media.</strong> Uploading a photo does
+    not give us permission to publish it. If we ever want to use one that way, we will ask you separately and
+    explicitly, and you are free to say no.
+  </p>
+
+  <h2>We do not sell your information</h2>
+  <p>
+    RYDJA does not sell customer personal information, and does not share it with anyone for their own advertising or
+    marketing.
+  </p>
+
+  <h2>Who we share it with</h2>
+  <p>
+    We use a small number of service providers to run the business. They receive only what they need to do their part,
+    and they act on our instructions:
+  </p>
+  <ul>
+    <li><strong>Website hosting</strong> &mdash; runs the site and stores its data</li>
+    <li><strong>Transactional email</strong> &mdash; delivers your quote and appointment emails</li>
+    <li><strong>Cloud backup and storage</strong> &mdash; holds encrypted-in-transit copies of business records so they survive a failure</li>
+  </ul>
+  <p>
+    We may also share information where we are legally required to, or where it is reasonably necessary to protect
+    the safety, rights or property of a person or of the business.
+  </p>
+
+  <h2>Cookies and tracking</h2>
+  <p>
+    <strong>This site runs no analytics, no advertising pixels, no session recording and no third-party tracking
+    scripts.</strong> Browsing the public pages or sending a quote request sets no cookies at all.
+  </p>
+  <p>
+    One cookie exists: a session cookie set only when a member of staff signs in to the administration area, used to
+    keep them signed in. It is strictly necessary for that purpose, and customers never receive it.
+  </p>
+
+  <h2>Your job link</h2>
+  <p>
+    Each request gets a private page at a long, random, unguessable web address. Anyone who has that link can see that
+    job, so treat it like you would any private link &mdash; it is the key to the page. Your permanent reference
+    number, the one that looks like RYDJA-XXXXXX, is not a key and opens nothing on its own.
+  </p>
+
+  <h2>How we protect it</h2>
+  <p>
+    We take reasonable measures to protect the information we hold: access to the administration area is restricted
+    and password protected, secrets are held in server configuration rather than in the code, uploads are validated,
+    requests are rate limited, backups are taken, and customer names, phone numbers, addresses, email addresses and
+    private job links are deliberately kept out of our server logs.
+  </p>
+  <p>
+    <strong>No website, server or method of transmission is free of risk, and we cannot guarantee absolute
+    security.</strong> Anyone who tells you otherwise about any system is overstating it. If you become aware of a
+    security problem with this site, please tell us.
+  </p>
+
+  <h2>How long we keep it</h2>
+  <p>
+    We collect what is reasonably necessary to quote and perform the work, and we keep records for as long as is
+    reasonably needed for operational, accounting, legal, security and other legitimate business purposes. Backups are
+    kept so the business can recover from a failure, and copies may persist in those backups for a period after a
+    record changes.
+  </p>
+
+  <h2>Children</h2>
+  <p>This is a service for property owners and occupiers. It is not directed at children, and we do not knowingly collect information from them.</p>
+
+  <h2>Questions, corrections and requests</h2>
+  <p>
+    If you want to know what we hold about you, have something corrected, or ask us to delete something, get in
+    touch and we will do what we reasonably can.
+    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (contactEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } %>.
+    Some records we may need to keep for accounting or legal reasons.
+  </p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes we will update the date below. Material changes will be reflected here rather than announced by email.</p>
+
+  <p class="legal-foot">Last updated: October 2026</p>
+</main>
+
+<%- include('../partials/foot') %>

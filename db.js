@@ -124,6 +124,10 @@ function migrate() {
   }
   addColumn('leads', 'scheduling_flexible', 'integer not null default 0');
   addColumn('quotes', 'proposed_for', 'text');
+  // Deliberately not backfilled. A quote approved before the Terms existed did
+  // not accept them, and writing a version into those rows would manufacture
+  // consent that never happened.
+  addColumn('quotes', 'terms_version', 'text');
 
   // Backfill before the unique index exists, so a half-migrated database with
   // several NULLs cannot trip over it on the way.

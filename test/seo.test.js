@@ -13,7 +13,10 @@ const assert = require('node:assert/strict');
 const { startServer, freshStamp, submission } = require('./helpers');
 
 const SITE_URL = 'https://getrydja.com';
-const PUBLIC_PAGES = ['/', '/services', '/quote'];
+// Everything a crawler should have. The legal pages are public on purpose: a
+// customer should be able to read the terms before handing over a photo of
+// their garage.
+const PUBLIC_PAGES = ['/', '/services', '/quote', '/terms', '/privacy', '/accessibility'];
 
 let app;
 let lead;

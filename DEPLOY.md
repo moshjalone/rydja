@@ -376,6 +376,48 @@ and no image dependency. To change the mark, redraw and recommit the files.
 
 ---
 
+## Legal pages and the acceptance record
+
+`/privacy`, `/terms` and `/accessibility` are public, indexable and linked from
+every footer. They describe what this system actually does, which means they go
+stale if the system changes without them. If you add a vendor, start collecting
+something new, or add tracking, update the privacy policy in the same change.
+
+**The Terms carry a version.** `TERMS_VERSION` in `server.js` is the effective
+date, shown on `/terms` and written to `quotes.terms_version` at the moment a
+customer approves. Bump it whenever the Terms change materially; approvals
+already recorded keep the version they actually saw.
+
+Quotes approved before this existed have `terms_version` NULL and are left that
+way on purpose. Backfilling them would be a record of consent that never
+happened.
+
+### What is deliberately not claimed
+
+| Not claimed | Why |
+|---|---|
+| ADA compliant / WCAG conformant | Not independently audited. The accessibility page says so plainly |
+| Completely or fully secure | No system is. The policy says reasonable measures and no guarantee |
+| Marketing rights over customer photos | Uploading a photo grants assessment and job use only. Marketing consent must be separate and explicit if ever added |
+| Cancellation fees, deposits, payment terms | The system has none, so the Terms invent none |
+| Automatic transfer of ownership | The language is about what the customer authorizes us to remove, not about title passing |
+
+Tests assert each of those stays absent. If you ever do earn a claim, change the
+test in the same commit as the page.
+
+### Tracking
+
+Audited at the time of writing: **no analytics, no advertising pixels, no
+session recording, no third-party scripts.** The only script the site serves is
+its own `app.js`. Public pages set **no cookies at all** -- the one session
+cookie appears only after a staff member signs in to the admin.
+
+There is therefore no cookie banner, correctly. If analytics are ever added,
+that decision changes and the privacy policy and consent position have to be
+revisited first.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

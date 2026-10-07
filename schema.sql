@@ -79,6 +79,11 @@ create table if not exists quotes (
   -- can agree to the price and the time in one click. Still only a proposal:
   -- it reaches jobs.scheduled_for only if they confirm it.
   proposed_for text,
+  -- Which version of the Terms the customer was shown when they approved, set
+  -- at the moment of approval. NULL means the approval predates the Terms, and
+  -- is left NULL on purpose: an old approval never saw them, and recording
+  -- otherwise would be a false record of consent.
+  terms_version text,
   created_at   text    not null default (datetime('now')),
   responded_at text
 );

@@ -1,0 +1,56 @@
+<%- include('../partials/head', {
+  title: 'Accessibility',
+  canonicalPath: '/accessibility',
+  description: 'How RYDJA approaches website accessibility, what we have done so far, and how to tell us when something does not work for you.'
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal">
+  <div class="eyebrow">ACCESSIBILITY</div>
+  <h1>Accessibility</h1>
+  <p class="lede smaller">
+    We want this site to be usable by as many people as possible, including people who use a keyboard, a screen
+    reader, magnification, or a browser set to reduce motion.
+  </p>
+
+  <h2>Where we are</h2>
+  <p>
+    We work to make the site accessible and we keep improving it. We have not had the site independently audited or
+    certified, so <strong>we do not claim to be ADA compliant or WCAG conformant</strong> &mdash; those are claims that
+    should be earned by assessment, not asserted on a web page. What we can tell you is what we have actually done.
+  </p>
+
+  <h2>What we have done</h2>
+  <ul>
+    <li>Every form field has a visible label attached to it, not just placeholder text</li>
+    <li>The whole site can be operated by keyboard, and focused elements show a visible focus ring</li>
+    <li>A skip link lets keyboard and screen reader users jump straight past the navigation to the page content</li>
+    <li>Pages have one main heading and a sensible heading order</li>
+    <li>Images carry alternative text; decorative artwork is marked so assistive software skips it</li>
+    <li>Form errors are described in words next to the form, and are announced rather than shown only by colour</li>
+    <li>Status is never communicated by colour alone &mdash; labels carry the meaning too</li>
+    <li>Native date, time and select controls are used, so your own device's accessibility features work normally</li>
+    <li>Movement on the site is subtle and switches off entirely if your system is set to reduce motion</li>
+    <li>Text is sized in a way that respects your browser's zoom and font settings</li>
+  </ul>
+
+  <h2>Known limitations</h2>
+  <p>
+    The hero area uses a dark background with a light illustration behind the headline. We have set the contrast to
+    stay readable, but if any text on this site is hard for you to read, we want to know.
+  </p>
+
+  <h2>Tell us when something does not work</h2>
+  <p>
+    If any part of this site is difficult or impossible for you to use, contact us and we will help you directly and
+    fix the problem where we can. You should never have to fight the website to get a quote &mdash; we will take your
+    job over the phone.
+  </p>
+  <p>
+    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (contactEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } %>.
+    Please tell us the page and what went wrong, and we will come back to you.
+  </p>
+
+  <p class="legal-foot">Last updated: October 2026</p>
+</main>
+
+<%- include('../partials/foot') %>

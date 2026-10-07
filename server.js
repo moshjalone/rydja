@@ -92,6 +92,11 @@ const SERVICE_AREA_PLACES = (process.env.SERVICE_AREA_PLACES || 'Lowell, Michiga
   .map((p) => p.trim())
   .filter(Boolean);
 
+// The effective date of the Terms as currently published. Recorded against a
+// quote at the moment it is approved, so there is a record of which version
+// that customer actually saw. Bump it whenever the Terms change materially.
+const TERMS_VERSION = '2026-10-06';
+
 const SERVICES = [
   { slug: 'junk-hauling', name: 'Junk & Hauling', blurb: 'Furniture, appliances, household junk, scrap, debris and unwanted items.' },
   { slug: 'cleanout', name: 'Full Cleanouts', blurb: 'Garages, basements, barns, storage units, estates and rental turnovers.' },
@@ -454,6 +459,9 @@ app.use((req, res, next) => {
   res.locals.today = todayLocal();
   res.locals.assetV = ASSET_V;
   res.locals.serviceArea = SERVICE_AREA;
+  res.locals.termsVersion = TERMS_VERSION;
+  res.locals.year = new Date().getFullYear();
+  res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
   res.locals.serviceKeywords = SERVICE_KEYWORDS;
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
@@ -606,7 +614,10 @@ function requireAdmin(req, res, next) {
 const PUBLIC_PAGES = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
   { path: '/services', changefreq: 'monthly', priority: '0.8' },
-  { path: '/quote', changefreq: 'monthly', priority: '0.9' }
+  { path: '/quote', changefreq: 'monthly', priority: '0.9' },
+  { path: '/terms', changefreq: 'yearly', priority: '0.3' },
+  { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
+  { path: '/accessibility', changefreq: 'yearly', priority: '0.3' }
 ];
 
 /**
@@ -673,6 +684,12 @@ ${urls}
 app.get('/', (req, res) => res.render('home', { jsonLd: businessJsonLd() }));
 
 app.get('/services', (req, res) => res.render('services'));
+
+// Public and indexable on purpose: a customer should be able to read these
+// before they hand over a photo of their garage.
+app.get('/terms', (req, res) => res.render('legal/terms'));
+app.get('/privacy', (req, res) => res.render('legal/privacy'));
+app.get('/accessibility', (req, res) => res.render('legal/accessibility'));
 
 app.get('/quote', (req, res) =>
   res.render('quote', {
@@ -882,9 +899,12 @@ app.post('/q/:token/respond', (req, res) => {
     const quote = db.prepare('select * from quotes where lead_id = ? order by id desc limit 1').get(lead.id);
     if (!quote || quote.status !== 'sent') return 'already_answered';
 
-    db.prepare('update quotes set status = ?, responded_at = ? where id = ?').run(
+    // The acceptance record: what they agreed to, and which Terms were in front
+    // of them when they did. A decline records no version -- nothing was accepted.
+    db.prepare('update quotes set status = ?, responded_at = ?, terms_version = ? where id = ?').run(
       intent ? 'approved' : 'declined',
       nowIso(),
+      intent ? TERMS_VERSION : null,
       quote.id
     );
 
