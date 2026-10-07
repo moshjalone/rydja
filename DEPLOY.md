@@ -418,6 +418,72 @@ revisited first.
 
 ---
 
+## Local SEO
+
+Six service pages, one per thing people actually search for:
+
+| Page | Covers |
+|---|---|
+| `/junk-removal` | The core service: household junk, furniture, appliances, scrap, debris |
+| `/cleanouts` | Garage, basement, barn, storage unit, rental, estate, moving cleanouts |
+| `/yard-cleanup` | Brush, storm debris, leaves, outdoor clutter |
+| `/furniture-appliance-removal` | Heavy single items and the stairs they have to come down |
+| `/hauling-moving-help` | Truck, trailer and labour where nothing is being thrown away |
+| `/light-demolition` | Sheds, decks, fences, playsets, built-ins, plus the debris |
+
+Plus `/service-area`, which reads from `SERVICE_AREA` and `SERVICE_AREA_PLACES`
+rather than carrying its own list.
+
+The copy lives in `content/service-pages.js`, not in the template. One layout
+renders all six, but the substance of each is written separately and differs
+throughout -- a test measures vocabulary overlap between every pair and fails
+above 0.6, because six pages that are one template with the nouns swapped are
+doorway pages and deserve to be treated as such.
+
+**No city pages.** `/junk-removal-lowell` and friends do not exist and a test
+asserts they 404. They get built when there is real local content behind them
+-- finished jobs, photographs, something true about that town -- and not
+before.
+
+### The homepage heading
+
+"Point at the problem. We'll handle the rest." keeps the visual weight it
+always had, as a `<p class="hero-slogan">`. The `<h1>` underneath is a real,
+visible, readable heading that says what the business does. It is not hidden,
+clipped, zero-sized or pushed off screen, and a test reads the stylesheet to
+make sure nobody makes it so later.
+
+### Structured data
+
+`HomeAndConstructionBusiness` with an `@id`, plus `hasOfferCatalog` listing the
+six services. Each service page carries its own `Service` node pointing back at
+that `@id`, and a `BreadcrumbList`.
+
+Still nothing invented: no address, hours, price range, ratings, reviews, social
+profiles or awards, and **no price on any offer** -- every job is quoted
+individually and a range would be a claim we cannot stand behind.
+
+### Images
+
+`images/` holds the original brand assets. `public/img/` holds the two the site
+actually uses, resized and re-encoded once in a browser and committed: the logo
+(12KB) and one truck photograph (86KB WebP with a JPEG fallback). There is no
+build step.
+
+**Promotional photography is never captioned as a customer's job.** A test
+checks every `alt` and `figcaption` for it. Real before/after work goes in the
+Recent Work section once there is some; `RECENT_WORK` in `server.js` is the
+empty shape it will take.
+
+### Reviews
+
+Set `GOOGLE_REVIEW_URL` and a customer whose job is `complete` is offered it on
+their own page. The same link for everyone, no incentive, no satisfaction
+screening, no automatic redirect, nothing at all if the variable is unset.
+Tests hold each of those.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

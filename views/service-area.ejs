@@ -1,0 +1,74 @@
+<%- include('partials/head', {
+  fullTitle: 'Service Area | RYDJA',
+  canonicalPath: '/service-area',
+  description: 'Where RYDJA works: ' + serviceArea + '. Outside the list? Send the job in and we will tell you honestly whether we can reach it.'
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal service-page">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> <span aria-hidden="true">&rsaquo;</span>
+    <a href="/services">Services</a> <span aria-hidden="true">&rsaquo;</span>
+    <span aria-current="page">Service Area</span>
+  </nav>
+
+  <h1>Where RYDJA works</h1>
+  <p class="lede smaller">We serve <%= serviceArea %>.</p>
+
+  <p>
+    RYDJA is a local operation, not a franchise with a call centre. That is the whole reason the service area is
+    drawn the way it is: a truck, a trailer and a crew have to actually get to you, do the work, and get a load to a
+    disposal site in a sensible day.
+  </p>
+
+  <ul class="area-list">
+    <% serviceAreaPlaces.forEach(function(place) { %><li><%= place %></li><% }) %>
+  </ul>
+
+  <h2>Just outside the list?</h2>
+  <p>
+    Ask anyway. The boundary is about driving time and disposal access rather than a line on a map, so a job a little
+    further out can still make sense &mdash; particularly a larger one. Send it through the
+    <a class="text-link" href="/quote">quote form</a> with the address and photos and we will tell you plainly whether
+    we can reach it. If we cannot, we will say so rather than string you along.
+  </p>
+
+  <figure class="area-figure">
+    <%# Brand photography of the RYDJA truck and trailer. Deliberately NOT
+        captioned as a particular customer's job -- it is not one. Real job
+        photography goes in a Recent Work section when there is some. %>
+    <picture>
+      <source srcset="/img/rydja-truck-trailer.webp?v=<%= assetV.img %>" type="image/webp">
+      <img src="/img/rydja-truck-trailer.jpg?v=<%= assetV.img %>"
+           width="1000" height="563" loading="lazy" decoding="async"
+           alt="The RYDJA pickup and trailer loaded for a haul">
+    </picture>
+    <figcaption>The truck and trailer that turn up when you book a job.</figcaption>
+  </figure>
+
+  <h2>What we do across the area</h2>
+  <p>Every service is available everywhere we work:</p>
+  <ul>
+    <% servicePages.forEach(function(p) { %>
+      <li><a class="text-link" href="/<%= p.slug %>"><%= p.h1 %></a></li>
+    <% }) %>
+  </ul>
+
+  <h2>How a job runs, wherever you are</h2>
+  <ol class="area-steps">
+    <li>Send photos and a short description through the quote form.</li>
+    <li>We review access, volume, labour and disposal, and send you a price.</li>
+    <li>You approve the quote, and confirm a time we propose or ask for a different one.</li>
+    <li>We turn up, clear it, and haul it off.</li>
+  </ol>
+
+  <p class="cta-inline">
+    <a class="button" href="/quote">Send photos for a quote</a>
+    <% if (businessPhone) { %>
+      <span class="or-call">or call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
+    <% } %>
+  </p>
+</main>
+
+<script type="application/ld+json"><%- breadcrumbJsonLd %></script>
+
+<%- include('partials/foot') %>

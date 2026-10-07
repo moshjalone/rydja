@@ -145,6 +145,19 @@
     <p class="desc-block"><%= lead.description %></p>
   </div>
 
+  <%# Offered only once the work is finished, and only when a review URL is
+      configured. No incentive, no filtering, no automatic redirect. %>
+  <% if (reviewUrl) { %>
+    <div class="panel review-ask">
+      <h3>How did we do?</h3>
+      <p class="price-note">
+        If the job went well &mdash; or if it did not &mdash; a short review helps other people in the area decide
+        who to call.
+      </p>
+      <a class="button" href="<%= reviewUrl %>" target="_blank" rel="noopener nofollow">Leave <%= brand %> a Google Review</a>
+    </div>
+  <% } %>
+
   <%# ---- a question, at any point ---- %>
   <% if (!quote || quote.status !== 'declined') { %>
     <div class="panel" id="ask">

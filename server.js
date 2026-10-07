@@ -13,6 +13,7 @@ const { runBackup } = require('./backup');
 const mail = require('./mail');
 const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
+const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
 
 // ---------------------------------------------------------------- config
 //
@@ -96,6 +97,22 @@ const SERVICE_AREA_PLACES = (process.env.SERVICE_AREA_PLACES || 'Lowell, Michiga
 // quote at the moment it is approved, so there is a record of which version
 // that customer actually saw. Bump it whenever the Terms change materially.
 const TERMS_VERSION = '2026-10-06';
+
+// Offered to a customer once their job is complete, and only if configured.
+// No incentive, no filtering by how happy they seem, no automatic redirect --
+// the link is simply there, the same for everyone.
+const GOOGLE_REVIEW_URL = (process.env.GOOGLE_REVIEW_URL || '').trim();
+
+/**
+ * Real finished jobs, for a future "Recent Work" section.
+ *
+ * Empty on purpose. The shape is here so that publishing the first one is a
+ * data change rather than a build, but nothing invented goes in it: entries
+ * come from work actually done, with the customer's agreement to publish.
+ *
+ * { service, community, summary, beforePhoto, afterPhoto, completedOn }
+ */
+const RECENT_WORK = [];
 
 const SERVICES = [
   { slug: 'junk-hauling', name: 'Junk & Hauling', blurb: 'Furniture, appliances, household junk, scrap, debris and unwanted items.' },
@@ -459,6 +476,8 @@ app.use((req, res, next) => {
   res.locals.today = todayLocal();
   res.locals.assetV = ASSET_V;
   res.locals.serviceArea = SERVICE_AREA;
+  res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
+  res.locals.servicePages = SERVICE_PAGES;
   res.locals.termsVersion = TERMS_VERSION;
   res.locals.year = new Date().getFullYear();
   res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
@@ -497,6 +516,7 @@ const ASSET_V = {
   // the old card until the URL changes.
   icons: assetVersion('favicon-32x32.png'),
   og: assetVersion('og-image.jpg'),
+  img: assetVersion('img/rydja-truck-trailer.webp'),
   // The hero art is referenced from the stylesheet, which cannot be templated,
   // so its URL is handed to CSS as a custom property in the page head. Without
   // that it would be the one asset that could still go stale on its own.
@@ -613,8 +633,10 @@ function requireAdmin(req, res, next) {
 /** Pages a search engine should actually have. Keep this honest. */
 const PUBLIC_PAGES = [
   { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/services', changefreq: 'monthly', priority: '0.8' },
   { path: '/quote', changefreq: 'monthly', priority: '0.9' },
+  { path: '/services', changefreq: 'monthly', priority: '0.8' },
+  ...SERVICE_PAGES.map((p) => ({ path: '/' + p.slug, changefreq: 'monthly', priority: '0.8' })),
+  { path: '/service-area', changefreq: 'monthly', priority: '0.6' },
   { path: '/terms', changefreq: 'yearly', priority: '0.3' },
   { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
   { path: '/accessibility', changefreq: 'yearly', priority: '0.3' }
@@ -630,18 +652,60 @@ function businessJsonLd() {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'HomeAndConstructionBusiness',
+    '@id': SITE_URL + '/#business',
     name: BRAND,
     url: SITE_URL + '/',
     description:
       `Junk removal, cleanouts, hauling, yard cleanup, furniture and appliance removal, ` +
       `moving help and light demolition serving ${SERVICE_AREA}.`,
     image: SITE_URL + '/og-image.jpg',
-    logo: SITE_URL + '/icon-512.png',
+    logo: SITE_URL + '/img/rydja-logo.jpg',
     areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name })),
-    knowsAbout: SERVICE_KEYWORDS
+    knowsAbout: SERVICE_KEYWORDS,
+    // The services we actually offer, each pointing at the page describing it.
+    // Offers carry no price: we quote every job individually and inventing a
+    // range would be a claim we cannot stand behind.
+    hasOfferCatalog: {
+      '@type': 'OfferCatalog',
+      name: `${BRAND} services`,
+      itemListElement: SERVICE_PAGES.map((p) => ({
+        '@type': 'Offer',
+        itemOffered: { '@type': 'Service', name: p.nav, url: SITE_URL + '/' + p.slug }
+      }))
+    }
   };
   if (PHONE) data.telephone = PHONE;
   return JSON.stringify(data);
+}
+
+/** Breadcrumbs for a second-level page. Home > Services > this page. */
+function breadcrumbJsonLd(name, path) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Services', item: SITE_URL + '/services' },
+      { '@type': 'ListItem', position: 3, name, item: SITE_URL + path }
+    ]
+  });
+}
+
+/**
+ * A Service page's own structured data. provider points back at the business
+ * node rather than repeating it, which is what @id is for.
+ */
+function serviceJsonLd(page) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: page.h1,
+    description: page.description,
+    url: SITE_URL + '/' + page.slug,
+    serviceType: page.nav,
+    provider: { '@type': 'HomeAndConstructionBusiness', '@id': SITE_URL + '/#business', name: BRAND },
+    areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name }))
+  });
 }
 
 app.get('/robots.txt', (req, res) => {
@@ -687,6 +751,22 @@ app.get('/services', (req, res) => res.render('services'));
 
 // Public and indexable on purpose: a customer should be able to read these
 // before they hand over a photo of their garage.
+// One layout, six genuinely different pages. The content lives in
+// content/service-pages.js so a page is a content change, not a template.
+for (const page of SERVICE_PAGES) {
+  app.get('/' + page.slug, (req, res) =>
+    res.render('service-page', {
+      page,
+      jsonLd: serviceJsonLd(page),
+      breadcrumbJsonLd: breadcrumbJsonLd(page.nav, '/' + page.slug)
+    })
+  );
+}
+
+app.get('/service-area', (req, res) =>
+  res.render('service-area', { breadcrumbJsonLd: breadcrumbJsonLd('Service Area', '/service-area') })
+);
+
 app.get('/terms', (req, res) => res.render('legal/terms'));
 app.get('/privacy', (req, res) => res.render('legal/privacy'));
 app.get('/accessibility', (req, res) => res.render('legal/accessibility'));
@@ -866,7 +946,11 @@ app.get('/q/:token', (req, res) => {
     quote,
     job,
     photos,
-    asked: req.query.asked === '1'
+    asked: req.query.asked === '1',
+    // Offered once the work is done, and only when a review URL is configured.
+    // Shown to everyone whose job is complete, with no filtering and no
+    // automatic redirect.
+    reviewUrl: job && job.status === 'complete' ? GOOGLE_REVIEW_URL : ''
   });
 });
 

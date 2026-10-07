@@ -306,14 +306,13 @@ test('private pages stay noindex, and the sitemap stays public-only', async () =
 
   const xml = await (await app.get('/sitemap.xml')).text();
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  assert.deepEqual(locs, [
-    'https://getrydja.com/',
-    'https://getrydja.com/services',
-    'https://getrydja.com/quote',
-    'https://getrydja.com/terms',
-    'https://getrydja.com/privacy',
-    'https://getrydja.com/accessibility'
-  ]);
+  // The legal pages belong in it; the private ones never do. The exact set is
+  // asserted in local-seo.test.js, which owns the indexable list.
+  for (const path of LEGAL_PAGES) {
+    assert.ok(locs.includes('https://getrydja.com' + path), 'sitemap should list ' + path);
+  }
+  assert.ok(locs.includes('https://getrydja.com/'));
+  assert.ok(locs.every((l) => l.startsWith('https://getrydja.com/')));
   assert.ok(!xml.includes(lead.public_token));
   assert.ok(!/\/admin/.test(xml));
 });

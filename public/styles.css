@@ -469,6 +469,37 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 /* The disclosure beside the approve button. Visible, not buried. */
 .approve-terms{font-size:13px;line-height:1.6;color:var(--muted);margin:20px 0 0;padding:14px 16px;background:#f1eee5;border-radius:10px;border-left:3px solid var(--accent)}
 
+/* ---------- hero heading ----------
+   The slogan keeps the visual weight it always had; the h1 underneath is a
+   real, visible heading that says what the business does. Nothing is hidden,
+   clipped or pushed off screen -- that is the whole point. */
+.hero-slogan{font-size:clamp(46px,7vw,92px);line-height:.91;letter-spacing:-.065em;margin:0 0 18px;font-weight:900}
+.hero-slogan span{color:#5f6258}
+.hero-band .hero-slogan{color:#fff;text-shadow:0 2px 30px rgba(0,0,0,.5)}
+.hero-band .hero-slogan span{color:#9aa08c}
+/* Two classes, because `.section h1` further up is one class plus an element
+   and would otherwise win and blow this up to headline size. */
+.hero-copy .hero-h1{font-size:clamp(19px,2.1vw,25px);line-height:1.3;letter-spacing:-.01em;margin:0 0 20px;font-weight:800}
+.hero-band .hero-copy .hero-h1{color:var(--accent)}
+
+/* ---------- service pages ---------- */
+.crumbs{font-size:13px;color:var(--muted);margin:0 0 22px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.crumbs a{border-bottom:1px solid transparent;font-weight:700}
+.crumbs a:hover{border-bottom-color:currentColor}
+.service-page .cta-inline{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:26px 0 34px}
+.service-page .or-call{font-size:14px;color:var(--muted)}
+.service-grid article h3 a{border-bottom:2px solid transparent}
+.service-grid article h3 a:hover{border-bottom-color:var(--accent)}
+.area-list{list-style:none;padding:0;margin:18px 0 10px;display:flex;flex-wrap:wrap;gap:10px}
+.area-list li{background:#e9e5da;border-radius:999px;padding:7px 16px;font-weight:700;font-size:14px;color:var(--ink)}
+.area-steps{line-height:1.7;padding-left:22px;color:#3c3e38}
+.area-steps li{margin-bottom:8px}
+.area-figure{margin:28px 0 34px}
+.area-figure img{width:100%;height:auto;border-radius:14px;display:block}
+.area-figure figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+.review-ask{margin-top:30px}
+.review-ask .button{margin-top:14px}
+
 /* ---------- mobile ---------- */
 @media(max-width:860px){
   .nav{gap:10px;padding:12px 16px}

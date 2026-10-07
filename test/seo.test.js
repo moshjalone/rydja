@@ -16,7 +16,15 @@ const SITE_URL = 'https://getrydja.com';
 // Everything a crawler should have. The legal pages are public on purpose: a
 // customer should be able to read the terms before handing over a photo of
 // their garage.
-const PUBLIC_PAGES = ['/', '/services', '/quote', '/terms', '/privacy', '/accessibility'];
+const { SERVICE_PAGES } = require('../content/service-pages');
+
+// The indexable set, in sitemap order. Derived from the service page content so
+// adding a page cannot leave this behind.
+const PUBLIC_PAGES = [
+  '/', '/quote', '/services',
+  ...SERVICE_PAGES.map((p) => '/' + p.slug),
+  '/service-area', '/terms', '/privacy', '/accessibility'
+];
 
 let app;
 let lead;
@@ -192,7 +200,7 @@ test('the homepage carries valid structured data, and invents nothing', async ()
   assert.equal(data.name, 'RYDJA');
   assert.equal(data.url, SITE_URL + '/');
   assert.equal(data.telephone, '1-616-929-3360');
-  assert.equal(data.logo, SITE_URL + '/icon-512.png');
+  assert.equal(data.logo, SITE_URL + '/img/rydja-logo.jpg');
   assert.match(data.description, /West Michigan/);
   assert.deepEqual(
     data.areaServed.map((a) => a.name),
