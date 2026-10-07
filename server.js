@@ -560,7 +560,19 @@ app.use((req, res, next) => {
  */
 app.use(
   express.static(path.join(__dirname, 'public'), {
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
+      // Crawler files are never cached hard. A sitemap or a robots.txt held in
+      // an edge cache for a year is a change you cannot retract, and these two
+      // are the files you most want to be able to correct in a hurry.
+      if (/[\\/](?:sitemap\.xml|robots\.txt)$/.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, no-cache');
+        // express.static labels .xml as bare application/xml. Legal -- a parser
+        // falls back to the document's own declaration -- but the declaration
+        // says UTF-8, so say it on the wire too and leave nothing to infer.
+        // send() skips its own content-type once one is already set.
+        if (filePath.endsWith('.xml')) res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+        return;
+      }
       const versioned = /[?&]v=/.test((res.req && res.req.originalUrl) || '');
       res.setHeader(
         'Cache-Control',
@@ -650,21 +662,17 @@ function requireAdmin(req, res, next) {
 
 // ---------------------------------------------------------------- SEO
 //
-// The public surface is three pages. Everything else -- the customer's own
-// page, the whole admin -- is private, carries noindex, and is kept out of the
-// sitemap and robots.
-
-/** Pages a search engine should actually have. Keep this honest. */
-const PUBLIC_PAGES = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/quote', changefreq: 'monthly', priority: '0.9' },
-  { path: '/services', changefreq: 'monthly', priority: '0.8' },
-  ...SERVICE_PAGES.map((p) => ({ path: '/' + p.slug, changefreq: 'monthly', priority: '0.8' })),
-  { path: '/service-area', changefreq: 'monthly', priority: '0.6' },
-  { path: '/terms', changefreq: 'yearly', priority: '0.3' },
-  { path: '/privacy', changefreq: 'yearly', priority: '0.3' },
-  { path: '/accessibility', changefreq: 'yearly', priority: '0.3' }
-];
+// The public surface is the marketing pages and the legal pages. Everything
+// else -- the customer's own page, the whole admin -- is private and carries
+// noindex, which is the mechanism that actually keeps it out of an index.
+//
+// sitemap.xml and robots.txt are NOT generated here. They are literal files in
+// public/, served by express.static. Search Console refused a dynamically
+// generated sitemap that was correct by every external measurement, so the
+// generator is gone: there is now one file, one response, nothing computed at
+// request time, and nothing that can differ between a browser and a crawler.
+// If a URL is added to the site, public/sitemap.xml is edited by hand and the
+// test below fails until it matches.
 
 /**
  * Structured data for the homepage. Only facts we actually hold: no street
@@ -733,48 +741,9 @@ function serviceJsonLd(page) {
   });
 }
 
-app.get('/robots.txt', (req, res) => {
-  // robots.txt is a crawl hint, never a privacy control -- every private page
-  // carries noindex of its own. This just keeps crawlers out of places that
-  // waste their time and ours.
-  res.type('text/plain').send(
-    [
-      'User-agent: *',
-      'Allow: /',
-      'Disallow: /admin',
-      'Disallow: /q/',
-      'Disallow: /quote/sent',
-      '',
-      `Sitemap: ${SITE_URL}/sitemap.xml`,
-      ''
-    ].join('\n')
-  );
-});
-
-// When this build went out. Used as lastmod rather than today's date: a sitemap
-// claiming every page changed today, every day, is telling Google something
-// untrue, and Google answers by ignoring the field. Content genuinely does
-// change when a deploy happens.
-const DEPLOYED_ON = todayLocal();
-
-app.get('/sitemap.xml', (req, res) => {
-  const today = DEPLOYED_ON;
-  const urls = PUBLIC_PAGES.map(
-    (p) =>
-      `  <url>\n    <loc>${SITE_URL}${p.path}</loc>\n` +
-      `    <lastmod>${today}</lastmod>\n` +
-      `    <changefreq>${p.changefreq}</changefreq>\n` +
-      `    <priority>${p.priority}</priority>\n  </url>`
-  ).join('\n');
-
-  res
-    .type('application/xml')
-    .send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls}
-</urlset>
-`);
-});
+// No app.get('/robots.txt') and no app.get('/sitemap.xml') live here on
+// purpose. Both are static files under public/, and a route would shadow or
+// race the file depending on middleware order. One path, one response.
 
 app.get('/', (req, res) => res.render('home', { jsonLd: businessJsonLd() }));
 

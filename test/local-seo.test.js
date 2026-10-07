@@ -541,13 +541,19 @@ test('a trailing slash redirects rather than duplicating the page', async () => 
   assert.equal((await app.get('/')).status, 200);
 });
 
-test('the sitemap reports a stable lastmod, not today regenerated each request', async () => {
-  const xml = await (await app.get('/sitemap.xml')).text();
-  const dates = [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
+test('the sitemap carries no optional fields and nothing computed at request time', async () => {
+  const first = await (await app.get('/sitemap.xml')).text();
+  const second = await (await app.get('/sitemap.xml')).text();
 
-  assert.ok(dates.length > 0);
-  for (const d of dates) assert.match(d, /^\d{4}-\d{2}-\d{2}$/, 'W3C date format: ' + d);
-  assert.equal(new Set(dates).size, 1, 'one build, one date');
+  // Byte-identical between requests: a static file has no clock in it.
+  assert.equal(first, second, 'two requests must return the same bytes');
+
+  for (const optional of ['lastmod', 'changefreq', 'priority']) {
+    assert.ok(!first.includes('<' + optional + '>'), 'stripped back to <loc> only: found ' + optional);
+  }
+  // <urlset> and <url> and <loc>, and no other element.
+  const tags = [...new Set([...first.matchAll(/<(\w[\w:-]*)/g)].map((m) => m[1]))].sort();
+  assert.deepEqual(tags, ['loc', 'url', 'urlset']);
 });
 
 test('no promotional image is presented as a documented customer job', async () => {

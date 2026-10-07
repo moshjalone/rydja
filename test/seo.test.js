@@ -156,9 +156,14 @@ test('robots.txt allows the public site and points at the sitemap', async () => 
   const body = await res.text();
   assert.match(body, /^User-agent: \*$/m);
   assert.match(body, /^Allow: \/$/m);
-  assert.match(body, /^Disallow: \/admin$/m);
-  assert.match(body, /^Disallow: \/q\/$/m);
   assert.match(body, new RegExp('^Sitemap: ' + SITE_URL + '/sitemap\\.xml$', 'm'));
+
+  // Deliberately no Disallow lines. robots.txt is a crawl hint that anyone can
+  // read, so listing /admin there advertises it; noindex on the page itself is
+  // what actually keeps private pages out of an index, and that is tested
+  // separately in 'nothing private is indexable'.
+  assert.doesNotMatch(body, /^Disallow:/m, 'privacy is noindex, not a published blocklist');
+  assert.doesNotMatch(body, /^Noindex:/mi, 'not a directive Google supports');
 });
 
 // ---------------------------------------------------------------- sitemap
@@ -179,7 +184,9 @@ test('sitemap.xml is valid and lists only indexable pages', async () => {
   // The thing that must never happen.
   assert.ok(!xml.includes(lead.public_token), 'a private token must never reach the sitemap');
   assert.ok(!/\/admin/.test(xml), 'admin must never reach the sitemap');
+  assert.ok(!/\/q\//.test(xml), 'a customer page must never reach the sitemap');
   assert.ok(!/\/quote\/sent/.test(xml), 'the confirmation page is noindex and does not belong here');
+  assert.ok(!/token|uploads/i.test(xml), 'no token or upload URLs');
 
   for (const loc of locs) assert.ok(loc.startsWith(SITE_URL + '/'), 'absolute https URLs only: ' + loc);
 
@@ -187,12 +194,11 @@ test('sitemap.xml is valid and lists only indexable pages', async () => {
   assert.equal((xml.match(/<url>/g) || []).length, (xml.match(/<\/url>/g) || []).length);
 });
 
-// Search Console reports "sitemap could not be read" for things a browser
-// shrugs off: a byte-order mark, a blank line before the declaration, an HTML
-// error page served with an XML content type, a bare ampersand, children in the
-// wrong order. The response is checked here as bytes on the wire, because that
-// is the form Google actually parses.
-test('sitemap.xml is well formed on the wire, not just in a browser', async () => {
+// Search Console rejected a generated sitemap that measured correct from the
+// outside, so the sitemap is now a literal file with nothing optional in it.
+// What is left to get wrong is the bytes, which is what this checks: Google
+// parses the response, not the pretty version a browser renders.
+test('sitemap.xml is a static file, well formed on the wire', async () => {
   const res = await app.get('/sitemap.xml');
   const bytes = Buffer.from(await res.arrayBuffer());
 
@@ -213,25 +219,12 @@ test('sitemap.xml is well formed on the wire, not just in a browser', async () =
   assert.doesNotMatch(xml, /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/, 'unescaped ampersand');
   assert.doesNotMatch(xml, /&(?:nbsp|rsquo|mdash|ndash|hellip);/, 'HTML entities are undefined in XML');
 
-  // The sitemaps.org schema is a sequence, so the order of children matters.
+  // Stripped back to the required element and nothing else.
   const blocks = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
   assert.equal(blocks.length, PUBLIC_PAGES.length);
-
-  const order = ['loc', 'lastmod', 'changefreq', 'priority'];
-  const freqs = ['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'];
-  const today = new Date().toISOString().slice(0, 10);
-
   for (const block of blocks) {
     const tags = [...block.matchAll(/<(\w+)>/g)].map((m) => m[1]);
-    assert.deepEqual(tags, order, 'children must appear in schema order: ' + tags.join(', '));
-
-    const lastmod = block.match(/<lastmod>([^<]+)<\/lastmod>/)[1];
-    assert.match(lastmod, /^\d{4}-\d{2}-\d{2}$/, 'lastmod must be a W3C date: ' + lastmod);
-    assert.ok(lastmod <= today, 'lastmod must not be in the future: ' + lastmod);
-
-    assert.ok(freqs.includes(block.match(/<changefreq>([^<]+)</)[1]), 'bad changefreq');
-    const priority = Number(block.match(/<priority>([^<]+)</)[1]);
-    assert.ok(priority >= 0 && priority <= 1, 'priority is a 0..1 decimal');
+    assert.deepEqual(tags, ['loc'], 'a <url> holds one <loc> and nothing else: ' + tags.join(', '));
   }
 
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
@@ -239,6 +232,34 @@ test('sitemap.xml is well formed on the wire, not just in a browser', async () =
   for (const loc of locs) {
     assert.ok(!/[?#]/.test(loc), 'no query strings or fragments in a sitemap: ' + loc);
     assert.equal(loc.trim(), loc, 'whitespace around a loc: ' + JSON.stringify(loc));
+  }
+
+  // Not cached hard. A sitemap stuck in an edge cache is a mistake you cannot
+  // retract, which matters precisely when you need to correct one.
+  const cache = res.headers.get('cache-control') || '';
+  assert.doesNotMatch(cache, /immutable|max-age=[1-9]/, 'must stay revalidatable: ' + cache);
+});
+
+test('every URL in the sitemap answers 200, and no route shadows the file', async () => {
+  const xml = await (await app.get('/sitemap.xml')).text();
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  assert.ok(locs.length > 0);
+
+  for (const loc of locs) {
+    const path = loc.slice(SITE_URL.length);
+    const res = await app.get(path, { redirect: 'manual' });
+    assert.equal(res.status, 200, loc + ' is in the sitemap but answers ' + res.status);
+    assert.doesNotMatch(await res.text(), /name="robots"/, loc + ' is in the sitemap but noindex');
+  }
+
+  // One path, one response. The file is served by express.static; if a route
+  // were ever reintroduced it would shadow it and we would be back to a
+  // generated sitemap without noticing.
+  const app2 = await startServer({ SITE_URL, SITE_URL_UNUSED: '1' });
+  try {
+    assert.equal(await (await app2.get('/sitemap.xml')).text(), xml, 'the response must not vary by config');
+  } finally {
+    app2.stop();
   }
 });
 
