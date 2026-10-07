@@ -248,7 +248,7 @@ test('structured data is valid, and still invents nothing', async () => {
   }
 
   for (const invented of ['address', 'openingHours', 'openingHoursSpecification', 'priceRange',
-                          'aggregateRating', 'review', 'sameAs', 'award']) {
+                          'aggregateRating', 'review', 'award']) {
     assert.ok(!(invented in business), 'must not invent ' + invented);
   }
 });
@@ -471,6 +471,83 @@ test('only the approved images are served to the public', async () => {
                           '/img/originals/logo.png']) {
     assert.ok((await app.get(original)).status >= 400, original + ' must not be served');
   }
+});
+
+// ---------------------------------------------------------------- facebook
+
+test('the Facebook page is linked publicly, safely, and with no tracking', async () => {
+  const FB = 'https://www.facebook.com/profile.php?id=61595103063360';
+
+  const home = await html('/');
+  assert.ok(home.includes(FB), 'the homepage should link the Facebook page');
+  assert.match(home, /Follow RYDJA on Facebook/, 'the footer needs a labelled link');
+  assert.match(home, /RYDJA on Facebook<\/a>/, 'the owner section links it too');
+
+  // Every link to it opens safely in a new tab.
+  for (const tag of home.match(/<a[^>]*facebook\.com[^>]*>/g) || []) {
+    assert.match(tag, /target="_blank"/, 'social link should open in a new tab: ' + tag);
+    assert.match(tag, /rel="[^"]*noopener/, 'social link needs rel=noopener: ' + tag);
+  }
+
+  // Inherited by the shared footer on every public page.
+  for (const path of INDEXABLE) {
+    assert.ok((await html(path)).includes(FB), path + ' should carry the footer social link');
+  }
+
+  // The share URL carries a Facebook tracking parameter. It must not be the
+  // one we publish, on a site whose privacy policy says it runs no tracking.
+  for (const path of ['/', '/privacy']) {
+    const doc = await html(path);
+    assert.ok(!doc.includes('mibextid'), path + ' must not carry a Facebook tracking parameter');
+    assert.ok(!doc.includes('facebook.net'), path + ' must not load the Facebook SDK');
+    assert.ok(!doc.includes('connect.facebook'), path + ' must not load a Facebook pixel');
+  }
+});
+
+test('sameAs lists the Facebook page and nothing invented', async () => {
+  const doc = await html('/');
+  const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+
+  assert.ok(Array.isArray(biz.sameAs), 'sameAs should be an array');
+  assert.deepEqual(biz.sameAs, ['https://www.facebook.com/profile.php?id=61595103063360']);
+
+  // Only accounts that actually exist. No placeholder profiles.
+  for (const guess of ['twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com', 'yelp.com', 'tiktok.com']) {
+    assert.ok(!JSON.stringify(biz.sameAs).includes(guess), 'sameAs must not invent a ' + guess + ' profile');
+  }
+});
+
+test('the Facebook link can be reconfigured, and disappears when unset', async () => {
+  const none = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ' });
+  try {
+    const doc = await (await none.get('/')).text();
+    assert.ok(!doc.includes('facebook.com'), 'no link when the URL is unset');
+    const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    assert.ok(!('sameAs' in biz), 'no empty sameAs in the structured data');
+  } finally {
+    none.stop();
+  }
+});
+
+// ---------------------------------------------------------------- canonical URLs
+
+test('a trailing slash redirects rather than duplicating the page', async () => {
+  for (const path of ['/junk-removal', '/cleanouts', '/service-area', '/privacy']) {
+    const res = await app.get(path + '/');
+    assert.equal(res.status, 301, path + '/ should redirect');
+    assert.equal(res.headers.get('location'), path, path + '/ should land on ' + path);
+  }
+  // The root is not a trailing slash to strip.
+  assert.equal((await app.get('/')).status, 200);
+});
+
+test('the sitemap reports a stable lastmod, not today regenerated each request', async () => {
+  const xml = await (await app.get('/sitemap.xml')).text();
+  const dates = [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
+
+  assert.ok(dates.length > 0);
+  for (const d of dates) assert.match(d, /^\d{4}-\d{2}-\d{2}$/, 'W3C date format: ' + d);
+  assert.equal(new Set(dates).size, 1, 'one build, one date');
 });
 
 test('no promotional image is presented as a documented customer job', async () => {

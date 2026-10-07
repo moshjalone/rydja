@@ -187,6 +187,61 @@ test('sitemap.xml is valid and lists only indexable pages', async () => {
   assert.equal((xml.match(/<url>/g) || []).length, (xml.match(/<\/url>/g) || []).length);
 });
 
+// Search Console reports "sitemap could not be read" for things a browser
+// shrugs off: a byte-order mark, a blank line before the declaration, an HTML
+// error page served with an XML content type, a bare ampersand, children in the
+// wrong order. The response is checked here as bytes on the wire, because that
+// is the form Google actually parses.
+test('sitemap.xml is well formed on the wire, not just in a browser', async () => {
+  const res = await app.get('/sitemap.xml');
+  const bytes = Buffer.from(await res.arrayBuffer());
+
+  assert.equal(res.headers.get('content-type'), 'application/xml; charset=utf-8');
+  assert.ok(bytes.length > 0, 'an empty body reads as unparseable');
+  assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], 'a BOM breaks the parse');
+  assert.equal(bytes[0], 0x3c, 'nothing may precede the XML declaration -- not even whitespace');
+  assert.ok(!bytes.includes(0x0d), 'LF only: a stray CR in a declaration is a parse error');
+
+  const xml = bytes.toString('utf8');
+  assert.ok(
+    xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns='),
+    'the declaration and root element must open the document'
+  );
+  assert.doesNotMatch(xml, /<(?:!doctype|html|head|body|script|div)\b/i, 'an HTML page is not a sitemap');
+
+  // Every ampersand has to be a real entity, or the document is not XML.
+  assert.doesNotMatch(xml, /&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/, 'unescaped ampersand');
+  assert.doesNotMatch(xml, /&(?:nbsp|rsquo|mdash|ndash|hellip);/, 'HTML entities are undefined in XML');
+
+  // The sitemaps.org schema is a sequence, so the order of children matters.
+  const blocks = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
+  assert.equal(blocks.length, PUBLIC_PAGES.length);
+
+  const order = ['loc', 'lastmod', 'changefreq', 'priority'];
+  const freqs = ['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'];
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const block of blocks) {
+    const tags = [...block.matchAll(/<(\w+)>/g)].map((m) => m[1]);
+    assert.deepEqual(tags, order, 'children must appear in schema order: ' + tags.join(', '));
+
+    const lastmod = block.match(/<lastmod>([^<]+)<\/lastmod>/)[1];
+    assert.match(lastmod, /^\d{4}-\d{2}-\d{2}$/, 'lastmod must be a W3C date: ' + lastmod);
+    assert.ok(lastmod <= today, 'lastmod must not be in the future: ' + lastmod);
+
+    assert.ok(freqs.includes(block.match(/<changefreq>([^<]+)</)[1]), 'bad changefreq');
+    const priority = Number(block.match(/<priority>([^<]+)</)[1]);
+    assert.ok(priority >= 0 && priority <= 1, 'priority is a 0..1 decimal');
+  }
+
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  assert.equal(new Set(locs).size, locs.length, 'a duplicate loc wastes crawl budget');
+  for (const loc of locs) {
+    assert.ok(!/[?#]/.test(loc), 'no query strings or fragments in a sitemap: ' + loc);
+    assert.equal(loc.trim(), loc, 'whitespace around a loc: ' + JSON.stringify(loc));
+  }
+});
+
 // ---------------------------------------------------------------- JSON-LD
 
 test('the homepage carries valid structured data, and invents nothing', async () => {
@@ -211,8 +266,14 @@ test('the homepage carries valid structured data, and invents nothing', async ()
   // Claims we have no basis for must not appear. A wrong knowledge panel is
   // worse than no knowledge panel.
   for (const invented of ['address', 'openingHours', 'openingHoursSpecification',
-                          'priceRange', 'aggregateRating', 'review', 'sameAs']) {
+                          'priceRange', 'aggregateRating', 'review']) {
     assert.ok(!(invented in data), 'must not invent ' + invented);
+  }
+
+  // sameAs is allowed, but only for profiles that actually exist. Every entry
+  // must be a real account we hold.
+  for (const profile of data.sameAs || []) {
+    assert.match(profile, /^https:\/\/www\.facebook\.com\//, 'unexpected social profile: ' + profile);
   }
 });
 

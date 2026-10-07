@@ -96,6 +96,11 @@ main:focus{outline:none}
 .footer-links a{font-weight:700;border-bottom:1px solid transparent}
 .footer-links a:hover{border-bottom-color:currentColor}
 .copyright{margin:0 0 4px}
+/* A link, not an embed: no Facebook SDK, no pixel, nothing third-party loads. */
+.social{margin:10px 0 0}
+.social-link{display:inline-flex;align-items:center;gap:8px;font-weight:700;border-bottom:1px solid transparent}
+.social-link:hover{border-bottom-color:currentColor}
+.social-icon{flex:0 0 auto}
 
 .footer .brand{font-size:16px;color:var(--ink)}
 .footer p{margin:6px 0 0}

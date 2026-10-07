@@ -31,7 +31,12 @@ test('the quote form carries a stamp and no decoy field', async () => {
 
   assert.doesNotMatch(html, /company_website/, 'the honeypot field must be gone');
   assert.doesNotMatch(html, /class="nope"/, 'the off-screen decoy wrapper must be gone');
-  assert.doesNotMatch(html, /aria-hidden/, 'the form must not hide inputs from assistive tech');
+
+  // Scoped to the form, which is what this was ever about: the honeypot was an
+  // aria-hidden wrapper around a decoy input. A decorative icon elsewhere on
+  // the page is correctly aria-hidden and is not what we are guarding against.
+  const form = html.slice(html.indexOf('<form class="quote-form"'), html.indexOf('</form>'));
+  assert.doesNotMatch(form, /aria-hidden/, 'the form must not hide inputs from assistive tech');
 });
 
 // ---------------------------------------------------------------- accepted

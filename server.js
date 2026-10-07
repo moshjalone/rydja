@@ -103,6 +103,16 @@ const TERMS_VERSION = '2026-10-06';
 // the link is simply there, the same for everyone.
 const GOOGLE_REVIEW_URL = (process.env.GOOGLE_REVIEW_URL || '').trim();
 
+// The official Facebook page, as the canonical profile URL the share link
+// resolves to. The share form carries a `mibextid` tracking parameter, and
+// publishing that on a site whose privacy policy says it runs no tracking
+// would be a small lie. Override if the page ever gets a vanity URL.
+const FACEBOOK_URL = (process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61595103063360').trim();
+
+// Social profiles that are genuinely ours, for schema.org sameAs. Only real,
+// verified accounts belong here.
+const SAME_AS = [FACEBOOK_URL].filter(Boolean);
+
 /**
  * Real finished jobs, for a future "Recent Work" section.
  *
@@ -478,6 +488,7 @@ app.use((req, res, next) => {
   res.locals.serviceArea = SERVICE_AREA;
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
   res.locals.servicePages = SERVICE_PAGES;
+  res.locals.facebookUrl = FACEBOOK_URL;
   res.locals.termsVersion = TERMS_VERSION;
   res.locals.year = new Date().getFullYear();
   res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
@@ -523,6 +534,19 @@ const ASSET_V = {
   hero: assetVersion('hero.svg'),
   rig: assetVersion('rig.svg')
 };
+
+/**
+ * One canonical URL per page. Express serves /junk-removal and /junk-removal/
+ * identically by default, which is two crawlable URLs for one page. The
+ * canonical tag already points both at the same place, but a redirect means
+ * Google never has to work that out, and the duplicate never gets crawled.
+ */
+app.use((req, res, next) => {
+  if (req.method === 'GET' && req.path.length > 1 && req.path.endsWith('/')) {
+    return res.redirect(301, req.path.replace(/\/+$/, '') + req.originalUrl.slice(req.path.length));
+  }
+  next();
+});
 
 /**
  * Cache hard, but only what is safe to.
@@ -675,6 +699,7 @@ function businessJsonLd() {
     }
   };
   if (PHONE) data.telephone = PHONE;
+  if (SAME_AS.length) data.sameAs = SAME_AS;
   return JSON.stringify(data);
 }
 
@@ -726,8 +751,14 @@ app.get('/robots.txt', (req, res) => {
   );
 });
 
+// When this build went out. Used as lastmod rather than today's date: a sitemap
+// claiming every page changed today, every day, is telling Google something
+// untrue, and Google answers by ignoring the field. Content genuinely does
+// change when a deploy happens.
+const DEPLOYED_ON = todayLocal();
+
 app.get('/sitemap.xml', (req, res) => {
-  const today = todayLocal();
+  const today = DEPLOYED_ON;
   const urls = PUBLIC_PAGES.map(
     (p) =>
       `  <url>\n    <loc>${SITE_URL}${p.path}</loc>\n` +
