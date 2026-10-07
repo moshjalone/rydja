@@ -422,8 +422,8 @@ test('the owner appears once, named, with no biography and no address', async ()
   const owner = doc.match(/<img[^>]*josh-owner-rydja[^>]*>/g) || [];
   assert.equal(owner.length, 1, 'the owner photo should appear exactly once');
   assert.match(owner[0], /alt="Josh, owner of RYDJA, beside a RYDJA work truck"/);
-  assert.match(owner[0], /width="720"/);
-  assert.match(owner[0], /height="540"/);
+  assert.match(owner[0], /width="800"/);
+  assert.match(owner[0], /height="600"/);
   assert.match(owner[0], /loading="lazy"/);
   assert.match(doc, /<source srcset="\/img\/josh-owner-rydja\.webp/, 'a modern format with a fallback');
 
@@ -471,6 +471,41 @@ test('only the approved images are served to the public', async () => {
                           '/img/originals/logo.png']) {
     assert.ok((await app.get(original)).status >= 400, original + ' must not be served');
   }
+
+  // And nothing anywhere near the weight of a source file is served either.
+  for (const ref of seen) {
+    const res = await app.get(ref);
+    assert.equal(res.status, 200, ref + ' is referenced but does not resolve');
+    const bytes = (await res.arrayBuffer()).byteLength;
+    assert.ok(bytes < 400 * 1024, ref + ' is ' + Math.round(bytes / 1024) + 'KB -- that is an original, not a derivative');
+  }
+});
+
+// Each versioned asset must be versioned by its OWN bytes. The owner photo
+// shared a hash with the truck photo once, so replacing the portrait left ?v=
+// unchanged and browsers kept the old picture -- the exact failure the version
+// exists to prevent.
+test('every image carries a cache key derived from the file it points at', async () => {
+  const version = (doc, file) => {
+    const m = doc.match(new RegExp('/img/' + file + '\\?v=([a-f0-9]+)'));
+    assert.ok(m, file + ' should be referenced with a ?v=');
+    return m[1];
+  };
+
+  const home = await html('/');
+  const area = await html('/service-area');
+
+  const owner = version(home, 'josh-owner-rydja\\.webp');
+  const truck = version(area, 'rydja-truck-trailer\\.webp');
+  assert.notEqual(owner, truck, 'two different photographs must not share one cache key');
+
+  // The webp and its jpeg fallback are the same picture, so they share a key.
+  assert.equal(version(home, 'josh-owner-rydja\\.jpg'), owner);
+
+  // And the key really is the hash of the bytes being served.
+  const crypto = require('node:crypto');
+  const served = Buffer.from(await (await app.get('/img/josh-owner-rydja.webp')).arrayBuffer());
+  assert.equal(crypto.createHash('sha1').update(served).digest('hex').slice(0, 10), owner);
 });
 
 // ---------------------------------------------------------------- facebook

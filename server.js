@@ -528,6 +528,11 @@ const ASSET_V = {
   icons: assetVersion('favicon-32x32.png'),
   og: assetVersion('og-image.jpg'),
   img: assetVersion('img/rydja-truck-trailer.webp'),
+  // The owner photograph needs its own hash. It used to share `img` with the
+  // truck photo, which meant replacing the portrait left the ?v= untouched and
+  // every browser and cache in the chain kept serving the previous one. A hash
+  // has to cover the file it versions, or it is decoration.
+  owner: assetVersion('img/josh-owner-rydja.webp'),
   // The hero art is referenced from the stylesheet, which cannot be templated,
   // so its URL is handed to CSS as a custom property in the page head. Without
   // that it would be the one asset that could still go stale on its own.
