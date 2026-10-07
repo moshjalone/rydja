@@ -19,6 +19,12 @@ function config() {
   return {
     apiKey: (process.env.RESEND_API_KEY || '').trim(),
     from: (process.env.EMAIL_FROM || '').trim(),
+    // Where a customer's reply lands. EMAIL_FROM carries a display name and
+    // has to be a domain Resend has verified; this is the plain address a
+    // human actually reads, and the two are allowed to differ. CONTACT_EMAIL
+    // is the old name, honoured so an environment set before the rename keeps
+    // working. Unset means "send no Reply-To" rather than "guess one".
+    replyTo: (process.env.BUSINESS_EMAIL || process.env.CONTACT_EMAIL || '').trim(),
     siteUrl: (process.env.SITE_URL || 'https://getrydja.com').replace(/\/+$/, ''),
     brand: process.env.BRAND_NAME || 'RYDJA',
     phone: (process.env.BUSINESS_PHONE || '').trim()
@@ -267,7 +273,13 @@ async function send({ to, subject, html, text }) {
   if (!String(to || '').trim()) return { ok: false, reason: 'no_email' };
   if (!isConfigured()) return { ok: false, reason: 'not_configured' };
 
-  const { apiKey, from } = config();
+  const { apiKey, from, replyTo } = config();
+
+  // Resend's REST field is snake_case; the camelCase spelling is the Node
+  // SDK's, which this does not use. Omitted entirely when unset -- an empty
+  // reply_to is worse than none, because it overrides the From address.
+  const payload = { from, to: [to], subject, html, text };
+  if (replyTo) payload.reply_to = replyTo;
 
   try {
     const res = await fetch(RESEND_BASE + '/emails', {
@@ -276,7 +288,7 @@ async function send({ to, subject, html, text }) {
         authorization: 'Bearer ' + apiKey,
         'content-type': 'application/json'
       },
-      body: JSON.stringify({ from, to: [to], subject, html, text }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS)
     });
 

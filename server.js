@@ -126,6 +126,18 @@ const TERMS_VERSION = '2026-10-06';
 // the link is simply there, the same for everyone.
 const GOOGLE_REVIEW_URL = (process.env.GOOGLE_REVIEW_URL || '').trim();
 
+// The one public email address. Everything a customer could reach us at --
+// the legal pages, the structured data, the Reply-To on every email we send --
+// resolves to this, so there is exactly one address to change and no way for
+// the site to offer one address while the mail offers another.
+//
+// CONTACT_EMAIL is the old name for the same thing, honoured as a fallback so
+// an environment set before the rename keeps working. BUSINESS_EMAIL wins.
+//
+// Deliberately not OWNER_EMAIL: that one is the operator record, internal, and
+// is not published anywhere.
+const BUSINESS_EMAIL = (process.env.BUSINESS_EMAIL || process.env.CONTACT_EMAIL || '').trim();
+
 // The official Facebook page, as the canonical profile URL the share link
 // resolves to. The share form carries a `mibextid` tracking parameter, and
 // publishing that on a site whose privacy policy says it runs no tracking
@@ -638,7 +650,7 @@ app.use((req, res, next) => {
   res.locals.sourceLabel = attribution.sourceLabel;
   res.locals.termsVersion = TERMS_VERSION;
   res.locals.year = new Date().getFullYear();
-  res.locals.contactEmail = (process.env.CONTACT_EMAIL || '').trim();
+  res.locals.businessEmail = BUSINESS_EMAIL;
   res.locals.serviceKeywords = SERVICE_KEYWORDS;
   res.locals.quoteServices = QUOTE_SERVICES;
   res.locals.estateService = ESTATE_SERVICE;
@@ -864,6 +876,7 @@ function businessJsonLd() {
     }
   };
   if (PHONE) data.telephone = PHONE;
+  if (BUSINESS_EMAIL) data.email = BUSINESS_EMAIL;
   if (SAME_AS.length) data.sameAs = SAME_AS;
   return JSON.stringify(data);
 }

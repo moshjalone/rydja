@@ -106,7 +106,7 @@
 
   <h2>Questions</h2>
   <p>
-    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (contactEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } %>.
+    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (businessEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= businessEmail %>"><%= businessEmail %></a><% } %>.
     If something here is unclear, ask before you approve anything.
   </p>
 

@@ -102,6 +102,7 @@ node -e "console.log('ADMIN_PASSWORD=' + require('crypto').randomBytes(12).toStr
 | `BRAND_TAGLINE` | `Clear the way.` | |
 | `SITE_URL` | `https://getrydja.com` | Canonical / link-preview URLs |
 | `BUSINESS_PHONE` | your number | Shown to customers |
+| `BUSINESS_EMAIL` | `quotes@getrydja.com` | The one public address: legal pages, schema.org, Reply-To |
 | `OWNER_NAME` | your name | The operator record |
 | `TZ` | e.g. `America/Detroit` | So job times read correctly |
 
@@ -571,8 +572,8 @@ procedure during an outage.
 
 ### Optional
 
-`PORT` (host sets it), `BRAND_NAME`, `BRAND_TAGLINE`, `SITE_URL`, `BUSINESS_PHONE`, `OWNER_NAME`,
-`OWNER_PHONE`, `OWNER_EMAIL`, `BACKUP_DAILY`, `BACKUP_HOUR`,
+`PORT` (host sets it), `BRAND_NAME`, `BRAND_TAGLINE`, `SITE_URL`, `BUSINESS_PHONE`,
+`BUSINESS_EMAIL`, `OWNER_NAME`, `OWNER_PHONE`, `OWNER_EMAIL`, `BACKUP_DAILY`, `BACKUP_HOUR`,
 `BACKUP_KEEP_LOCAL`, `BACKUP_S3_*`.
 
 Customer email — set both or neither:
@@ -581,6 +582,9 @@ Customer email — set both or neither:
 |---|---|
 | `RESEND_API_KEY` | `re_...`. Unset means no email is sent; quotes still save |
 | `EMAIL_FROM` | Sender on a domain verified in Resend |
+
+The Reply-To on that mail comes from `BUSINESS_EMAIL`, not from `EMAIL_FROM`.
+Unset it and mail still sends, carrying no Reply-To at all.
 
 ### Cookie lifetimes
 

@@ -149,7 +149,7 @@
   <p>
     If you want to know what we hold about you, have something corrected, or ask us to delete something, get in
     touch and we will do what we reasonably can.
-    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (contactEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= contactEmail %>"><%= contactEmail %></a><% } %>.
+    <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a><% } %><% if (businessEmail) { %><% if (businessPhone) { %>, or email<% } else { %>Email<% } %> <a class="text-link" href="mailto:<%= businessEmail %>"><%= businessEmail %></a><% } %>.
     Some records we may need to keep for accounting or legal reasons.
   </p>
 

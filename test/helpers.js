@@ -61,6 +61,10 @@ async function startServer(extraEnv = {}) {
       ADMIN_PASSWORD,
       SESSION_SECRET,
       BUSINESS_PHONE: '',
+      // Blank unless a suite asks for them, so a value exported in the
+      // developer's shell cannot change what a test sees.
+      BUSINESS_EMAIL: '',
+      CONTACT_EMAIL: '',
       // Off unless a suite asks for it, so no test can reach a real provider.
       RESEND_API_KEY: '',
       EMAIL_FROM: '',
