@@ -23,3 +23,11 @@ backups/*
 # and committed. Never delete this folder locally -- it is the source of truth
 # the derivatives come from.
 images/originals/
+
+# Local business-listing campaign working files. Operational notes, not site
+# content and not for a public repo: they carry contact details, platform
+# status and open questions about the business rather than anything the app
+# needs. Kept on the owner's machine only.
+business-listing-master.md
+business-listing-tracker.csv
+business-listing-research.md
