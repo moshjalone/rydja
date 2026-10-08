@@ -567,6 +567,85 @@ test('the footer links each profile once, not twice', async () => {
   }
 });
 
+// The owner section names both profiles too. It is a separate block from the
+// footer, so it gets its own slice and its own counting: the footer carrying
+// the links is not evidence that the owner section does.
+const ownerSection = (doc) => {
+  const start = doc.indexOf('<section id="owner"');
+  assert.ok(start > -1, 'the homepage should still have an owner section');
+  return doc.slice(start, doc.indexOf('</section>', start));
+};
+
+test('the owner section names each profile once, and links it safely', async () => {
+  const owner = ownerSection(await html('/'));
+
+  const fb = socialHrefs(owner, 'facebook\\.com');
+  const ig = socialHrefs(owner, 'instagram\\.com');
+  assert.equal(fb.length, 1, 'Facebook appears once in the owner section');
+  assert.equal(ig.length, 1, 'Instagram appears once in the owner section');
+
+  // The configured values, normalised -- not a URL written into the template.
+  assert.ok(owner.includes('href="' + FB + '"'), 'the owner section uses the configured Facebook URL');
+  assert.ok(owner.includes('href="' + IG + '"'), 'the owner section uses the configured Instagram URL');
+  assert.ok(!owner.includes('mibextid'), 'no tracking parameter in the owner section');
+
+  for (const tag of [...fb, ...ig]) {
+    assert.match(tag, /target="_blank"/, 'owner-section social link opens in a new tab: ' + tag);
+    assert.match(tag, /rel="noopener noreferrer me"/, 'owner-section social link needs the full rel: ' + tag);
+  }
+
+  // Labelled in words, with the icon decorative -- the link still reads
+  // correctly with images off or to a screen reader.
+  assert.match(owner, /<span>RYDJA on Facebook<\/span>/);
+  assert.match(owner, /<span>RYDJA on Instagram<\/span>/);
+  assert.equal((owner.match(/<svg[^>]*class="social-icon"/g) || []).length, 2, 'one icon per link');
+  assert.equal((owner.match(/<svg[^>]*aria-hidden="true"/g) || []).length, 2, 'both icons are decorative');
+
+  // The copy around them is untouched, and still a sentence.
+  const sentence = owner.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+  assert.match(sentence, /See recent work and updates on RYDJA on Facebook and RYDJA on Instagram\./);
+  assert.match(sentence, /RYDJA is owner-operated/, 'the owner copy is unchanged');
+  assert.match(sentence, /Josh &mdash; Owner\/Operator/, 'the owner credit is unchanged');
+});
+
+test('the owner section drops only the profile that is unset', async () => {
+  // Instagram alone: the sentence loses the Facebook half and still reads.
+  const igOnly = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ', INSTAGRAM_URL: IG_ENV });
+  try {
+    const owner = ownerSection(await (await igOnly.get('/')).text());
+    assert.equal(socialHrefs(owner, 'facebook\\.com').length, 0, 'no Facebook link in the owner section');
+    assert.equal(socialHrefs(owner, 'instagram\\.com').length, 1, 'Instagram survives on its own');
+    const sentence = owner.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+    assert.match(sentence, /See recent work and updates on RYDJA on Instagram\./);
+    assert.ok(!/ and RYDJA/.test(sentence), 'no dangling conjunction with one profile');
+  } finally {
+    igOnly.stop();
+  }
+
+  // Facebook alone: what the page did before Instagram existed.
+  const fbOnly = await startServer({ SITE_URL: SITE, FACEBOOK_URL: FB_ENV, INSTAGRAM_URL: '' });
+  try {
+    const owner = ownerSection(await (await fbOnly.get('/')).text());
+    assert.equal(socialHrefs(owner, 'instagram\\.com').length, 0, 'no Instagram link in the owner section');
+    assert.equal(socialHrefs(owner, 'facebook\\.com').length, 1, 'Facebook survives on its own');
+    const sentence = owner.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+    assert.match(sentence, /See recent work and updates on RYDJA on Facebook\./);
+    assert.ok(!/ and RYDJA/.test(sentence), 'no dangling conjunction with one profile');
+  } finally {
+    fbOnly.stop();
+  }
+
+  // Neither: the whole sentence goes rather than trailing into nothing.
+  const none = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ', INSTAGRAM_URL: ' ' });
+  try {
+    const owner = ownerSection(await (await none.get('/')).text());
+    assert.ok(!owner.includes('See recent work and updates on'), 'no lead-in with nothing to lead into');
+    assert.match(owner, /RYDJA is owner-operated/, 'the rest of the owner section is unaffected');
+  } finally {
+    none.stop();
+  }
+});
+
 test('the share-sheet tracking parameter is stripped before anything is published', async () => {
   // The configured Facebook URL is a share link, and a share link carries a
   // click-tracking parameter. Publishing it on a site whose privacy policy
