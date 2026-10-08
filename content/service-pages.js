@@ -464,6 +464,18 @@ const PAGES = [
   {
     slug: 'hauling-moving-help',
     nav: 'Hauling & Moving Help',
+    // A real photograph of the actual truck and trailer -- the same equipment
+    // that turns up to the job. It is already on /service-area; this page is
+    // literally about loading and hauling, so it is the one service page an
+    // existing genuine asset fits without reaching for stock.
+    images: {
+      afterIntro: {
+        base: 'rydja-truck-trailer',
+        width: 1000,
+        height: 563,
+        alt: 'A pickup and trailer loaded with furniture and household items for a haul'
+      }
+    },
     title: 'Hauling & Moving Help | RYDJA',
     h1: 'Hauling and moving help',
     description:

@@ -675,6 +675,7 @@ app.use((req, res, next) => {
   res.locals.timeWindows = TIME_WINDOWS;
   res.locals.today = todayLocal();
   res.locals.assetV = ASSET_V;
+  res.locals.imgVersion = imgVersion;
   res.locals.serviceArea = SERVICE_AREA;
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
   res.locals.servicePages = SERVICE_PAGES;
@@ -714,6 +715,15 @@ function assetVersion(file) {
     // timestamp still busts the cache; the 404 will be obvious.
     return String(Date.now());
   }
+}
+
+// Content hashes for images referenced from page data rather than from a
+// template literal. Memoised, because a service page may name the same file
+// twice and this reads bytes off disk.
+const _imgVersions = new Map();
+function imgVersion(file) {
+  if (!_imgVersions.has(file)) _imgVersions.set(file, assetVersion(file));
+  return _imgVersions.get(file);
 }
 
 const ASSET_V = {

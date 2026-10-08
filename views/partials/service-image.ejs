@@ -1,0 +1,26 @@
+<%# One photograph in a service page, rendered the same way everywhere.
+
+    Takes an `img` object from content/service-pages.js:
+      { base, width, height, alt, eager }
+
+    `base` is the filename without extension in public/img. A .webp and a .jpg
+    of the same name are both expected; the webp is offered first and the jpg
+    is the fallback, which is what the rest of the site already does.
+
+    Deliberately NOT here: a caption, a badge, a label, a logo overlay. The
+    page around the photograph already says what the service is, and a photo
+    that has to be captioned to make sense is the wrong photo.
+
+    Width and height are always written out so the space is reserved before the
+    bytes arrive -- an image that pushes the copy down as it loads is worse
+    than no image. Everything is lazy except an image explicitly marked eager,
+    which is for the one that may be the largest contentful paint. %>
+<figure class="service-figure">
+  <picture>
+    <source srcset="/img/<%= img.base %>.webp?v=<%= imgVersion('img/' + img.base + '.webp') %>" type="image/webp">
+    <img src="/img/<%= img.base %>.jpg?v=<%= imgVersion('img/' + img.base + '.webp') %>"
+         width="<%= img.width %>" height="<%= img.height %>"
+         <% if (img.eager) { %>fetchpriority="high" decoding="async"<% } else { %>loading="lazy" decoding="async"<% } %>
+         alt="<%= img.alt %>">
+  </picture>
+</figure>

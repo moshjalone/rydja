@@ -31,3 +31,9 @@ images/originals/
 business-listing-master.md
 business-listing-tracker.csv
 business-listing-research.md
+
+# Internal image provenance. Not customer-facing, and not for a public repo:
+# it records which images are licensed stock versus real RYDJA work, which is
+# exactly the distinction we do not advertise on the site. Licensing evidence
+# for anything we actually use is kept here on the owner's machine.
+image-asset-manifest.csv

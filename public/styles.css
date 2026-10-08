@@ -619,6 +619,18 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .crumbs a:hover{border-bottom-color:currentColor}
 .service-page .cta-inline{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:26px 0 34px}
 .service-page .or-call{font-size:14px;color:var(--muted)}
+/* A photograph inside a service page. Full measure, same rounded treatment as
+   the service-area figure, and no caption -- the copy around it already says
+   what the service is. width/height are on the <img>, so the box is reserved
+   before the bytes land and nothing below it jumps. */
+.service-figure{margin:30px 0 34px}
+.service-figure img{width:100%;height:auto;border-radius:14px;display:block}
+@media (max-width:760px){
+  /* Shorter crop on a phone, so one photograph cannot push the next heading
+     and the CTA off the screen. */
+  .service-figure{margin:22px 0 26px}
+  .service-figure img{max-height:260px;object-fit:cover}
+}
 .service-grid article h3 a{border-bottom:2px solid transparent}
 .service-grid article h3 a:hover{border-bottom-color:var(--accent)}
 .area-list{list-style:none;padding:0;margin:18px 0 10px;display:flex;flex-wrap:wrap;gap:10px}

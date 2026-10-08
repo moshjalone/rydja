@@ -28,6 +28,13 @@
     <% } %>
   </p>
 
+  <%# Rhythm: intro and CTA, then one strong photograph, then the detail.
+      A page only gets one if page data names one -- there is no placeholder
+      and no decorative filler. %>
+  <% if (page.images && page.images.afterIntro) { %>
+    <%- include('partials/service-image', { img: page.images.afterIntro }) %>
+  <% } %>
+
   <h2><%= page.jobsHeading %></h2>
   <ul>
     <% page.jobs.forEach(function(job) { %><li><%- job %></li><% }) %>
@@ -57,6 +64,12 @@
       Nothing is booked and nothing is owed until you approve it &mdash; and if you approve a time we have proposed,
       the job is scheduled the moment you confirm it.
     </p>
+  <% } %>
+
+  <%# A second supporting visual, only where the page is long enough to earn
+      one. Short pages stop at the first. %>
+  <% if (page.images && page.images.afterSteps) { %>
+    <%- include('partials/service-image', { img: page.images.afterSteps }) %>
   <% } %>
 
   <h2>What to expect</h2>
