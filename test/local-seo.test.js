@@ -17,7 +17,7 @@ const { SERVICE_PAGES } = require('../content/service-pages');
 const SITE = 'https://getrydja.com';
 const SERVICE_PATHS = SERVICE_PAGES.map((p) => '/' + p.slug);
 const INDEXABLE = ['/', '/services', '/quote', ...SERVICE_PATHS, '/service-area',
-                   '/privacy', '/terms', '/accessibility'];
+                   '/privacy', '/terms', '/accessibility', '/image-credits'];
 
 let app;
 let cookie;
@@ -470,7 +470,11 @@ test('only the approved images are served to the public', async () => {
   const allowed = new Set([
     '/img/rydja-logo.jpg', '/img/rydja-logo.webp',
     '/img/rydja-truck-trailer.jpg', '/img/rydja-truck-trailer.webp',
-    '/img/josh-owner-rydja.jpg', '/img/josh-owner-rydja.webp'
+    '/img/josh-owner-rydja.jpg', '/img/josh-owner-rydja.webp',
+    // Licensed stock, cropped and sized locally. Provenance is recorded in the
+    // private asset manifest and credited on /image-credits.
+    '/img/estate-cleanout-boxes.jpg', '/img/estate-cleanout-boxes.webp',
+    '/img/garage-cleanout.jpg', '/img/garage-cleanout.webp'
   ]);
 
   const seen = new Set();

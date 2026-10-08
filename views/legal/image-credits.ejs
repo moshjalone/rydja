@@ -1,0 +1,38 @@
+<%- include('../partials/head', {
+  title: 'Image credits',
+  canonicalPath: '/image-credits',
+  description: 'Credits for the licensed photographs used on the RYDJA website.'
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal">
+  <div class="eyebrow">CREDITS</div>
+  <h1>Image credits</h1>
+  <p class="lede smaller">
+    Photographs of RYDJA, our truck and our work are our own. Some supporting photographs on the service pages are
+    licensed stock, and the photographers are credited here.
+  </p>
+
+  <h2>Licensed photography</h2>
+  <ul class="credit-list">
+    <% credits.forEach(function (c) { %>
+      <li>
+        <a class="text-link" href="<%= c.sourceUrl %>" target="_blank" rel="noopener noreferrer"><%= c.title %></a>
+        by <a class="text-link" href="<%= c.creatorUrl %>" target="_blank" rel="noopener noreferrer"><%= c.creator %></a>
+        on <a class="text-link" href="https://www.pexels.com/" target="_blank" rel="noopener noreferrer">Pexels</a>
+      </li>
+    <% }) %>
+  </ul>
+
+  <h2>Our own photographs</h2>
+  <p>
+    The photographs of the owner and of the RYDJA truck and trailer are ours, taken of the actual business and the
+    actual equipment. They are not stock.
+  </p>
+
+  <p>
+    Photographs on service pages illustrate the kind of work we do. Where we publish a photograph of a specific
+    finished job, it will be a real RYDJA job, published with the customer&rsquo;s agreement.
+  </p>
+</main>
+
+<%- include('../partials/foot') %>

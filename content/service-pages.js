@@ -26,6 +26,18 @@ const PAGES = [
   // with an item is something the customer authorized first.
   {
     slug: 'estate-cleanouts',
+    // The flagship page ran to 2,000 words with nothing to look at. One
+    // photograph after the intro: a part-packed room, no people in it, nothing
+    // staged as distress. Licensed stock, and it is never presented as our own
+    // work -- provenance is in the private asset manifest.
+    images: {
+      afterIntro: {
+        base: 'estate-cleanout-boxes',
+        width: 1000,
+        height: 563,
+        alt: 'Labelled moving boxes and a sheeted armchair in a part-packed room'
+      }
+    },
     nav: 'Estate Cleanouts',
     // The quote form's own option for this work. The nav label is shorter than
     // the form's wording, and a CTA has to prefill something the select
@@ -263,6 +275,14 @@ const PAGES = [
   // -------------------------------------------------------------- cleanouts
   {
     slug: 'cleanouts',
+    images: {
+      afterIntro: {
+        base: 'garage-cleanout',
+        width: 1000,
+        height: 563,
+        alt: 'A cleared residential garage with shelving, a wheelbarrow and a stepladder'
+      }
+    },
     nav: 'Cleanouts',
     title: 'Cleanouts in West Michigan | RYDJA',
     h1: 'Garage, basement and property cleanouts',

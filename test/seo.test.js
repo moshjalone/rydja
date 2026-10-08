@@ -23,7 +23,7 @@ const { SERVICE_PAGES } = require('../content/service-pages');
 const PUBLIC_PAGES = [
   '/', '/quote', '/services',
   ...SERVICE_PAGES.map((p) => '/' + p.slug),
-  '/service-area', '/terms', '/privacy', '/accessibility'
+  '/service-area', '/terms', '/privacy', '/accessibility', '/image-credits'
 ];
 
 let app;

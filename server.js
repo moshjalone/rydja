@@ -936,6 +936,28 @@ function prefLine(date, window) {
 // If a URL is added to the site, public/sitemap.xml is edited by hand and the
 // test below fails until it matches.
 
+// Credits for the licensed photographs on the service pages. Pexels does not
+// require attribution for a downloaded photo, but its API guidelines ask for a
+// visible link to Pexels and a credit to the photographer. One quiet page
+// linked once from the footer satisfies that without labelling any photograph
+// on the page it sits on.
+//
+// Our own photographs -- the owner, the truck -- are not listed as licensed.
+const IMAGE_CREDITS = [
+  {
+    title: 'Labelled moving boxes and a sheeted armchair',
+    creator: 'Ketut Subiyanto',
+    creatorUrl: 'https://www.pexels.com/@ketut-subiyanto',
+    sourceUrl: 'https://www.pexels.com/photo/4246119/'
+  },
+  {
+    title: 'A cleared residential garage',
+    creator: 'hi room',
+    creatorUrl: 'https://www.pexels.com/@hi-room-631222799',
+    sourceUrl: 'https://www.pexels.com/photo/17181949/'
+  }
+];
+
 /**
  * Structured data for the homepage. Only facts we actually hold: no street
  * address, no opening hours, no price range, no ratings, no social profiles.
@@ -1033,6 +1055,8 @@ app.get('/service-area', (req, res) =>
 app.get('/terms', (req, res) => res.render('legal/terms'));
 app.get('/privacy', (req, res) => res.render('legal/privacy'));
 app.get('/accessibility', (req, res) => res.render('legal/accessibility'));
+app.get('/image-credits', (req, res) =>
+  res.render('legal/image-credits', { credits: IMAGE_CREDITS }));
 
 app.get('/quote', (req, res) =>
   res.render('quote', {
