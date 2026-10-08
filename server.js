@@ -138,15 +138,47 @@ const GOOGLE_REVIEW_URL = (process.env.GOOGLE_REVIEW_URL || '').trim();
 // is not published anywhere.
 const BUSINESS_EMAIL = (process.env.BUSINESS_EMAIL || process.env.CONTACT_EMAIL || '').trim();
 
-// The official Facebook page, as the canonical profile URL the share link
-// resolves to. The share form carries a `mibextid` tracking parameter, and
-// publishing that on a site whose privacy policy says it runs no tracking
-// would be a small lie. Override if the page ever gets a vanity URL.
-const FACEBOOK_URL = (process.env.FACEBOOK_URL || 'https://www.facebook.com/profile.php?id=61595103063360').trim();
+// The social profiles we actually hold, each from the environment. There is no
+// hardcoded fallback on purpose: an unset variable means the profile is not
+// linked at all, rather than the site publishing a URL nobody checked.
+//
+// Both are normalised before they are published, because a URL copied out of a
+// platform's share sheet carries a click-tracking parameter -- Facebook's
+// `mibextid`, Instagram's `igsh`. Putting that in an href, or in sameAs, on a
+// site whose privacy policy says it runs no tracking would be a small lie, and
+// the profile resolves the same without it.
+const SOCIAL_TRACKING_PARAMS = [/^mibextid$/, /^fbclid$/, /^igsh(id)?$/, /^rdid$/, /^utm_/];
+
+/**
+ * A social profile URL fit to publish, or '' if there is nothing to link.
+ *
+ * Anything that is not an https URL returns '' rather than being passed
+ * through: a malformed or `javascript:` value in the environment should drop
+ * the link, never put a broken or dangerous href in front of a visitor.
+ */
+function socialUrl(raw) {
+  const value = (raw || '').trim();
+  if (!value) return '';
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return '';
+  }
+  if (url.protocol !== 'https:') return '';
+  for (const key of [...url.searchParams.keys()]) {
+    if (SOCIAL_TRACKING_PARAMS.some((re) => re.test(key))) url.searchParams.delete(key);
+  }
+  return url.toString();
+}
+
+const FACEBOOK_URL = socialUrl(process.env.FACEBOOK_URL);
+const INSTAGRAM_URL = socialUrl(process.env.INSTAGRAM_URL);
 
 // Social profiles that are genuinely ours, for schema.org sameAs. Only real,
-// verified accounts belong here.
-const SAME_AS = [FACEBOOK_URL].filter(Boolean);
+// verified accounts belong here, and each appears exactly once however many
+// places on the site link to it.
+const SAME_AS = [...new Set([FACEBOOK_URL, INSTAGRAM_URL].filter(Boolean))];
 
 /**
  * Real finished jobs, for a future "Recent Work" section.
@@ -647,6 +679,7 @@ app.use((req, res, next) => {
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
   res.locals.servicePages = SERVICE_PAGES;
   res.locals.facebookUrl = FACEBOOK_URL;
+  res.locals.instagramUrl = INSTAGRAM_URL;
   res.locals.sourceLabel = attribution.sourceLabel;
   res.locals.termsVersion = TERMS_VERSION;
   res.locals.year = new Date().getFullYear();

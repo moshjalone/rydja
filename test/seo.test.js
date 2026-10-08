@@ -294,7 +294,8 @@ test('the homepage carries valid structured data, and invents nothing', async ()
   // sameAs is allowed, but only for profiles that actually exist. Every entry
   // must be a real account we hold.
   for (const profile of data.sameAs || []) {
-    assert.match(profile, /^https:\/\/www\.facebook\.com\//, 'unexpected social profile: ' + profile);
+    assert.match(profile, /^https:\/\/www\.(facebook|instagram)\.com\//,
+      'unexpected social profile: ' + profile);
   }
 });
 

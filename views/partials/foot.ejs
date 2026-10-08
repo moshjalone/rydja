@@ -6,15 +6,33 @@
     <p>
       <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> &middot; <% } %><a class="text-link" href="<%= siteUrl %>/">getrydja.com</a>
     </p>
-    <% if (facebookUrl) { %>
-      <p class="social">
-        <a class="social-link" href="<%= facebookUrl %>" target="_blank" rel="noopener me">
-          <svg class="social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.79 8.44-4.93 8.44-9.94z"/>
-          </svg>
-          Follow RYDJA on Facebook
-        </a>
-      </p>
+    <%# The social area. One link per profile we hold, and a profile with no
+        configured URL is simply absent -- no placeholder, no dead href. The
+        icons are inline SVG paths so that following RYDJA anywhere costs the
+        visitor no request to, and no cookie from, the network in question. %>
+    <% if (facebookUrl || instagramUrl) { %>
+      <ul class="social" role="list">
+        <% if (facebookUrl) { %>
+          <li>
+            <a class="social-link" href="<%= facebookUrl %>" target="_blank" rel="noopener noreferrer me">
+              <svg class="social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.15 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.78-1.63 1.57v1.89h2.78l-.45 2.91h-2.33V22c4.78-.79 8.44-4.93 8.44-9.94z"/>
+              </svg>
+              Follow RYDJA on Facebook
+            </a>
+          </li>
+        <% } %>
+        <% if (instagramUrl) { %>
+          <li>
+            <a class="social-link" href="<%= instagramUrl %>" target="_blank" rel="noopener noreferrer me">
+              <svg class="social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2c2.72 0 3.06.01 4.12.06 1.07.05 1.79.22 2.43.47.66.25 1.22.6 1.77 1.15.55.55.9 1.11 1.15 1.77.25.64.42 1.36.47 2.43.05 1.06.06 1.4.06 4.12s-.01 3.06-.06 4.12c-.05 1.07-.22 1.79-.47 2.43-.25.66-.6 1.22-1.15 1.77-.55.55-1.11.9-1.77 1.15-.64.25-1.36.42-2.43.47-1.06.05-1.4.06-4.12.06s-3.06-.01-4.12-.06c-1.07-.05-1.79-.22-2.43-.47a4.9 4.9 0 0 1-1.77-1.15 4.9 4.9 0 0 1-1.15-1.77c-.25-.64-.42-1.36-.47-2.43C2.01 15.06 2 14.72 2 12s.01-3.06.06-4.12c.05-1.07.22-1.79.47-2.43.25-.66.6-1.22 1.15-1.77A4.9 4.9 0 0 1 5.45 2.53c.64-.25 1.36-.42 2.43-.47C8.94 2.01 9.28 2 12 2zm0 1.8c-2.67 0-2.99.01-4.04.06-.82.04-1.27.17-1.56.29-.4.15-.68.34-.98.64-.3.3-.49.58-.64.98-.12.29-.25.74-.29 1.56-.05 1.05-.06 1.37-.06 4.04s.01 2.99.06 4.04c.04.82.17 1.27.29 1.56.15.4.34.68.64.98.3.3.58.49.98.64.29.12.74.25 1.56.29 1.05.05 1.37.06 4.04.06s2.99-.01 4.04-.06c.82-.04 1.27-.17 1.56-.29.4-.15.68-.34.98-.64.3-.3.49-.58.64-.98.12-.29.25-.74.29-1.56.05-1.05.06-1.37.06-4.04s-.01-2.99-.06-4.04c-.04-.82-.17-1.27-.29-1.56a2.64 2.64 0 0 0-.64-.98 2.64 2.64 0 0 0-.98-.64c-.29-.12-.74-.25-1.56-.29-1.05-.05-1.37-.06-4.04-.06zm0 3.07a5.13 5.13 0 1 1 0 10.26 5.13 5.13 0 0 1 0-10.26zm0 1.8a3.33 3.33 0 1 0 0 6.66 3.33 3.33 0 0 0 0-6.66zm6.54-2a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z"/>
+              </svg>
+              Follow RYDJA on Instagram
+            </a>
+          </li>
+        <% } %>
+      </ul>
     <% } %>
   </div>
   <div class="footer-legal">

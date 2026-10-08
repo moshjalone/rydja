@@ -96,8 +96,10 @@ main:focus{outline:none}
 .footer-links a{font-weight:700;border-bottom:1px solid transparent}
 .footer-links a:hover{border-bottom-color:currentColor}
 .copyright{margin:0 0 4px}
-/* A link, not an embed: no Facebook SDK, no pixel, nothing third-party loads. */
-.social{margin:10px 0 0}
+/* Links, not embeds: no Facebook or Instagram SDK, no pixel, nothing
+   third-party loads. The list sits one profile per line on a phone and side by
+   side once there is room. */
+.social{display:flex;flex-wrap:wrap;gap:8px 18px;list-style:none;margin:10px 0 0;padding:0}
 .social-link{display:inline-flex;align-items:center;gap:8px;font-weight:700;border-bottom:1px solid transparent}
 .social-link:hover{border-bottom-color:currentColor}
 .social-icon{flex:0 0 auto}

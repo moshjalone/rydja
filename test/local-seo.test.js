@@ -23,7 +23,13 @@ let app;
 let cookie;
 
 test.before(async () => {
-  app = await startServer({ SITE_URL: SITE, BUSINESS_PHONE: '1-616-929-3360' });
+  app = await startServer({
+    SITE_URL: SITE,
+    BUSINESS_PHONE: '1-616-929-3360',
+    // The social URLs as production sets them, share-sheet parameter included.
+    FACEBOOK_URL: 'https://www.facebook.com/share/1BXxZTv6Qc/?mibextid=wwXIfr',
+    INSTAGRAM_URL: 'https://www.instagram.com/rydjaservices/'
+  });
   cookie = await app.adminCookie();
 });
 
@@ -516,59 +522,138 @@ test('every image carries a cache key derived from the file it points at', async
   assert.equal(crypto.createHash('sha1').update(served).digest('hex').slice(0, 10), owner);
 });
 
-// ---------------------------------------------------------------- facebook
+// ---------------------------------------------------------------- social profiles
 
-test('the Facebook page is linked publicly, safely, and with no tracking', async () => {
-  const FB = 'https://www.facebook.com/profile.php?id=61595103063360';
+// The two URLs exactly as they are set in production, share-sheet tracking
+// parameter and all, so that what these tests exercise is the value the
+// environment really holds rather than a tidied-up version of it.
+const FB_ENV = 'https://www.facebook.com/share/1BXxZTv6Qc/?mibextid=wwXIfr';
+const IG_ENV = 'https://www.instagram.com/rydjaservices/';
+const FB = 'https://www.facebook.com/share/1BXxZTv6Qc/';
+const IG = IG_ENV;
 
+const socialHrefs = (doc, host) =>
+  doc.match(new RegExp('<a[^>]*href="https://[^"]*' + host + '[^"]*"[^>]*>', 'g')) || [];
+
+test('both social profiles are linked publicly, safely, and with no tracking', async () => {
   const home = await html('/');
-  assert.ok(home.includes(FB), 'the homepage should link the Facebook page');
-  assert.match(home, /Follow RYDJA on Facebook/, 'the footer needs a labelled link');
-  assert.match(home, /RYDJA on Facebook<\/a>/, 'the owner section links it too');
 
-  // Every link to it opens safely in a new tab.
-  for (const tag of home.match(/<a[^>]*facebook\.com[^>]*>/g) || []) {
+  assert.ok(home.includes(FB), 'the homepage should link the Facebook page');
+  assert.ok(home.includes(IG), 'the homepage should link the Instagram profile');
+  assert.match(home, /Follow RYDJA on Facebook/, 'the footer needs a labelled Facebook link');
+  assert.match(home, /Follow RYDJA on Instagram/, 'the footer needs a labelled Instagram link');
+
+  // Every link to either profile opens safely in a new tab.
+  for (const tag of [...socialHrefs(home, 'facebook\\.com'), ...socialHrefs(home, 'instagram\\.com')]) {
     assert.match(tag, /target="_blank"/, 'social link should open in a new tab: ' + tag);
     assert.match(tag, /rel="[^"]*noopener/, 'social link needs rel=noopener: ' + tag);
+    assert.match(tag, /rel="[^"]*noreferrer/, 'social link needs rel=noreferrer: ' + tag);
   }
 
   // Inherited by the shared footer on every public page.
   for (const path of INDEXABLE) {
-    assert.ok((await html(path)).includes(FB), path + ' should carry the footer social link');
-  }
-
-  // The share URL carries a Facebook tracking parameter. It must not be the
-  // one we publish, on a site whose privacy policy says it runs no tracking.
-  for (const path of ['/', '/privacy']) {
     const doc = await html(path);
-    assert.ok(!doc.includes('mibextid'), path + ' must not carry a Facebook tracking parameter');
-    assert.ok(!doc.includes('facebook.net'), path + ' must not load the Facebook SDK');
-    assert.ok(!doc.includes('connect.facebook'), path + ' must not load a Facebook pixel');
+    assert.ok(doc.includes(FB), path + ' should carry the footer Facebook link');
+    assert.ok(doc.includes(IG), path + ' should carry the footer Instagram link');
   }
 });
 
-test('sameAs lists the Facebook page and nothing invented', async () => {
+test('the footer links each profile once, not twice', async () => {
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+    const footer = doc.slice(doc.indexOf('<footer'));
+    assert.equal(socialHrefs(footer, 'facebook\\.com').length, 1, path + ': one Facebook link in the footer');
+    assert.equal(socialHrefs(footer, 'instagram\\.com').length, 1, path + ': one Instagram link in the footer');
+  }
+});
+
+test('the share-sheet tracking parameter is stripped before anything is published', async () => {
+  // The configured Facebook URL is a share link, and a share link carries a
+  // click-tracking parameter. Publishing it on a site whose privacy policy
+  // says it runs no tracking would be a small lie.
+  for (const path of ['/', '/privacy']) {
+    const doc = await html(path);
+    assert.ok(!doc.includes('mibextid'), path + ' must not carry a Facebook tracking parameter');
+    assert.ok(!doc.includes('igsh'), path + ' must not carry an Instagram tracking parameter');
+    assert.ok(!doc.includes('facebook.net'), path + ' must not load the Facebook SDK');
+    assert.ok(!doc.includes('connect.facebook'), path + ' must not load a Facebook pixel');
+    assert.ok(!doc.includes('instagram.com/embed'), path + ' must not load an Instagram embed');
+    assert.ok(!doc.includes('platform.instagram.com'), path + ' must not load the Instagram SDK');
+  }
+});
+
+test('sameAs lists both profiles, once each, and nothing invented', async () => {
   const doc = await html('/');
   const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
 
   assert.ok(Array.isArray(biz.sameAs), 'sameAs should be an array');
-  assert.deepEqual(biz.sameAs, ['https://www.facebook.com/profile.php?id=61595103063360']);
+  assert.deepEqual(biz.sameAs, [FB, IG]);
+  assert.equal(new Set(biz.sameAs).size, biz.sameAs.length, 'no profile listed twice');
+
+  // The tracking parameter must not survive into the structured data either:
+  // sameAs is the URL we are telling search engines is our canonical profile.
+  assert.ok(!JSON.stringify(biz.sameAs).includes('mibextid'));
 
   // Only accounts that actually exist. No placeholder profiles.
-  for (const guess of ['twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com', 'yelp.com', 'tiktok.com']) {
+  for (const guess of ['twitter.com', 'linkedin.com', 'youtube.com', 'yelp.com', 'tiktok.com']) {
     assert.ok(!JSON.stringify(biz.sameAs).includes(guess), 'sameAs must not invent a ' + guess + ' profile');
   }
 });
 
-test('the Facebook link can be reconfigured, and disappears when unset', async () => {
-  const none = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ' });
+test('each social link can be configured independently, and disappears when unset', async () => {
+  // Instagram alone: the Facebook link goes, the Instagram one stays, and
+  // sameAs shrinks to match rather than carrying an empty entry.
+  const igOnly = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ', INSTAGRAM_URL: IG_ENV });
+  try {
+    const doc = await (await igOnly.get('/')).text();
+    assert.ok(!doc.includes('facebook.com'), 'no Facebook link when its URL is unset');
+    assert.ok(doc.includes(IG), 'the Instagram link is unaffected');
+    const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    assert.deepEqual(biz.sameAs, [IG]);
+  } finally {
+    igOnly.stop();
+  }
+
+  // Facebook alone.
+  const fbOnly = await startServer({ SITE_URL: SITE, FACEBOOK_URL: FB_ENV, INSTAGRAM_URL: '' });
+  try {
+    const doc = await (await fbOnly.get('/')).text();
+    assert.ok(!doc.includes('instagram.com'), 'no Instagram link when its URL is unset');
+    assert.ok(doc.includes(FB), 'the Facebook link is unaffected');
+    const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+    assert.deepEqual(biz.sameAs, [FB]);
+  } finally {
+    fbOnly.stop();
+  }
+
+  // Neither: no social area at all, and no empty sameAs in the structured data.
+  const none = await startServer({ SITE_URL: SITE, FACEBOOK_URL: ' ', INSTAGRAM_URL: ' ' });
   try {
     const doc = await (await none.get('/')).text();
     assert.ok(!doc.includes('facebook.com'), 'no link when the URL is unset');
+    assert.ok(!doc.includes('instagram.com'), 'no link when the URL is unset');
+    assert.ok(!doc.includes('class="social"'), 'the social list is absent, not empty');
     const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
     assert.ok(!('sameAs' in biz), 'no empty sameAs in the structured data');
   } finally {
     none.stop();
+  }
+});
+
+test('a social URL that is not a publishable https URL links nothing', async () => {
+  // A typo, a scheme that is not https, or something pasted in by mistake: the
+  // link is dropped rather than put in front of a visitor.
+  for (const junk of ['not-a-url', 'javascript:alert(1)', 'http://www.facebook.com/rydja']) {
+    const srv = await startServer({ SITE_URL: SITE, FACEBOOK_URL: junk, INSTAGRAM_URL: ' ' });
+    try {
+      const doc = await (await srv.get('/')).text();
+      assert.ok(!doc.includes('class="social-link"'), 'no social link for ' + junk);
+      assert.ok(!doc.includes('javascript:'), 'never a javascript: href');
+      const biz = JSON.parse(doc.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+      assert.ok(!('sameAs' in biz), 'nothing unpublishable reaches sameAs: ' + junk);
+    } finally {
+      srv.stop();
+    }
   }
 });
 

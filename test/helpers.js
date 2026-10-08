@@ -65,6 +65,8 @@ async function startServer(extraEnv = {}) {
       // developer's shell cannot change what a test sees.
       BUSINESS_EMAIL: '',
       CONTACT_EMAIL: '',
+      FACEBOOK_URL: '',
+      INSTAGRAM_URL: '',
       // Off unless a suite asks for it, so no test can reach a real provider.
       RESEND_API_KEY: '',
       EMAIL_FROM: '',
