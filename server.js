@@ -15,6 +15,7 @@ const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
 const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
 const { HAUL_AWAY_GROUPS, CALL_SITUATIONS, checkLinks } = require('./content/homepage');
+const indexnow = require('./indexnow');
 const attribution = require('./attribution');
 
 // ---------------------------------------------------------------- config
@@ -166,6 +167,32 @@ const BUSINESS_HOURS = {
 // the registered address, which is residential. None of those belongs on a
 // public page, and no amount of "it builds trust" changes that.
 const LEGAL_ENTITY = 'RYDJA LLC';
+
+// The IndexNow key, if one is configured.
+//
+// IndexNow is a ping to Bing and the other participating engines when a page
+// has changed. It is not Google and does nothing for Google Search. The whole
+// of the submitting side lives in indexnow.js and runs as an owner command;
+// the server's entire involvement is the one route below.
+//
+// The key is not a secret. It is published, in full, at /<key>.txt, and that
+// publication IS the ownership proof the protocol is built on -- the engine
+// fetches the file to confirm that whoever submitted URLs for this host
+// controls it.
+//
+// Which is exactly why it is validated before the first request is served. A
+// session secret or an admin password pasted into INDEXNOW_KEY would be
+// published to the internet in plain text at a guessable URL, and the site
+// would look completely normal afterwards. Refusing to start is the only
+// sensible response to that, so that is what happens.
+//
+// Unset means the feature is simply off: no route, no file, nothing to
+// verify, and a site that behaves exactly as it did before any of this.
+const INDEXNOW_KEY = (process.env.INDEXNOW_KEY || '').trim();
+if (INDEXNOW_KEY) {
+  const problem = indexnow.keyProblem(INDEXNOW_KEY, [ADMIN_PASSWORD, SESSION_SECRET]);
+  if (problem) throw new Error(`INDEXNOW_KEY ${problem}`);
+}
 
 // The effective date of the Terms as currently published. Recorded against a
 // quote at the moment it is approved, so there is a record of which version
@@ -1193,6 +1220,32 @@ for (const page of SERVICE_PAGES) {
 app.get('/service-area', (req, res) =>
   res.render('service-area', { breadcrumbJsonLd: breadcrumbJsonLd('Service Area', '/service-area') })
 );
+
+// The IndexNow key file. One literal path, registered only when a key is
+// configured, answering with that key and nothing else.
+//
+// Deliberately NOT a parameterised route. `/:key.txt` reading a value off the
+// URL would be a lookup against a secret, and the failure modes of that --
+// timing, a near-miss, a future refactor that compares loosely -- are all
+// worse than registering the one path we actually want to answer. Every other
+// `.txt` request falls through to the 404 exactly as before.
+//
+// Not in the sitemap and not linked from anywhere: it is a verification
+// artefact for one crawler, not a page. X-Robots-Tag keeps it out of results
+// without implying anything about the site around it.
+if (INDEXNOW_KEY) {
+  const KEY_FILE = `/${INDEXNOW_KEY}.txt`;
+  app.get(KEY_FILE, (req, res, next) => {
+    // Express matches routes case-insensitively by default, so the route
+    // above also answers /ABC...TXT. Harmless -- the key is public -- but it
+    // means one artefact at several URLs, only one of which is the
+    // keyLocation we declare when submitting. Match exactly or fall through
+    // to the 404 like any other unknown path.
+    if (req.path !== KEY_FILE) return next();
+    res.set('X-Robots-Tag', 'noindex');
+    res.type('text/plain; charset=utf-8').send(INDEXNOW_KEY);
+  });
+}
 
 app.get('/terms', (req, res) => res.render('legal/terms'));
 app.get('/privacy', (req, res) => res.render('legal/privacy'));

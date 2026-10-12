@@ -338,23 +338,30 @@ backup first anyway (`npm run backup`); that advice never changes.
 
 ## Search engines and sharing
 
-The public surface is three pages: `/`, `/services` and `/quote`. Everything
-else -- the customer's own `/q/<token>` page and the whole admin -- carries
-`noindex,nofollow`, has no canonical and no Open Graph tags, and is kept out of
-the sitemap. A private link pasted into a chat app will not unfurl into a
-preview card.
+The public surface is seventeen pages: the homepage, `/services`, `/quote`,
+the eight service pages, `/property-professionals`, `/service-area` and the
+four legal pages. Everything else -- the customer's own `/q/<token>` page and
+the whole admin -- carries `noindex,nofollow`, has no canonical and no Open
+Graph tags, and is kept out of the sitemap. A private link pasted into a chat
+app will not unfurl into a preview card.
 
 | URL | What it is |
 |---|---|
-| `/robots.txt` | Allows the public site, disallows `/admin`, `/q/` and `/quote/sent`, points at the sitemap |
-| `/sitemap.xml` | The three public pages, absolute `https://getrydja.com` URLs |
+| `/robots.txt` | Allows the whole site and points at the sitemap. Deliberately **no** `Disallow` lines: robots.txt is public, so listing `/admin` there advertises it. `noindex` on the page is what actually keeps private pages out of an index |
+| `/sitemap.xml` | The seventeen indexable pages, absolute `https://getrydja.com` URLs. A literal file, edited by hand; a test fails until it matches the routes |
 | `/og-image.jpg` | 1200x630 share card, 39KB |
-| JSON-LD on `/` | `HomeAndConstructionBusiness`: name, url, phone, description, areaServed, logo |
+| JSON-LD on `/` | `HomeAndConstructionBusiness`: name, legalName, url, phone, description, areaServed, logo, opening hours, offer catalog |
+| `/<key>.txt` | The IndexNow key file, when `INDEXNOW_KEY` is set. See below |
 
 **The structured data claims only what we actually know.** No street address,
-no opening hours, no price range, no ratings, no reviews, no social profiles --
-a knowledge panel that is wrong in public is worse than none, and a test
-asserts those fields stay absent. Add them when they are real.
+no price range, no ratings, no reviews -- a knowledge panel that is wrong in
+public is worse than none, and a test asserts those fields stay absent. Add
+them when they are real.
+
+Two fields were added once they stopped being guesses: `legalName` (RYDJA LLC
+is formed) and `openingHoursSpecification` (confirmed off the Business Profile
+by the owner, and published in the footer as well, because markup should not
+claim something a visitor cannot also read).
 
 `SITE_URL` is what every canonical and Open Graph URL is built from, so a
 request arriving on `www.` still canonicalises to the apex and cannot create a
@@ -363,6 +370,161 @@ duplicate. Set it correctly or the whole thing points at the wrong host.
 `SERVICE_AREA` and `SERVICE_AREA_PLACES` drive the service-area section, the
 meta descriptions and `areaServed` together, so the page and the markup cannot
 drift apart.
+
+### IndexNow
+
+IndexNow tells Bing and the other participating engines -- Yandex, Seznam,
+Naver, IndexNow.org -- that a page has changed, instead of waiting for them to
+come back and find out. It is one HTTP POST, run by hand after a deployment.
+
+**It does not reach Google.** Google does not participate in IndexNow and has
+said so. Submitting here does nothing whatsoever for Google Search; for Google
+the mechanisms are the sitemap and Search Console, and nothing in this section
+changes that. Do not let anybody tell you otherwise, including a tool vendor.
+
+Nothing about it runs on a normal request. The server's entire involvement is
+one static text route. With `INDEXNOW_KEY` unset the whole feature is off and
+the site behaves exactly as it did before it existed.
+
+#### One-time setup
+
+1. Mint a key:
+
+   ```bash
+   npm run indexnow:key
+   ```
+
+2. Render -> your service -> **Environment** -> add `INDEXNOW_KEY` with that
+   value, and redeploy.
+
+3. Confirm the key file is live. This is the step everything else depends on:
+
+   ```bash
+   curl https://getrydja.com/<your-key>.txt
+   ```
+
+   It must return **exactly the key**, as `text/plain`, with a `200`.
+
+**The key is published on purpose.** That file is the ownership proof: an
+engine fetches it to confirm that whoever submitted URLs for this host
+actually controls the host. So the key is not a secret -- but it must be a
+*dedicated* value. Never put `SESSION_SECRET`, `ADMIN_PASSWORD` or any other
+credential in `INDEXNOW_KEY`: it would be published in plain text at a
+guessable URL and the site would look completely normal afterwards. The server
+refuses to start if you try, and there is a test for it.
+
+To rotate: mint a new key, change the variable, redeploy. The old file stops
+being served the moment the new key takes effect.
+
+#### Submitting after a deployment
+
+```bash
+npm run indexnow                  # submit the pages whose content changed
+npm run indexnow -- --dry-run     # show what would be sent, send nothing
+npm run indexnow -- --all         # resubmit everything, ignoring state
+```
+
+Run it from this directory after a deploy that **changed page copy**. There is
+no point running it after a stylesheet tweak, and it will tell you so rather
+than submit.
+
+It reads `/sitemap.xml` for the list of indexable pages -- it does not crawl --
+then fetches each one and compares a fingerprint of its *content* against
+`data/indexnow-state.json`. Output is one line per URL:
+
+```
+[indexnow] site       https://getrydja.com
+[indexnow] key file   reachable and correct
+[indexnow] sitemap    17 URL(s), 17 submittable
+[indexnow] CHANGED    https://getrydja.com/junk-removal
+[indexnow] UNCHANGED  https://getrydja.com/terms
+[indexnow] FAILED     https://getrydja.com/x — HTTP 500
+[indexnow] summary    1 changed, 15 unchanged, 1 failed
+[indexnow] SUBMITTED  1 URL(s) to api.indexnow.org — HTTP 200 (accepted)
+```
+
+URLs and status codes only. The key is never logged, and neither is anything
+belonging to a customer.
+
+Exit code is 0 when everything succeeded, 1 if the key file is wrong, the
+submission was refused, or any page came back broken or `noindex`.
+
+#### What can never be submitted
+
+Three independent locks, because handing a customer's private URL to a search
+engine is not a mistake you can take back:
+
+1. `/admin`, `/q/<token>`, `/quote/sent` and `/uploads/` are not in the
+   sitemap, and a test fails if they ever get in.
+2. The submitter refuses those paths itself, even if a tampered or
+   hand-broken sitemap offers them.
+3. Every page is fetched and checked for a `noindex` directive immediately
+   before submission. A page that asks not to be indexed is never sent,
+   whatever any list says about it.
+
+#### The state file
+
+`data/indexnow-state.json` holds one content fingerprint per URL and nothing
+else. Its only job is to stop seventeen unchanged pages being pinged every
+time you deploy.
+
+It is gitignored, never deployed, and **the website never reads it**. Losing
+it is harmless: the next run submits everything once, records the
+fingerprints, and settles down again. Missing, corrupt, truncated or written
+for a different site all resolve the same way, and the run says which.
+
+A URL is submitted when its *content* changed -- the canonical, title, meta
+description, the visible text of `<main>`, its internal links and its image
+alt text. Never because a timestamp moved or a deploy happened. Asset version
+hashes, the shared header and footer, and `/quote`'s per-request form token
+are all deliberately excluded, because including any of them would mark every
+page as changed on every run, which is how a site gets ignored.
+
+#### Verifying it worked, in Bing Webmaster Tools
+
+The submission response is not proof of indexing. It means "accepted", not
+"crawled". To confirm:
+
+1. Go to **bing.com/webmasters** and sign in with the account that owns the
+   `getrydja.com` property. (If the site is not added yet, add it and verify
+   ownership first -- that is a separate thing from the IndexNow key, and the
+   quickest route is importing the verified property from Google Search
+   Console.)
+2. Open **IndexNow** in the left-hand menu. It lists every URL submitted, when
+   it was submitted, and its current status. A URL you just sent appears here
+   within a few minutes. If the list is empty after a successful `200`, the
+   key file is the thing to check first.
+3. Open **URL Inspection** and paste one of the submitted URLs. "URL is known
+   to Bing" plus a recent crawl date is the confirmation that the ping was
+   acted on.
+4. **Site Explorer** shows which URLs Bing holds for the site, so a newly
+   published page appearing there is the end-to-end proof.
+5. Under **Configure My Site -> Crawl Control** you can check Bing is not
+   throttling the site for an unrelated reason.
+
+Timing: acceptance is immediate, appearing in the IndexNow report takes
+minutes, an actual crawl takes anywhere from hours to days, and appearing in
+results takes longer still and is never guaranteed. IndexNow shortens the
+"when will they look" step. It does not promise that they will index what
+they find.
+
+What the response codes mean:
+
+| Code | Meaning |
+|---|---|
+| 200 | Accepted |
+| 202 | Accepted, key still being validated -- normal on the first submission |
+| 400 | Malformed payload |
+| 403 | Key rejected: the key file could not be fetched or did not match |
+| 422 | A URL is not on the declared host, or the key does not match |
+| 429 | Too many submissions -- wait, and stop running it on every deploy |
+
+A 403 almost always means `INDEXNOW_KEY` was changed on the server but the
+file is not being served yet, or the submission ran against the old key. The
+command checks the key file before submitting precisely so you see that as a
+clear error instead of a 403 you have to decode.
+
+---
 
 ### Icons
 
@@ -620,6 +782,17 @@ on its own.
 
 The boot log prints both in production, so a change to one is never mistaken
 for the other.
+
+### IndexNow
+
+| Variable | Default | What it does |
+|---|---|---|
+| `INDEXNOW_KEY` | unset | The IndexNow key. Unset means the feature is entirely off: no key file, no route. Generate with `npm run indexnow:key`. **Published at `/<key>.txt` by design** — never reuse another secret here; the app refuses to start if you do |
+| `INDEXNOW_STATE` | `./data/indexnow-state.json` | Where the per-URL content fingerprints live. Disposable; the website never reads it |
+| `INDEXNOW_ENDPOINT` | `https://api.indexnow.org/indexnow` | Only for testing against a stub. Leave unset |
+
+Only `INDEXNOW_KEY` belongs on the server. The other two are for the machine
+you run `npm run indexnow` from, and both have sensible defaults.
 
 ### Escape hatches — leave unset unless something is broken
 

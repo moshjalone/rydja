@@ -8,7 +8,9 @@
     "start": "node server.js",
     "dev": "node --env-file=.env --watch server.js",
     "backup": "node backup.js",
-    "test": "node --test"
+    "test": "node --test",
+    "indexnow": "node indexnow.js",
+    "indexnow:key": "node indexnow.js --generate-key"
   },
   "engines": {
     "node": ">=22.5"

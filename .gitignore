@@ -47,3 +47,9 @@ image-asset-manifest.csv
 # Ignored rather than merely untracked, so that `git add -A` cannot sweep them
 # in by accident. Keep the folder on the owner's machine only.
 Legal/
+
+# IndexNow submission state: one content fingerprint per public URL, so a
+# deploy that changed one page does not ping seventeen. Machine-local and
+# disposable -- the website never reads it, and losing it costs exactly one
+# redundant submission.
+data/indexnow-state.json
