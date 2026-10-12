@@ -227,3 +227,28 @@ test('the desktop header nav is untouched', async () => {
   assert.ok(header.includes('href="/services"'), 'and the public links');
   assert.ok(header.includes('Get a Quote'));
 });
+
+// ------------------------------------------------- no sideways scrolling
+
+test('no admin control is wider than the narrow phone it has to fit', async () => {
+  // Found on production at 430px: the service filter is a <select>, a
+  // <select> is as wide as its longest option, and "Estate / whole-property
+  // cleanout" made it 247px. As a flex item with no min-width:0 it could not
+  // shrink, so the lead list scrolled sideways on a phone.
+  const css = await (await app.get('/styles.css')).text();
+  const mobile = css.slice(css.indexOf('@media(max-width:860px){'));
+
+  assert.match(mobile, /\.toolbar-filters select\{[^}]*min-width:0/,
+    'the filter selects must be allowed to shrink below their longest option');
+
+  // And the desktop cap is still there, so this did not simply remove the
+  // thing that kept the control a sane size on a wide screen.
+  assert.match(css, /\.toolbar-filters select\{[^}]*max-width:230px/);
+});
+
+test('the longest filter option is still offered, just not at full width', async () => {
+  // The fix must not have been "shorten the option text".
+  const doc = await asAdmin('/admin/leads');
+  assert.ok(doc.includes('Estate / whole-property cleanout'), 'the long option is still there');
+  assert.match(doc, /<select name="service"/);
+});
