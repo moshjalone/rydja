@@ -818,7 +818,7 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .mobile-cta{display:none}
 @media(max-width:860px){
   .mobile-cta{
-    display:grid;grid-template-columns:1fr 1fr;gap:1px;
+    display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:1px;
     position:fixed;left:0;right:0;bottom:0;z-index:30;
     background:#3a3c36;
     box-shadow:0 -6px 24px rgba(0,0,0,.18);
@@ -826,11 +826,21 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   }
   .mobile-cta a{
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-    min-height:58px;padding:9px 12px;text-align:center;text-decoration:none
+    min-height:58px;padding:9px 6px;text-align:center;text-decoration:none;
+    /* Three cells on a 390px screen leaves about 128px each. min-width:0 lets
+       a cell shrink inside the grid instead of forcing the row wider than the
+       viewport, and the nowrap+ellipsis keeps a long label on one line. */
+    min-width:0;overflow:hidden
   }
-  .mobile-cta strong{font-size:15px;font-weight:900;letter-spacing:-.01em}
-  .mobile-cta span{font-size:11px;font-weight:700;opacity:.72}
+  .mobile-cta strong,.mobile-cta span{
+    max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .mobile-cta strong{font-size:15px;font-weight:900;letter-spacing:-.02em}
+  .mobile-cta span{font-size:10.5px;font-weight:700;opacity:.72}
   .mobile-cta-call{background:var(--dark);color:#fff}
+  /* Text sits between the two, in its own shade, so three targets still read
+     as three rather than as one block with a seam down the middle. */
+  .mobile-cta-text{background:#3a3c36;color:#fff}
   .mobile-cta-quote{background:var(--accent);color:#111}
   .mobile-cta a:focus-visible{outline:3px solid #fff;outline-offset:-3px}
   /* Reserve the bar's height so it covers nothing at the foot of a page. */
@@ -841,4 +851,35 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   .haul-grid{grid-template-columns:1fr}
   .situation-list{grid-template-columns:1fr}
   .pro-band{margin-top:40px}
+}
+
+/* ---------- admin navigation on a phone ----------
+   The header's own <nav> is hidden below 860px, which left Dashboard, Leads
+   and Jobs unreachable from a phone: the only route between admin sections
+   was editing the URL. This is the replacement, and it exists only in the
+   range where the header nav does not.
+
+   Not fixed and not sticky. The header above is already sticky and the list
+   pages carry a sticky bulk-action bar at the bottom; a third floating strip
+   on a 390px screen is how you end up with content you cannot reach. */
+.admin-nav{display:none}
+@media(max-width:860px){
+  .admin-nav{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    background:var(--dark);border-bottom:1px solid #000
+  }
+  .admin-nav a{
+    display:flex;align-items:center;justify-content:center;
+    /* 52px: comfortably past the 44px minimum touch target, and short enough
+       that it does not eat a phone screen before the list even starts. */
+    min-height:52px;padding:10px 8px;
+    color:#cfd1c6;font-weight:800;font-size:14px;letter-spacing:-.01em;
+    text-decoration:none;text-align:center;
+    border-bottom:3px solid transparent
+  }
+  .admin-nav a:hover{color:#fff;background:#2a2c27}
+  /* Where you are. Colour alone would not do it, so the underline carries the
+     same information for anyone who cannot see the difference. */
+  .admin-nav a.here{color:#fff;background:#2a2c27;border-bottom-color:var(--accent)}
+  .admin-nav a:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
 }

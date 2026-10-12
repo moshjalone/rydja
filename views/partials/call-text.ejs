@@ -1,0 +1,21 @@
+<%# The two ways to reach a person, as two separate links.
+
+    There is only one of these in the codebase because there used to be
+    thirteen variations of "Call or text <tel: link>", and every one of them
+    was a small lie: a tel: href starts a telephone call and offers no way to
+    send a message. On a phone that matters -- plenty of customers will text
+    a photo of a garage who would not ring a stranger.
+
+    Renders the number as the call target and a separate "text us" as the SMS
+    target, so each link does exactly what its words say. Both are built from
+    the same BUSINESS_PHONE, so they cannot drift apart.
+
+    Deliberately has no leading verb and no trailing punctuation: the page
+    around it supplies "Call ", "or call ", "Rather talk? Call " and so on,
+    and that is the only part that differs between the places it is used.
+
+    Renders nothing at all when no phone number is configured. Every call
+    site is already inside an `if (businessPhone)`, but a partial that
+    silently emits a dead `tel:` link if one ever is not would be exactly the
+    kind of thing nobody notices. %>
+<% if (businessPhone) { %><a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> or <a class="text-link" href="sms:<%= smsHref(businessPhone) %>">text us</a><% } %>

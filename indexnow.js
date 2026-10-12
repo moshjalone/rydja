@@ -525,6 +525,43 @@ Note: IndexNow does not reach Google. Google does not participate in the
 protocol; for Google it is the sitemap and Search Console that matter.
 `.trim();
 
+/**
+ * Load the project's own .env, for the command only.
+ *
+ * The operator runs this from a laptop. The server's INDEXNOW_KEY lives in
+ * Render's environment, which does nothing for a shell on a different
+ * machine, so without this the command's first act is to say the key is not
+ * set while the key is sitting in a file two directories up.
+ *
+ * Three properties matter, and all three come free with the native loader:
+ *
+ *   * No dependency. process.loadEnvFile has been in Node since 20.12 and
+ *     this project already requires 22.5.
+ *   * The real environment wins. loadEnvFile fills in variables that are not
+ *     already set and never overwrites one that is, so
+ *     `INDEXNOW_KEY=other npm run indexnow` still does what it says.
+ *   * It is the command's business and nobody else's. Called here, inside
+ *     main(), rather than at module load -- server.js requires this file for
+ *     one key check, and the running website must never start depending on a
+ *     developer's local .env being present.
+ *
+ * A missing .env is not an error: the variables may be in the shell. What is
+ * an error is having neither, and that is reported by the key check below.
+ */
+function loadLocalEnv() {
+  const file = path.join(__dirname, '.env');
+  if (typeof process.loadEnvFile !== 'function') return { skipped: 'this Node is older than 20.12' };
+  if (!fs.existsSync(file)) return { skipped: 'no .env in the project directory' };
+  try {
+    process.loadEnvFile(file);
+    return { loaded: true };
+  } catch (err) {
+    // A malformed .env should not stop a submission if the shell already has
+    // what we need. Say so and carry on.
+    return { skipped: '.env could not be parsed (' + err.message + ')' };
+  }
+}
+
 async function main(argv) {
   const has = (flag) => argv.includes(flag);
   const valueOf = (name) => {
@@ -554,6 +591,26 @@ async function main(argv) {
       ].join('\n')
     );
     return 0;
+  }
+
+  // Everything below this line needs configuration, so this is where the
+  // project's .env is read. --help and --generate-key above deliberately do
+  // not: neither needs a single variable.
+  const env = loadLocalEnv();
+
+  if (!(process.env.INDEXNOW_KEY || '').trim()) {
+    // The one failure a first-time operator will actually hit, answered where
+    // they hit it rather than in a document they would have to go and find.
+    console.log('[indexnow] ERROR      INDEXNOW_KEY is not set.');
+    console.log('[indexnow]            ' + (env.loaded ? 'Read .env, but it does not define it.' : 'Not read: ' + env.skipped + '.'));
+    console.log('[indexnow]');
+    console.log('[indexnow]            Setting it on Render does not give this machine the value.');
+    console.log('[indexnow]            Add the same key to the .env in this directory:');
+    console.log('[indexnow]');
+    console.log('[indexnow]              INDEXNOW_KEY=<the key the server is serving>');
+    console.log('[indexnow]');
+    console.log('[indexnow]            It must match, or the submission is refused with a 403.');
+    return 1;
   }
 
   const result = await run({

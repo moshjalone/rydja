@@ -287,23 +287,91 @@ test('every public page offers both ways to start, and a service page prefills',
 
 // ---------------------------------------------------------- the mobile bar
 
-test('the mobile bar offers call and quote, and nothing else', async () => {
+test('the mobile bar offers three real actions, each doing what it says', async () => {
   const doc = await html('/');
   const open = at(doc, '<nav class="mobile-cta"');
   const bar = doc.slice(open, doc.indexOf('</nav>', open));
   assert.ok(bar.length > 0, 'the homepage should carry the bar');
 
-  const links = [...bar.matchAll(/<a class="([^"]+)" href="([^"]+)"/g)].map((m) => m[2]);
-  assert.deepEqual(links, ['tel:+16169293360', '/quote'], 'two targets, in that order');
+  // The defect this replaced: one link headed "Call or Text" pointing at
+  // tel:. Tapping it starts a call on every platform and offers no way to
+  // send a message, so a third of the label was simply untrue.
+  assert.ok(!/Call or Text/i.test(bar), 'a tel: link must never be labelled as texting too');
+
+  const links = [...bar.matchAll(/<a class="([^"]+)" href="([^"]+)"/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(links.map((l) => l[0]), ['mobile-cta-call', 'mobile-cta-text', 'mobile-cta-quote']);
+
+  const [call, text, quote] = links.map((l) => l[1]);
+  assert.ok(call.startsWith('tel:'), 'Call must be a tel: URI, got ' + call);
+  assert.ok(text.startsWith('sms:'), 'Text must be an sms: URI, got ' + text);
+  assert.equal(quote, '/quote');
+
+  // Both reach the same number, from the same configured source, in the form
+  // iOS and Android both accept.
+  assert.equal(call, 'tel:+16169293360');
+  assert.equal(text, 'sms:+16169293360');
+  assert.equal(call.slice(4), text.slice(4), 'call and text must not drift apart');
+
+  // No pre-filled body: the separator differs between platforms and there is
+  // no spelling that works everywhere.
+  assert.ok(!text.includes('?') && !text.includes('&'), 'no body parameter: ' + text);
+
   assert.match(bar, /aria-label="Contact RYDJA"/);
-  assert.match(bar, /Call or Text/);
-  assert.match(bar, /Get Quote/);
+  for (const label of ['Call', 'Text', 'Get Quote']) {
+    assert.ok(bar.includes('<strong>' + label + '</strong>'), 'the bar should offer ' + label);
+  }
 
   // Nothing to dismiss, nothing to remember, no script.
   assert.doesNotMatch(bar, /onclick|data-dismiss|<button/);
-  // It is a real sibling of the footer rather than something overlaying the
-  // content, and the body reserves room for it.
   assert.match(doc, /<body class="has-mobile-cta">/);
+});
+
+test('nothing anywhere still labels a tel: link as texting', async () => {
+  // Swept once, then pinned. There were thirteen of these.
+  const lead = app.read.prepare('select * from leads order by id desc limit 1').get();
+  const pages = ['/', '/services', '/service-area', '/property-professionals', '/quote',
+                 '/terms', '/privacy', '/accessibility',
+                 ...SERVICE_PAGES.map((p) => '/' + p.slug)];
+  if (lead) pages.push('/q/' + lead.public_token);
+
+  for (const path of pages) {
+    const doc = await html(path);
+    const body = doc.slice(at(doc, '<body'));
+
+    // The misleading phrasing, in any casing.
+    assert.ok(!/call or text/i.test(body), path + ' still says "call or text" beside a tel: link');
+
+    // Wherever a tel: link exists on a public page, the same number is also
+    // offered as sms: -- so "text us" is always a real option, not a label.
+    if (/href="tel:/.test(body)) {
+      const tel = body.match(/href="tel:([^"]+)"/)[1];
+      assert.ok(body.includes('href="sms:' + tel + '"'),
+        path + ' offers a phone number but no way to text it');
+    }
+  }
+});
+
+test('the call and text links are built from one configured number', async () => {
+  // Not two hardcoded values that can drift. Change the number, both move.
+  const other = await startServer({ SITE_URL: SITE, BUSINESS_PHONE: '(616) 555-0123' });
+  try {
+    const doc = await (await other.get('/')).text();
+    assert.ok(doc.includes('href="tel:+16165550123"'), 'call should normalise to E.164');
+    assert.ok(doc.includes('href="sms:+16165550123"'), 'text should normalise identically');
+    assert.ok(!doc.includes('6169293360'), 'no stale hardcoded number anywhere');
+  } finally {
+    other.stop();
+  }
+
+  // And with no number configured, neither link exists at all.
+  const quiet = await startServer({ SITE_URL: SITE, BUSINESS_PHONE: '' });
+  try {
+    const doc = await (await quiet.get('/')).text();
+    assert.ok(!doc.includes('href="tel:'), 'no number means no tel: link');
+    assert.ok(!doc.includes('href="sms:'), 'nor a dead sms: link');
+  } finally {
+    quiet.stop();
+  }
 });
 
 test('the bar is a mobile-only overlay that reserves its own space', async () => {

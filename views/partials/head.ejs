@@ -69,3 +69,43 @@
   </nav>
   <a class="button small" href="/quote">Get a Quote</a>
 </header>
+
+<%# Admin navigation for a phone.
+
+    The header's <nav> is display:none below 860px -- that is deliberate for
+    the public links, which have a footer and a homepage to live in. For an
+    admin it was a dead end: Dashboard, Leads and Jobs lived only in that
+    hidden nav, so on a phone the only way between admin sections was editing
+    the address bar.
+
+    So this is a second, separate nav that exists only where the first one is
+    hidden. Plain links, server-rendered, no script: if JavaScript is off this
+    behaves identically, which matters for the one person who has to run the
+    business from a truck.
+
+    Shown only when BOTH conditions hold -- signed in AND already inside the
+    admin. The second half is why a customer's own /q/<token> page and every
+    public page stay clean even while Josh is signed in: an operator bar has
+    no business sitting over a page a customer is reading. The footer already
+    carries an Admin link for getting back in from the public site.
+
+    Not sticky, on purpose. The header above it already is, and the lead and
+    job lists have a sticky bulk-action bar at the bottom; a third fixed strip
+    would be competing for the same small screen and would have to know the
+    header's exact height to sit under it. %>
+<% if (isAdmin && adminArea) { %>
+  <%
+    // Section, not page: /admin/leads/7/edit is still Leads.
+    const adminSections = [
+      { href: '/admin/dashboard', label: 'Dashboard' },
+      { href: '/admin/leads', label: 'Leads' },
+      { href: '/admin/jobs', label: 'Jobs' }
+    ];
+  %>
+  <nav class="admin-nav" aria-label="Admin sections">
+    <% adminSections.forEach(function(section) { %>
+      <% const here = currentPath === section.href || currentPath.startsWith(section.href + '/'); %>
+      <a href="<%= section.href %>"<%- here ? ' class="here" aria-current="page"' : '' %>><%= section.label %></a>
+    <% }) %>
+  </nav>
+<% } %>

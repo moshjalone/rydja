@@ -8,7 +8,7 @@
         markup never claims hours the page does not state. %>
     <p><%= businessHours.label %>.</p>
     <p>
-      <% if (businessPhone) { %>Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> &middot; <% } %><a class="text-link" href="<%= siteUrl %>/">getrydja.com</a>
+      <% if (businessPhone) { %>Call <%- include('call-text') %> &middot; <% } %><a class="text-link" href="<%= siteUrl %>/">getrydja.com</a>
     </p>
     <%# The entity behind the brand. Named, because it is now formed and it is
         who a customer would be contracting with. The registered address is
@@ -72,11 +72,16 @@
 
 <%# The mobile conversion bar.
 
-    Two targets, both of which are the only two things a visitor on a phone
-    ever wants from this site: reach a person, or start a quote. It exists
-    because the sticky header already carries "Get a Quote" but has no room
-    for the phone number on a narrow screen, and for a local service business
-    "call or text" is a conversion path in its own right.
+    Three targets, because there are exactly three things a visitor on a
+    phone wants from this site: ring somebody, message somebody, or start a
+    quote. It exists because the sticky header already carries "Get a Quote"
+    but has no room for the phone number on a narrow screen, and for a local
+    service business reaching a person is a conversion path in its own right.
+
+    Call and Text are separate links on purpose. They used to be one, headed
+    "Call or Text" and pointing at tel: -- which starts a call and offers no
+    way to send a message, so a third of the label was untrue. tel: and sms:
+    are different schemes; if we offer both, we link both.
 
     Everything about it is conditional on the server deciding this is a public
     marketing page (see PUBLIC_CTA_PATH) and on a phone number being
@@ -91,8 +96,12 @@
 <% if (mobileCta) { %>
   <nav class="mobile-cta" aria-label="Contact RYDJA">
     <a class="mobile-cta-call" href="tel:<%= telHref(businessPhone) %>">
-      <strong>Call or Text</strong>
-      <span><%= businessPhone %></span>
+      <strong>Call</strong>
+      <span>Call RYDJA</span>
+    </a>
+    <a class="mobile-cta-text" href="sms:<%= smsHref(businessPhone) %>">
+      <strong>Text</strong>
+      <span>Message us</span>
     </a>
     <a class="mobile-cta-quote" href="/quote">
       <strong>Get Quote</strong>

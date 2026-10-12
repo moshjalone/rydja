@@ -566,6 +566,22 @@ function telHref(value) {
   return digits;
 }
 
+/**
+ * The same number, as an SMS target.
+ *
+ * tel: and sms: are different things and a link can only be one of them. A
+ * tel: href labelled "Call or Text" is simply wrong: tapping it starts a
+ * call, on every platform, and offers no way to send a message. So wherever
+ * we offer texting we offer a second link, and both are built from
+ * BUSINESS_PHONE so the two can never drift apart.
+ *
+ * E.164 is the form both iOS and Android handle without argument. No body
+ * parameter: the separator for one is `?` on Android and `&` on iOS, there is
+ * no spelling that works everywhere, and a half-written message the customer
+ * has to delete is worse than an empty one.
+ */
+const smsHref = (value) => telHref(value);
+
 // ---------------------------------------------------------------- validation
 
 /** Trim, collapse runs of whitespace, strip control characters, cap length. */
@@ -783,6 +799,7 @@ app.use((req, res, next) => {
   res.locals.prettyWhen = prettyWhen;
   res.locals.prettyStatus = prettyStatus;
   res.locals.telHref = telHref;
+  res.locals.smsHref = smsHref;
   res.locals.scheduleState = scheduleState;
   res.locals.prettyPrefDate = prettyPrefDate;
   res.locals.timeWindows = TIME_WINDOWS;
@@ -815,6 +832,12 @@ app.use((req, res, next) => {
   res.locals.windowLabels = WINDOW_LABELS;
   res.locals.scheduleStateLabels = SCHEDULE_STATE_LABELS;
   res.locals.isAdmin = Boolean(req.session && req.session.admin);
+  // For the mobile admin nav: which section we are in, and whether we are in
+  // the admin at all. Scoped to admin paths on purpose -- an admin browsing
+  // the public site or a customer's own page should see the site as it is,
+  // not an operator bar over the top of it.
+  res.locals.adminArea = req.path === '/admin' || req.path.startsWith('/admin/');
+  res.locals.currentPath = req.path;
   next();
 });
 
@@ -1243,6 +1266,11 @@ if (INDEXNOW_KEY) {
     // to the 404 like any other unknown path.
     if (req.path !== KEY_FILE) return next();
     res.set('X-Robots-Tag', 'noindex');
+    // Never cached hard, for the same reason robots.txt and sitemap.xml are
+    // not: rotating the key means the old file must stop being served
+    // immediately. A key file sitting in an edge cache after a rotation is a
+    // 403 on every submission and no obvious reason why.
+    res.set('Cache-Control', 'public, no-cache');
     res.type('text/plain; charset=utf-8').send(INDEXNOW_KEY);
   });
 }

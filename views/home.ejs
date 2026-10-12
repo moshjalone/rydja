@@ -182,7 +182,7 @@
       <p class="owner-name"><strong>Josh</strong> &mdash; Owner/Operator</p>
       <% if (businessPhone) { %>
         <p class="price-note">
-          Call or text <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a>, or
+          Call <%- include('partials/call-text') %>, or
           <a class="text-link" href="/quote">send photos for a quote</a>.
         </p>
       <% } %>
@@ -214,8 +214,8 @@
       <h2>Serving <%= serviceArea %>.</h2>
       <p class="lede smaller">
         If you are near enough that a truck and a crew can reach you in a morning, send the job in and we will tell
-        you straight away whether we can take it.<% if (businessPhone) { %> Call or text
-        <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> if you would rather ask
+        you straight away whether we can take it.<% if (businessPhone) { %> Call <%- include('partials/call-text') %>
+        if you would rather ask
         first.<% } %>
       </p>
       <ul class="area-list">

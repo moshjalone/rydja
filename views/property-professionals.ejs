@@ -48,7 +48,7 @@
   <p class="cta-inline">
     <a class="button" href="/quote?service=<%= encodeURIComponent('Rental / property turnover') %>">Request a property cleanout quote</a>
     <% if (businessPhone) { %>
-      <span class="or-call">or call or text RYDJA on <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
+      <span class="or-call">or call RYDJA on <%- include('partials/call-text') %></span>
     <% } %>
   </p>
 
@@ -249,7 +249,7 @@
   <p class="cta-inline">
     <a class="button" href="/quote?service=<%= encodeURIComponent('Rental / property turnover') %>">Request a property cleanout quote</a>
     <% if (businessPhone) { %>
-      <span class="or-call">or call or text RYDJA on <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
+      <span class="or-call">or call RYDJA on <%- include('partials/call-text') %></span>
     <% } %>
   </p>
 </main>
