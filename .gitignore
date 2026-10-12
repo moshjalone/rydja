@@ -37,3 +37,13 @@ business-listing-research.md
 # exactly the distinction we do not advertise on the site. Licensing evidence
 # for anything we actually use is kept here on the owner's machine.
 image-asset-manifest.csv
+
+# Formation and tax documents. The EIN letter, the Michigan LLC approval and
+# the operating agreement. These are the single most sensitive files in this
+# directory and they have no business in a repository that gets cloned onto a
+# deploy host on every push -- the EIN in particular is a credential, not a
+# detail. The site may name RYDJA LLC; it must never carry any of this.
+#
+# Ignored rather than merely untracked, so that `git add -A` cannot sweep them
+# in by accident. Keep the folder on the owner's machine only.
+Legal/

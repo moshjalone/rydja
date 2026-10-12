@@ -56,7 +56,9 @@
   <style>:root{--hero-art:url("/hero.svg?v=<%= assetV.hero %>");--rig-art:url("/rig.svg?v=<%= assetV.rig %>")}</style>
   <script src="/app.js?v=<%= assetV.js %>" defer></script>
 </head>
-<body>
+<%# The class reserves room at the bottom of the page for the fixed mobile
+    call/quote bar, on exactly the pages that render one. %>
+<body<%- locals.mobileCta ? ' class="has-mobile-cta"' : '' %>>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="nav">
   <a class="brand" href="/"><%= brand %></a>

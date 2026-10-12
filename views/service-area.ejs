@@ -1,7 +1,9 @@
 <%- include('partials/head', {
-  fullTitle: 'Service Area | RYDJA',
+  fullTitle: 'West Michigan Junk Removal & Cleanout Service Area | RYDJA',
   canonicalPath: '/service-area',
-  description: 'Where RYDJA works: ' + serviceArea + '. Outside the list? Send the job in and we will tell you honestly whether we can reach it.'
+  // Plain text only: this lands in a meta content attribute, where an HTML
+  // entity would be escaped and shown to the reader as its own source.
+  description: 'Where RYDJA works: ' + serviceArea + '. Junk removal, cleanouts, hauling and yard cleanup. Just outside the area? Ask and we will answer honestly.'
 }) %>
 
 <main id="main" tabindex="-1" class="section shell narrow legal service-page">
@@ -20,18 +22,49 @@
     disposal site in a sensible day.
   </p>
 
+  <%# The communities themselves come from configuration -- the same list that
+      feeds areaServed in the structured data -- so the page and the markup
+      cannot disagree, and nobody has to remember to update two places. There
+      are deliberately no per-city pages behind these: a page per town with the
+      same copy and the name swapped is a doorway page, and it would read like
+      one to a visitor as much as to a crawler. %>
+  <h2>Communities we serve</h2>
   <ul class="area-list">
     <% serviceAreaPlaces.forEach(function(place) { %><li><%= place %></li><% }) %>
   </ul>
-
-  <h2>Estate and whole-property work across the area</h2>
-  <p>
-    Larger jobs travel better than small ones. An
-    <a class="text-link" href="/estate-cleanouts">estate or whole-property cleanout</a> &mdash; a house, a garage,
-    a basement and a barn, over however many loads it takes &mdash; is usually worth the drive to anywhere we work,
-    and often to somewhere a little past it. If you are settling an estate, clearing an inherited home or getting a
-    property empty before a sale, send the address with your photos and we will tell you whether we can reach it.
+  <p class="price-note">
+    These are the places we have actually committed to, not a radius drawn to look impressive. If your town is not
+    named, read on &mdash; the boundary is softer than a list makes it look.
   </p>
+
+  <h2>How far we travel, and why it depends on the job</h2>
+  <p>
+    The honest version is that distance is priced against the size of the load, not against a map.
+  </p>
+  <ul>
+    <li>
+      <strong>Smaller jobs need to make sense for the travel.</strong> A single
+      <a class="text-link" href="/furniture-appliance-removal">couch or appliance pickup</a> an hour each way costs
+      more in driving than in work, which is why the tighter end of the area exists at all. Close in, that job is
+      easy; far out, it may not be worth either of us doing.
+    </li>
+    <li>
+      <strong>Larger jobs justify a longer drive.</strong> An
+      <a class="text-link" href="/estate-cleanouts">estate or whole-property cleanout</a> &mdash; a house, a garage,
+      a basement and a barn, over however many loads it takes &mdash; is usually worth the trip to anywhere we work
+      and often to somewhere past it. The travel is a small share of a job that size. If you are settling an estate,
+      clearing an inherited home or getting a property empty before a sale, send the address with your photographs.
+    </li>
+    <li>
+      <strong>Several jobs in one place beat one job far away.</strong> If you are a
+      <a class="text-link" href="/property-professionals">property manager or investor</a> with two units to turn
+      over in the same town, that changes the arithmetic even if the town is at the edge of the list.
+    </li>
+    <li>
+      <strong>Disposal access matters as much as mileage.</strong> Where the load can be taken afterwards is part of
+      the drive, and it is the part nobody thinks about when they measure the distance to their own house.
+    </li>
+  </ul>
 
   <h2>Just outside the list?</h2>
   <p>
@@ -58,8 +91,12 @@
   <p>Every service is available everywhere we work:</p>
   <ul>
     <% servicePages.forEach(function(p) { %>
-      <li><a class="text-link" href="/<%= p.slug %>"><%= p.h1 %></a></li>
+      <li><a class="text-link" href="/<%= p.slug %>"><%= p.card.title %></a> &mdash; <%= p.card.blurb %></li>
     <% }) %>
+    <li>
+      <a class="text-link" href="/property-professionals">For property professionals</a> &mdash; how Realtors,
+      property managers, estate professionals and investors place cleanout work with RYDJA.
+    </li>
   </ul>
 
   <h2>How a job runs, wherever you are</h2>
@@ -69,6 +106,9 @@
     <li>You approve the quote, and confirm a time we propose or ask for a different one.</li>
     <li>We turn up, clear it, and haul it off.</li>
   </ol>
+  <p class="price-note">
+    <%= businessHours.label %>, and the quote form is open whenever you are.
+  </p>
 
   <p class="cta-inline">
     <a class="button" href="/quote">Send photos for a quote</a>

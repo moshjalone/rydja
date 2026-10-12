@@ -14,6 +14,7 @@ const mail = require('./mail');
 const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
 const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
+const { HAUL_AWAY_GROUPS, CALL_SITUATIONS, checkLinks } = require('./content/homepage');
 const attribution = require('./attribution');
 
 // ---------------------------------------------------------------- config
@@ -111,10 +112,60 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 // data and the meta description all read from here, so they cannot drift and
 // nobody has to remember to update three places.
 const SERVICE_AREA = (process.env.SERVICE_AREA || 'Lowell, Stanton and surrounding West Michigan communities').trim();
-const SERVICE_AREA_PLACES = (process.env.SERVICE_AREA_PLACES || 'Lowell, Michigan|Stanton, Michigan|West Michigan')
+
+// The discrete communities, as the Google Business Profile declares them and
+// as business-listing-master.md §6 records them. Every one of these is a place
+// the owner set on the profile himself, which is the only reason any of them
+// is here: a city list is a coverage claim, and a city nobody has agreed to
+// drive to is a lie that costs a wasted phone call at both ends.
+//
+// "Michigan, USA" is on the profile too and is deliberately NOT propagated.
+// A service-area business with one truck does not serve a state, and claiming
+// it is how a local pack entry gets filtered out rather than ranked.
+const SERVICE_AREA_PLACES = (
+  process.env.SERVICE_AREA_PLACES ||
+  [
+    'Lowell, Michigan',
+    'Stanton, Michigan',
+    'Belding, Michigan',
+    'Ionia, Michigan',
+    'Grand Rapids, Michigan',
+    'Rockford, Michigan',
+    'Ada Township, Michigan',
+    'Alto, Michigan',
+    'Baldwin, Michigan',
+    'West Michigan'
+  ].join('|')
+)
   .split('|')
   .map((p) => p.trim())
   .filter(Boolean);
+
+// Confirmed off the Google Business Profile by the owner on 2026-10-08 and
+// recorded as canonical in business-listing-master.md §7: open seven days,
+// the same hours every day. One shape, published in two places -- the footer
+// a customer reads and the openingHoursSpecification a crawler reads -- so
+// the page and the markup cannot disagree about when we answer the phone.
+//
+// Not configurable through the environment on purpose. Hours are a fact about
+// the business that lives in the canonical business record, not a per-deploy
+// setting, and a half-set variable would publish something nobody checked.
+const BUSINESS_HOURS = {
+  days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+  opens: '07:00',
+  closes: '19:00',
+  label: 'Open seven days, 7 AM – 7 PM'
+};
+
+// The registered entity behind the brand. RYDJA is what a customer calls us;
+// RYDJA LLC is who they would be contracting with, which is worth stating
+// where it is useful -- the legal pages, the professional/vendor page, the
+// structured data's legalName.
+//
+// What is deliberately absent, and must stay absent: the EIN, any SSN, and
+// the registered address, which is residential. None of those belongs on a
+// public page, and no amount of "it builds trust" changes that.
+const LEGAL_ENTITY = 'RYDJA LLC';
 
 // The effective date of the Terms as currently published. Recorded against a
 // quote at the moment it is approved, so there is a record of which version
@@ -191,29 +242,30 @@ const SAME_AS = [...new Set([FACEBOOK_URL, INSTAGRAM_URL].filter(Boolean))];
  */
 const RECENT_WORK = [];
 
-const SERVICES = [
-  {
-    slug: 'estate-cleanout',
-    name: 'Estate & Whole-Property Cleanouts',
-    blurb:
-      'One room or an entire property. House, garage, basement, barn and outbuildings cleared, at the pace the family needs.',
-    href: '/estate-cleanouts',
-    // What the card's "get a quote" link prefills. A card's name is marketing
-    // copy; the form's option is a stored value, and they are allowed to differ.
-    quote: 'Estate / whole-property cleanout',
-    flagship: true
-  },
-  { slug: 'junk-hauling', name: 'Junk & Hauling', blurb: 'Furniture, appliances, household junk, scrap, debris and unwanted items.' },
-  { slug: 'cleanout', name: 'Full Cleanouts', blurb: 'Garages, basements, barns, storage units and rental turnovers.' },
-  { slug: 'yard-cleanup', name: 'Yard Cleanup', blurb: 'Brush, branches, storm debris, leaves and outdoor clutter.' },
-  { slug: 'moving-delivery', name: 'Moving & Delivery', blurb: 'Heavy lifting, Marketplace pickups, local delivery, labor-only moving help.' },
-  { slug: 'light-demo', name: 'Light Demo', blurb: 'Small sheds, playsets, cabinets and similar tear-down-and-remove projects.' },
-  { slug: 'other', name: 'Other Jobs', blurb: 'If it involves labor, a truck, cleanup or getting something handled, send it in.' }
-];
+// There is deliberately no SERVICES array here any more.
+//
+// There used to be: a second, independent list of marketing services that
+// drove /services while the homepage rendered the real SERVICE_PAGES. The two
+// drifted exactly as you would expect. It named "Junk & Hauling", "Full
+// Cleanouts", "Moving & Delivery" and "Light Demo" -- wording that appears
+// nowhere else on the site -- linked only one of its cards to the page that
+// already existed for it, and left furniture and appliance removal out
+// altogether despite /furniture-appliance-removal being live.
+//
+// SERVICE_PAGES (content/service-pages.js) is now the one marketing service
+// catalog. Every card on every list is a real page, because the card copy is a
+// property of the page rather than of a separate array that can forget one.
+//
+// QUOTE_SERVICES below stays separate on purpose: those are stored form values
+// with their own wording, and a page's `quoteService` names which one its CTA
+// prefills. That is one list referencing another, not two lists of the same
+// thing.
 
 // The work we actually do, in the words a customer would type. Drives the
 // services page copy and the structured data's knowsAbout, so the page and the
-// markup always agree.
+// markup always agree. Every phrase here has to be work we genuinely take on
+// and a page has to cover it -- this is a list of services, not of keywords we
+// would like to rank for.
 const SERVICE_KEYWORDS = [
   'estate cleanouts',
   'whole house cleanouts',
@@ -221,17 +273,26 @@ const SERVICE_KEYWORDS = [
   'property cleanouts',
   'downsizing help',
   'junk removal',
+  'junk hauling',
+  'trash and debris removal',
   'garage cleanouts',
   'basement cleanouts',
   'barn cleanouts',
+  'outbuilding cleanouts',
   'storage unit cleanouts',
   'rental and property cleanouts',
+  'tenant move-out cleanouts',
+  'rental turnover clearing',
   'yard cleanup',
   'brush and debris removal',
+  'storm debris removal',
   'furniture removal',
+  'couch and mattress removal',
   'appliance removal',
   'moving help',
   'delivery help',
+  'Marketplace and auction pickups',
+  'shed removal',
   'light demolition',
   'scrap pickup',
   'property resets'
@@ -288,13 +349,39 @@ function cleanEstateAreas(input) {
 const cleanEstateScope = (input) => (ESTATE_SCOPES.includes(String(input)) ? String(input) : null);
 
 // A CTA that prefills a service the form does not offer silently produces a
-// lead labelled something nothing else recognises. Cheap to check, and a
-// startup failure is far easier to notice than a quietly mislabelled lead.
-for (const source of [...SERVICE_PAGES.map((p) => p.quoteService), ...SERVICES.map((s) => s.quote)]) {
-  if (source && !QUOTE_SERVICES.includes(source)) {
-    throw new Error(`"${source}" is prefilled somewhere but is not an option on the quote form`);
+// lead labelled something nothing else recognises -- it is not rejected, it is
+// stored, and then no filter, report or badge in the admin matches it. That is
+// precisely what happened while every service page except the flagship fell
+// back to its nav label: /junk-removal was writing leads as "Junk Removal"
+// rather than "Junk / hauling".
+//
+// So every page must name its option, and the option must exist. Cheap to
+// check, and a startup failure is far easier to notice than a quietly
+// mislabelled lead.
+for (const page of SERVICE_PAGES) {
+  if (!QUOTE_SERVICES.includes(page.quoteService)) {
+    throw new Error(
+      `/${page.slug} prefills "${page.quoteService}", which is not an option on the quote form`
+    );
   }
 }
+
+// The B2B referral page. Not a service and not in SERVICE_PAGES: it offers no
+// distinct job, it is the page we hand to Realtors, property managers, estate
+// professionals and investors to explain why RYDJA is worth keeping on a
+// vendor list. It carries breadcrumbs and sits in the sitemap, but it is not
+// an Offer in the catalog, because there is nothing separate being offered.
+const PROFESSIONALS_PATH = '/property-professionals';
+
+// Every internal link the homepage sections promise has to resolve to a real
+// page. Checked at boot against the routes that actually exist.
+checkLinks([...SERVICE_PAGES.map((p) => '/' + p.slug), PROFESSIONALS_PATH]);
+
+// Where the sticky mobile call/quote bar is allowed to appear: public
+// marketing pages. Excluded, in order -- the admin, a customer's own job page,
+// the quote form and its confirmation (the bar's own destination), and
+// anything that looks like a file request.
+const PUBLIC_CTA_PATH = /^\/(?!admin|q\/|quote|uploads\/|api\/)[^.]*$/;
 
 const EXPENSE_CATEGORIES = [
   { value: 'dump', label: 'Dump / disposal fee' },
@@ -664,7 +751,6 @@ app.use((req, res, next) => {
   // Customer links and admin pages must never be indexed; the public marketing
   // pages should be. Each template overrides this where it differs.
   res.locals.noindex = false;
-  res.locals.services = SERVICES;
   res.locals.money = money;
   res.locals.prettyDate = prettyDate;
   res.locals.prettyWhen = prettyWhen;
@@ -686,6 +772,14 @@ app.use((req, res, next) => {
   res.locals.year = new Date().getFullYear();
   res.locals.businessEmail = BUSINESS_EMAIL;
   res.locals.serviceKeywords = SERVICE_KEYWORDS;
+  res.locals.businessHours = BUSINESS_HOURS;
+  res.locals.legalEntity = LEGAL_ENTITY;
+  res.locals.haulAwayGroups = HAUL_AWAY_GROUPS;
+  res.locals.callSituations = CALL_SITUATIONS;
+  // The sticky mobile call/quote bar. Public marketing pages only: never the
+  // admin, never a customer's own job page, and never the quote form itself,
+  // where the thing it would link to is already the page you are on.
+  res.locals.mobileCta = Boolean(PHONE) && PUBLIC_CTA_PATH.test(req.path);
   res.locals.quoteServices = QUOTE_SERVICES;
   res.locals.estateService = ESTATE_SERVICE;
   res.locals.estateAreas = ESTATE_AREAS;
@@ -960,9 +1054,20 @@ const IMAGE_CREDITS = [
 
 /**
  * Structured data for the homepage. Only facts we actually hold: no street
- * address, no opening hours, no price range, no ratings, no social profiles.
- * Inventing any of those is how a business ends up with a knowledge panel that
- * is wrong in public.
+ * address, no price range, no ratings, no invented credentials. Inventing any
+ * of those is how a business ends up with a knowledge panel that is wrong in
+ * public.
+ *
+ * Two things were added once they became facts rather than guesses:
+ *
+ *   legalName                  RYDJA LLC is now formed, so the entity behind
+ *                              the brand can be named. The registered address
+ *                              is residential and still appears nowhere.
+ *   openingHoursSpecification  Confirmed off the Business Profile by the owner
+ *                              and recorded in business-listing-master.md §7.
+ *                              Published in the footer too, so the markup
+ *                              describes something a visitor can also read --
+ *                              which is the condition for including it at all.
  */
 function businessJsonLd() {
   const data = {
@@ -970,6 +1075,7 @@ function businessJsonLd() {
     '@type': 'HomeAndConstructionBusiness',
     '@id': SITE_URL + '/#business',
     name: BRAND,
+    legalName: LEGAL_ENTITY,
     url: SITE_URL + '/',
     description:
       `Junk removal, cleanouts, hauling, yard cleanup, furniture and appliance removal, ` +
@@ -978,15 +1084,26 @@ function businessJsonLd() {
     logo: SITE_URL + '/img/rydja-logo.jpg',
     areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name })),
     knowsAbout: SERVICE_KEYWORDS,
-    // The services we actually offer, each pointing at the page describing it.
-    // Offers carry no price: we quote every job individually and inventing a
-    // range would be a claim we cannot stand behind.
+    // One specification covering all seven days, which is the correct shape
+    // when the hours do not vary: dayOfWeek takes an array.
+    openingHoursSpecification: [
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: BUSINESS_HOURS.days.map((d) => 'https://schema.org/' + d),
+        opens: BUSINESS_HOURS.opens,
+        closes: BUSINESS_HOURS.closes
+      }
+    ],
+    // The services we actually offer, each pointing at the page describing it,
+    // built from the canonical catalog so a new page joins it without anybody
+    // remembering to. Offers carry no price: we quote every job individually
+    // and inventing a range would be a claim we cannot stand behind.
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
       name: `${BRAND} services`,
       itemListElement: SERVICE_PAGES.map((p) => ({
         '@type': 'Offer',
-        itemOffered: { '@type': 'Service', name: p.nav, url: SITE_URL + '/' + p.slug }
+        itemOffered: { '@type': 'Service', name: p.card.title, url: SITE_URL + '/' + p.slug }
       }))
     }
   };
@@ -996,16 +1113,28 @@ function businessJsonLd() {
   return JSON.stringify(data);
 }
 
-/** Breadcrumbs for a second-level page. Home > Services > this page. */
+/**
+ * Breadcrumbs. Home > Services > this page, which is the trail the pages
+ * themselves render -- and the hub is the one page that is its own second
+ * level rather than a third, so it gets a two-item list rather than naming
+ * itself twice.
+ */
 function breadcrumbJsonLd(name, path) {
+  const trail = [
+    { name: 'Home', item: SITE_URL + '/' },
+    { name: 'Services', item: SITE_URL + '/services' }
+  ];
+  if (path !== '/services') trail.push({ name, item: SITE_URL + path });
+
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
-      { '@type': 'ListItem', position: 2, name: 'Services', item: SITE_URL + '/services' },
-      { '@type': 'ListItem', position: 3, name, item: SITE_URL + path }
-    ]
+    itemListElement: trail.map((step, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: step.name,
+      item: step.item
+    }))
   });
 }
 
@@ -1017,7 +1146,9 @@ function serviceJsonLd(page) {
   return JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Service',
-    name: page.h1,
+    // The same name the offer catalog uses for it, so one service is not
+    // called two things across two blocks of markup on the same site.
+    name: page.card.title,
     description: page.description,
     url: SITE_URL + '/' + page.slug,
     serviceType: page.nav,
@@ -1032,7 +1163,18 @@ function serviceJsonLd(page) {
 
 app.get('/', (req, res) => res.render('home', { jsonLd: businessJsonLd() }));
 
-app.get('/services', (req, res) => res.render('services'));
+app.get('/services', (req, res) =>
+  res.render('services', { breadcrumbJsonLd: breadcrumbJsonLd('Services', '/services') })
+);
+
+// The referral page for Realtors, property managers, estate professionals and
+// investors. Indexable and in the sitemap, but not a Service: see the comment
+// on PROFESSIONALS_PATH.
+app.get(PROFESSIONALS_PATH, (req, res) =>
+  res.render('property-professionals', {
+    breadcrumbJsonLd: breadcrumbJsonLd('For Property Professionals', PROFESSIONALS_PATH)
+  })
+);
 
 // Public and indexable on purpose: a customer should be able to read these
 // before they hand over a photo of their garage.
@@ -1694,6 +1836,28 @@ function likePattern(value) {
   return '%' + String(value).replace(/[\\%_]/g, (ch) => '\\' + ch) + '%';
 }
 
+/**
+ * The digits of a search box entry, as a LIKE needle for the phone column --
+ * or null when the entry is not a phone number at all.
+ *
+ * The phone column is searched with its punctuation stripped, so "(616)
+ * 555-0144" has to lose its own to find 6165550144. The guard is the letters:
+ * a query containing any is a name, an email or a work reference, never a
+ * phone number, and stripping it down to its digits produces a needle that
+ * means nothing.
+ *
+ * That was not hypothetical. A work reference is RYDJA- plus six characters
+ * from an alphabet that is mostly digits, so searching for RYDJA-6M5X5A
+ * reduced to "655" and matched every lead whose phone happened to contain it
+ * -- which, for a group of numbers sharing an exchange, is all of them. One
+ * reference in the box, the whole inbox back.
+ */
+function phoneNeedle(q) {
+  if (/[a-z]/i.test(q)) return null;
+  const digits = q.replace(/\D/g, '');
+  return digits ? likePattern(digits) : null;
+}
+
 /** One key from a fixed set, or the first key as the default. */
 const pick = (value, allowed, fallback) =>
   allowed.includes(String(value || '')) ? String(value) : fallback;
@@ -1704,9 +1868,7 @@ function leadFilters(query) {
   return {
     q,
     like: likePattern(q),
-    // The phone column is searched with its punctuation stripped, so the
-    // needle has to lose its own too.
-    likeDigits: q.replace(/\D/g, '') ? likePattern(q.replace(/\D/g, '')) : null,
+    likeDigits: phoneNeedle(q),
     status: pick(query.status, LEAD_STATUSES, ''),
     service: pick(query.service, [ESTATE_FILTER, ...QUOTE_SERVICES], ''),
     source: pick(query.source, [...SOURCE_ORDER, 'unknown'], ''),
@@ -1725,7 +1887,7 @@ function jobFilters(query) {
   return {
     q,
     like: likePattern(q),
-    likeDigits: q.replace(/\D/g, '') ? likePattern(q.replace(/\D/g, '')) : null,
+    likeDigits: phoneNeedle(q),
     status: pick(query.status, JOB_STATUSES, ''),
     sort: pick(query.sort, Object.keys(JOB_SORTS), 'smart'),
     archived: query.view === 'archived',

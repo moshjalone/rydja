@@ -16,7 +16,11 @@ const { SERVICE_PAGES } = require('../content/service-pages');
 
 const SITE = 'https://getrydja.com';
 const SERVICE_PATHS = SERVICE_PAGES.map((p) => '/' + p.slug);
-const INDEXABLE = ['/', '/services', '/quote', ...SERVICE_PATHS, '/service-area',
+// The B2B referral page. Indexable and internally linked, but deliberately not
+// a SERVICE_PAGE: it offers no distinct job, so it carries no Service schema
+// and is not an Offer in the catalog.
+const PROFESSIONALS = '/property-professionals';
+const INDEXABLE = ['/', '/services', '/quote', ...SERVICE_PATHS, PROFESSIONALS, '/service-area',
                    '/privacy', '/terms', '/accessibility', '/image-credits'];
 
 let app;
@@ -45,8 +49,82 @@ const bodyText = (doc) =>
 test('the service pages exist and are the ones we meant to build', () => {
   assert.deepEqual(SERVICE_PATHS.slice().sort(), [
     '/cleanouts', '/estate-cleanouts', '/furniture-appliance-removal', '/hauling-moving-help',
-    '/junk-removal', '/light-demolition', '/yard-cleanup'
+    '/junk-removal', '/light-demolition', '/rental-property-cleanouts', '/yard-cleanup'
   ]);
+});
+
+// The defect this whole pass started from. /services used to be driven by a
+// second, independent SERVICES array in server.js that had drifted from the
+// real pages: different wording, almost no links to the pages that existed,
+// and furniture and appliance removal missing altogether.
+//
+// These three tests are the ones that would fail again if anybody
+// reintroduced a parallel list, so they assert the mechanism rather than the
+// symptom: one catalog, every card a real page, every CTA a real form value.
+test('there is one service catalog, and every page in it can be listed', () => {
+  for (const page of SERVICE_PAGES) {
+    assert.ok(page.card && page.card.title, '/' + page.slug + ' needs card.title to appear in a list');
+    assert.ok(page.card.blurb && page.card.blurb.length > 40, '/' + page.slug + ' needs real card copy');
+    assert.ok(page.quoteService, '/' + page.slug + ' must name the quote option its CTA prefills');
+  }
+
+  // No second marketing list anywhere. `services` used to be a template local
+  // fed by that array; nothing may put one back.
+  const server = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'server.js'), 'utf8');
+  assert.doesNotMatch(server, /^const SERVICES\s*=/m, 'a second marketing service list has come back');
+  assert.doesNotMatch(server, /res\.locals\.services\s*=/, 'nothing should hand templates a parallel service list');
+});
+
+test('every service card on a listing page links its own page and a valid quote', async () => {
+  const { QUOTE_SERVICES } = await quoteOptions();
+
+  for (const listing of ['/', '/services']) {
+    const doc = await html(listing);
+    for (const page of SERVICE_PAGES) {
+      assert.ok(doc.includes('href="/' + page.slug + '"'), listing + ' should link /' + page.slug);
+      assert.ok(
+        doc.includes('/quote?service=' + encodeURIComponent(page.quoteService)),
+        listing + ' should prefill ' + page.quoteService + ' for /' + page.slug
+      );
+    }
+  }
+
+  // Every prefill the site offers has to be an option the form actually
+  // carries, or the lead is stored under a label nothing else recognises.
+  for (const page of SERVICE_PAGES) {
+    assert.ok(QUOTE_SERVICES.includes(page.quoteService),
+      '/' + page.slug + ' prefills "' + page.quoteService + '", which the form does not offer');
+  }
+});
+
+// The options the live form renders, read off the form rather than imported,
+// so this measures what a customer's browser would actually post.
+async function quoteOptions() {
+  const doc = await html('/quote');
+  const select = doc.slice(doc.indexOf('name="service"'), doc.indexOf('</select>'));
+  const QUOTE_SERVICES = [...select.matchAll(/<option(?:[^>]*)>([^<]+)</g)]
+    .map((m) => m[1].trim())
+    .filter((o) => o !== 'Choose a service');
+  return { QUOTE_SERVICES };
+}
+
+test('a service page CTA adds no option of its own to the form', async () => {
+  // The old failure mode: a page prefilled its nav label, the form did not
+  // offer it, and the template quietly appended an extra <option selected>
+  // carrying a value no filter, report or badge in the admin matches.
+  const { QUOTE_SERVICES: plain } = await quoteOptions();
+
+  for (const page of SERVICE_PAGES) {
+    const doc = await html('/quote?service=' + encodeURIComponent(page.quoteService));
+    const select = doc.slice(doc.indexOf('name="service"'), doc.indexOf('</select>'));
+    const options = [...select.matchAll(/<option(?:[^>]*)>([^<]+)</g)]
+      .map((m) => m[1].trim())
+      .filter((o) => o !== 'Choose a service');
+
+    assert.deepEqual(options, plain, '/' + page.slug + ' prefill changed the option list');
+    assert.match(select, new RegExp('<option selected>' + page.quoteService.replace(/\//g, '\\/')),
+      '/' + page.slug + ' should select its own option');
+  }
 });
 
 // The order of SERVICE_PAGES *is* the service hierarchy: it drives the
@@ -149,6 +227,46 @@ test('the homepage links to every service page and the service area', async () =
     assert.match(doc, new RegExp('href="/' + page.slug + '"'), 'homepage should link /' + page.slug);
   }
   assert.match(doc, /href="\/service-area"/, 'homepage should link the service area');
+  assert.match(doc, /href="\/services"/, 'homepage should link the services hub');
+  assert.match(doc, new RegExp('href="' + PROFESSIONALS + '"'), 'homepage should link the referral page');
+});
+
+// Sections A and B: the two questions a visitor actually arrives with, which
+// the service grid above them answers neither of. A card headed "Cleanouts"
+// does not tell somebody holding a broken treadmill they are in the right
+// place.
+test('the homepage answers "do you take my thing" and "is my situation yours"', async () => {
+  const doc = await html('/');
+  const text = bodyText(doc).toLowerCase();
+
+  assert.match(doc, /What can RYDJA haul away\?/);
+  for (const item of ['couches and sectionals', 'mattresses', 'fridges and freezers', 'garage clutter',
+                      'basement contents', 'storage-unit contents', 'scrap metal', 'exercise equipment',
+                      'yard debris', 'brush and branches', 'storm debris', 'renovation debris',
+                      'shelving', 'playsets', 'outdoor and patio furniture']) {
+    assert.ok(text.includes(item), 'the haul-away section should name ' + item);
+  }
+
+  assert.match(doc, /When people call RYDJA/);
+  for (const situation of ['moving out', 'settling an estate', 'inherited a property', 'ready to photograph and sell',
+                           'rental to turn over', 'left furniture and belongings behind', 'the garage has not fitted',
+                           'the basement is full', 'storage unit to empty', 'downsizing', 'storm took down limbs',
+                           'shed or playset']) {
+    assert.ok(text.includes(situation), 'the situations section should cover ' + situation);
+  }
+
+  // Both sections exist to route people, so every entry has to be a link to a
+  // page that answers it -- and no entry may have grown a page of its own.
+  const { HAUL_AWAY_GROUPS, CALL_SITUATIONS } = require('../content/homepage');
+  for (const href of [...HAUL_AWAY_GROUPS.map((g) => g.href), ...CALL_SITUATIONS.map((s) => s.href)]) {
+    assert.ok(doc.includes('href="' + href + '"'), 'the homepage promises ' + href);
+    assert.equal((await app.get(href)).status, 200, href + ' is linked from the homepage but does not answer 200');
+  }
+
+  // Hazard exclusions are repeated here rather than only on the service pages,
+  // because this is now the list somebody reads before deciding to ask.
+  assert.match(text, /hazardous waste/i);
+  assert.match(text, /asbestos/i);
 });
 
 test('each service page links onward to related work, the area and a quote', async () => {
@@ -230,6 +348,33 @@ test('the service area page reads from the configured area, not a hardcoded list
   }
 });
 
+test('the service area names the verified communities and explains the boundary', async () => {
+  const doc = await html('/service-area');
+  const text = bodyText(doc);
+
+  // Every community from the canonical business record is named on the page,
+  // from configuration rather than from a second list in the template.
+  for (const place of ['Lowell', 'Stanton', 'Belding', 'Ionia', 'Grand Rapids', 'Rockford',
+                       'Ada Township', 'Alto', 'Baldwin']) {
+    assert.ok(text.includes(place), 'the area page should name ' + place);
+  }
+
+  // The statewide claim that is on the Business Profile and is deliberately
+  // not propagated: one truck does not serve a state.
+  assert.ok(!/Michigan,?\s*USA/i.test(text), 'a statewide service claim must not appear');
+  assert.ok(!/\b\d+\s*(mile|mi)\b/i.test(text), 'no invented radius');
+
+  // Why travel depends on the job, which is the honest version of a boundary.
+  assert.match(text, /larger jobs/i);
+  assert.match(text, /smaller jobs/i);
+  assert.match(text, /Just outside/i);
+
+  // Linked onward to every real service page and to the referral page.
+  for (const page of SERVICE_PAGES) {
+    assert.ok(doc.includes('href="/' + page.slug + '"'), '/service-area should link /' + page.slug);
+  }
+});
+
 test('no thin city pages were generated', async () => {
   // Only the one area page exists. Per-city pages come later, with real
   // local content behind them.
@@ -261,9 +406,89 @@ test('structured data is valid, and still invents nothing', async () => {
     assert.ok(!('price' in offer) && !('priceSpecification' in offer), 'offers must carry no price');
   }
 
-  for (const invented of ['address', 'openingHours', 'openingHoursSpecification', 'priceRange',
+  for (const invented of ['address', 'openingHours', 'priceRange',
                           'aggregateRating', 'review', 'award']) {
     assert.ok(!(invented in business), 'must not invent ' + invented);
+  }
+
+  // The entity is formed, so it may be named. The registered address is
+  // residential and must still appear nowhere.
+  assert.equal(business.legalName, 'RYDJA LLC');
+
+  // Hours are confirmed off the Business Profile by the owner and recorded in
+  // business-listing-master.md §7: seven days, 7 AM to 7 PM, same every day.
+  // They are published in the footer too -- markup that describes something a
+  // visitor cannot also read is the thing we were avoiding by omitting them.
+  const hours = business.openingHoursSpecification;
+  assert.equal(hours.length, 1, 'one specification covers hours that do not vary');
+  assert.equal(hours[0]['@type'], 'OpeningHoursSpecification');
+  assert.deepEqual(hours[0].dayOfWeek, [
+    'https://schema.org/Monday', 'https://schema.org/Tuesday', 'https://schema.org/Wednesday',
+    'https://schema.org/Thursday', 'https://schema.org/Friday', 'https://schema.org/Saturday',
+    'https://schema.org/Sunday'
+  ]);
+  assert.equal(hours[0].opens, '07:00');
+  assert.equal(hours[0].closes, '19:00');
+  assert.match(home, /7 AM – 7 PM|7 AM &ndash; 7 PM/, 'the hours must be readable on the page too');
+});
+
+test('the referral page is indexable and linked, but is not a service offer', async () => {
+  const doc = await html(PROFESSIONALS);
+
+  const blocks = [...doc.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((m) => JSON.parse(m[1]));
+
+  // Breadcrumbs, yes. A Service, no: it offers no distinct job of its own.
+  assert.ok(blocks.find((b) => b['@type'] === 'BreadcrumbList'), 'it needs breadcrumbs');
+  assert.ok(!blocks.find((b) => b['@type'] === 'Service'), 'it is not a service and must not claim to be one');
+
+  // And it is not in the offer catalog either.
+  const home = JSON.parse((await html('/')).match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const offered = home.hasOfferCatalog.itemListElement.map((o) => o.itemOffered.url);
+  assert.ok(!offered.includes(SITE + PROFESSIONALS), 'the referral page is not an offer');
+  assert.equal(offered.length, SERVICE_PAGES.length);
+
+  // Reachable from the pages a professional would actually land on first.
+  for (const from of ['/', '/services', '/estate-cleanouts', '/rental-property-cleanouts', '/service-area']) {
+    assert.ok((await html(from)).includes('href="' + PROFESSIONALS + '"'), from + ' should link ' + PROFESSIONALS);
+  }
+});
+
+test('the referral page claims no credential nobody has verified', async () => {
+  const text = bodyText(await html(PROFESSIONALS)).toLowerCase();
+
+  // The page states plainly what it does NOT claim, which is the opposite of
+  // a claim -- so the bare words "licensed", "insured" and "certified" are
+  // expected to appear. What must not appear is any of them as an assertion.
+  for (const claim of ['we are insured', 'we are bonded', 'we are licensed', 'we are certified',
+                       'we are accredited', 'fully insured', 'fully licensed', 'licensed and insured',
+                       'bonded and insured', 'licensed, bonded', 'rydja is insured', 'rydja is licensed',
+                       'years in business', 'years of experience', 'award-winning', 'five-star', '5-star',
+                       'satisfaction guaranteed', 'guaranteed lowest']) {
+    assert.ok(!text.includes(claim), PROFESSIONALS + ' must not claim: ' + claim);
+  }
+
+  // And it does say so, in as many words, because a vendor page is exactly
+  // where somebody would otherwise assume it.
+  assert.match(text, /does not claim to be insured, bonded, licensed, accredited or certified/);
+
+  // The entity may be named. Nothing private about it may be.
+  assert.ok(text.includes('rydja llc'), 'the formed entity may be named where it is useful');
+  assert.doesNotMatch(text, /\b\d{2}-\d{7}\b/, 'an EIN must never be published');
+  assert.doesNotMatch(text, /\b\d{3}-\d{2}-\d{4}\b/, 'an SSN must never be published');
+});
+
+test('no public page publishes a tax identifier or a private address', async () => {
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+    assert.doesNotMatch(doc, /\b\d{2}-\d{7}\b/, path + ' looks like it carries an EIN');
+    assert.doesNotMatch(doc, /\b\d{3}-\d{2}-\d{4}\b/, path + ' looks like it carries an SSN');
+    for (const word of ['EIN', 'Employer Identification', 'Social Security', 'Tax ID', 'W-9 attached']) {
+      assert.ok(!doc.includes(word), path + ' mentions ' + word);
+    }
+    // No street address for the business anywhere in the markup.
+    assert.doesNotMatch(doc, /"streetAddress"/, path + ' must not publish a street address');
+    assert.doesNotMatch(doc, /"PostalAddress"/, path + ' must not publish a postal address');
   }
 });
 
@@ -792,5 +1017,123 @@ test('no promotional image is presented as a documented customer job', async () 
         assert.ok(!text.includes(claim), path + ' caption implies documented work: ' + text.trim());
       }
     }
+  }
+});
+
+// ---------------------------------------------------------- internal linking
+
+// The link map, asserted rather than trusted. Internal links are the whole
+// mechanism by which a visitor who lands on the wrong page reaches the right
+// one, and by which crawl equity reaches a page nobody links from outside.
+//
+// Each entry is "this page must link onward to these". Pinned here because
+// the links live in several places -- page data, prose, templates -- and a
+// rewrite of any one of them can quietly drop one.
+const LINK_MAP = {
+  '/': ['/services', '/service-area', '/quote', '/property-professionals',
+        ...SERVICE_PATHS],
+  '/services': [...SERVICE_PATHS, '/property-professionals', '/service-area', '/quote'],
+  '/junk-removal': ['/furniture-appliance-removal', '/cleanouts', '/yard-cleanup',
+                    '/rental-property-cleanouts', '/estate-cleanouts', '/hauling-moving-help'],
+  '/cleanouts': ['/estate-cleanouts', '/rental-property-cleanouts', '/junk-removal',
+                 '/light-demolition', '/furniture-appliance-removal'],
+  '/estate-cleanouts': ['/cleanouts', '/property-professionals', '/hauling-moving-help',
+                        '/light-demolition', '/rental-property-cleanouts', '/junk-removal'],
+  '/rental-property-cleanouts': ['/cleanouts', '/junk-removal', '/furniture-appliance-removal',
+                                 '/property-professionals', '/estate-cleanouts'],
+  '/property-professionals': ['/estate-cleanouts', '/rental-property-cleanouts', '/cleanouts',
+                              '/junk-removal', '/yard-cleanup', '/light-demolition',
+                              '/furniture-appliance-removal', '/services', '/service-area'],
+  '/yard-cleanup': ['/junk-removal', '/light-demolition', '/cleanouts', '/hauling-moving-help'],
+  '/furniture-appliance-removal': ['/junk-removal', '/cleanouts', '/rental-property-cleanouts',
+                                   '/hauling-moving-help'],
+  '/hauling-moving-help': ['/junk-removal', '/furniture-appliance-removal', '/estate-cleanouts',
+                           '/yard-cleanup'],
+  '/light-demolition': ['/junk-removal', '/yard-cleanup', '/cleanouts', '/estate-cleanouts'],
+  '/service-area': [...SERVICE_PATHS, '/property-professionals', '/quote']
+};
+
+test('every page links onward to the pages it should, and never to itself', async () => {
+  for (const [from, targets] of Object.entries(LINK_MAP)) {
+    const doc = await html(from);
+    for (const to of targets) {
+      assert.ok(doc.includes('href="' + to + '"') || doc.includes('href="' + to + '?'),
+        from + ' should link ' + to);
+    }
+    // A page is never its own related work. The footer links /services and
+    // /quote from everywhere, so those two are exempt from the self-link rule.
+    if (!['/services', '/quote'].includes(from)) {
+      const body = doc.slice(doc.indexOf('<main'), doc.indexOf('</main>'));
+      assert.ok(!body.includes('href="' + from + '"'), from + ' links to itself in its own body');
+    }
+  }
+});
+
+test('internal anchor text describes the destination rather than repeating a keyword', async () => {
+  for (const page of SERVICE_PAGES) {
+    for (const rel of page.related) {
+      assert.ok(rel.label.split(' ').length >= 3, '/' + page.slug + ' anchor is too terse: ' + rel.label);
+      assert.ok(!/^click here|^read more|^learn more|^here$/i.test(rel.label.trim()),
+        '/' + page.slug + ' uses a generic anchor: ' + rel.label);
+    }
+  }
+
+  // And across every public page: no bare "click here" anywhere.
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+    for (const [, text] of doc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/g)) {
+      const label = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      assert.ok(!/^(click here|here|this|read more|more)$/i.test(label),
+        path + ' has a generic link label: ' + JSON.stringify(label));
+    }
+  }
+});
+
+test('no internal link on a public page is broken', async () => {
+  const seen = new Set();
+
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+    for (const [, href] of doc.matchAll(/href="(\/[^"#]*)"/g)) {
+      const target = href.split('?')[0];
+      if (!target || target.startsWith('/admin') || target.startsWith('/q/') || seen.has(target)) continue;
+      seen.add(target);
+      const res = await app.get(target);
+      assert.ok(res.status === 200, path + ' links ' + target + ', which answers ' + res.status);
+    }
+  }
+
+  assert.ok(seen.size > 15, 'this should have walked the whole public site, saw ' + seen.size);
+});
+
+// ----------------------------------------------------------- escaped copy
+
+// The bug this catches, caught once already: an em dash written as the HTML
+// entity `&mdash;` inside a field the template renders with <%= %> rather
+// than <%- %>. EJS escapes the ampersand, the browser renders `&mdash;`
+// literally, and a service card reads "hauled off &mdash; by us, not by you".
+//
+// It is invisible in the source, invisible in a diff, and perfectly visible
+// to every customer. Content modules guard their own fields at require time;
+// this is the backstop that also covers copy written straight into a template.
+test('no page shows an HTML entity to the reader as its own source', async () => {
+  for (const path of INDEXABLE) {
+    const doc = await html(path);
+
+    const doubled = [...new Set([...doc.matchAll(/&amp;[a-zA-Z#][a-zA-Z0-9]*;/g)].map((m) => m[0]))];
+    assert.deepEqual(doubled, [], path + ' renders a double-escaped entity: ' + doubled.join(', '));
+
+    // And the same mistake inside an attribute value, where it is even easier
+    // to miss because nothing on the page looks wrong -- it is the search
+    // result and the share card that carry it.
+    for (const attr of ['name="description"', 'property="og:description"', 'property="og:title"',
+                        'name="twitter:description"', 'name="twitter:title"']) {
+      const m = doc.match(new RegExp('<meta ' + attr + ' content="([^"]*)"'));
+      if (!m) continue;
+      assert.doesNotMatch(m[1], /&amp;[a-zA-Z#][a-zA-Z0-9]*;/, path + ' ' + attr + ': ' + m[1]);
+    }
+
+    const title = meta(doc, /<title>([^<]*)<\/title>/);
+    assert.doesNotMatch(title, /&amp;[a-zA-Z#][a-zA-Z0-9]*;/, path + ' title: ' + title);
   }
 });

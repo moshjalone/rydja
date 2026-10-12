@@ -1,0 +1,259 @@
+<%- include('partials/head', {
+  fullTitle: 'Property Cleanout Partner for West Michigan Professionals | RYDJA',
+  canonicalPath: '/property-professionals',
+  description: 'RYDJA clears property for West Michigan Realtors, property managers, landlords, estate-sale companies and investors. Photo-based scoping, one point of contact.'
+}) %>
+
+<%# The referral page. Written for somebody who places this work on behalf of
+    a client or an owner, not for somebody clearing their own garage.
+
+    Hard rules, same as everywhere on this site:
+      * No claim of insurance, bonding, licensing or accreditation. None of
+        those has been verified, and a vendor page is precisely where such a
+        claim would be relied on.
+      * No years in business, job counts, certifications, awards or review
+        figures.
+      * RYDJA LLC may be named -- the entity is formed. The EIN, any SSN and
+        the registered (residential) address appear nowhere, and no vendor or
+        tax document is published here. W-9 and vendor paperwork are offered
+        on request, which is where they belong. %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal service-page">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> <span aria-hidden="true">&rsaquo;</span>
+    <a href="/services">Services</a> <span aria-hidden="true">&rsaquo;</span>
+    <span aria-current="page">For Property Professionals</span>
+  </nav>
+
+  <h1>Property cleanout partner for West Michigan professionals</h1>
+  <p class="lede smaller">
+    When a property has to be emptied before it can be listed, let, sold or closed on, somebody has to actually
+    clear it. RYDJA is the crew for that part &mdash; scoped from photographs, quoted before anything is booked,
+    and handled by the owner-operator who priced it.
+  </p>
+
+  <p>
+    Most of this work reaches us second-hand. An agent with a listing full of furniture. A property manager with
+    four days between tenants. An estate-sale company that has sold what will sell and needs the rest gone. An
+    attorney&rsquo;s client who has inherited a house two hundred miles from where they live. In every case the
+    person calling is not the person whose property it is, and what they need from a vendor is the same: a price
+    they can pass on, a date they can rely on, and no surprises to explain afterwards.
+  </p>
+
+  <p>
+    That is the whole reason this page exists. If RYDJA is useful to you once, it is worth knowing where to find us
+    the next time, and this is the page to keep or forward.
+  </p>
+
+  <p class="cta-inline">
+    <a class="button" href="/quote?service=<%= encodeURIComponent('Rental / property turnover') %>">Request a property cleanout quote</a>
+    <% if (businessPhone) { %>
+      <span class="or-call">or call or text RYDJA on <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
+    <% } %>
+  </p>
+
+  <h2>Who sends us work</h2>
+  <ul>
+    <li><strong>Realtors and listing agents</strong> &mdash; getting a property empty, swept and photographable before it goes live</li>
+    <li><strong>Property managers</strong> &mdash; turnovers between tenants, on the turnover&rsquo;s own clock</li>
+    <li><strong>Landlords and owners</strong> &mdash; single units, houses, or several at once</li>
+    <li><strong>Real-estate investors</strong> &mdash; a property bought as-is and full of somebody else&rsquo;s things</li>
+    <li><strong>Estate-sale companies and auctioneers</strong> &mdash; clearing what is left once the sale is over</li>
+    <li><strong>Senior move managers and downsizing professionals</strong> &mdash; the part of a move that is not moving</li>
+    <li><strong>Probate, estate and elder-law professionals</strong> &mdash; a vendor to hand a client who has a house to empty</li>
+    <li><strong>Restoration companies</strong> &mdash; contents removal and debris hauling alongside your own work</li>
+  </ul>
+
+  <h2>What we clear</h2>
+  <p>
+    All of it is quoted the same way and can be combined into one job on one property rather than split across
+    several vendors.
+  </p>
+  <ul>
+    <li><a class="text-link" href="/estate-cleanouts">Estate and inherited-property cleanouts</a> &mdash; a whole house, garage, basement, attic, barn and outbuildings</li>
+    <li><a class="text-link" href="/rental-property-cleanouts">Rental turnovers and tenant move-out cleanouts</a> &mdash; abandoned furniture and household contents</li>
+    <li><a class="text-link" href="/cleanouts">Garage, basement, outbuilding and storage-unit cleanouts</a> &mdash; a whole space back to empty</li>
+    <li><a class="text-link" href="/furniture-appliance-removal">Furniture and appliance removal</a> &mdash; including single heavy items down a stair</li>
+    <li><a class="text-link" href="/junk-removal">Junk removal and debris hauling</a> &mdash; one load or several</li>
+    <li><a class="text-link" href="/yard-cleanup">Yard and outdoor debris clearing</a> &mdash; brush, storm damage, outdoor clutter before a showing</li>
+    <li><a class="text-link" href="/light-demolition">Light demolition where it is appropriate</a> &mdash; sheds, playsets, fencing, shelving; non-structural only</li>
+    <li><strong>Pre-listing property clearing</strong> &mdash; the combination of the above that gets a property ready to photograph</li>
+  </ul>
+
+  <h2>How working with us actually goes</h2>
+  <ol class="area-steps">
+    <li>
+      <strong>You send photographs</strong> &mdash; yours, the owner&rsquo;s, or whoever did the walkthrough.
+      Rooms, outbuildings, and the route out to where a truck can park. No site visit to schedule, which is the
+      step that normally costs you two days.
+    </li>
+    <li>
+      <strong>We scope it and send a price</strong> &mdash; based on volume, access, labour and disposal. One
+      number, with what it covers written down. Nothing is booked and nothing is owed at this stage.
+    </li>
+    <li>
+      <strong>You or your client approves it</strong> &mdash; from a phone, wherever anybody happens to be.
+      Approval is the customer&rsquo;s, always: we do not start work on a quote nobody has agreed to.
+    </li>
+    <li>
+      <strong>We schedule it</strong> &mdash; if we have proposed a time with the quote, confirming it books the
+      job. If that slot does not fit your closing, listing or turnover date, ask and we will work to yours where
+      we can, or tell you plainly if we cannot.
+    </li>
+    <li>
+      <strong>We clear it and tell you it is done</strong> &mdash; loaded, hauled, disposed of, swept. Photographs
+      of the finished space where we have them, which is usually what you need for your own file.
+    </li>
+  </ol>
+
+  <h2>Why professionals keep us on the list</h2>
+  <h3>Fast photo-based scoping</h3>
+  <p>
+    You do not have to be at the property and neither do we. A set of photographs from a phone is enough to price
+    almost any cleanout, which means a number can be in your hands the same day you asked rather than after a
+    site-visit appointment that suited a vendor&rsquo;s calendar.
+  </p>
+
+  <h3>One point of contact</h3>
+  <p>
+    RYDJA is owner-operated. The person who reads your photographs, prices the job and answers your text is the
+    person on site doing it. There is no dispatcher in the middle and no account manager to be handed between.
+  </p>
+
+  <h3>A quote your client approves, not a running meter</h3>
+  <p>
+    The price is agreed before the work starts. If a property turns out to be materially bigger than the
+    photographs showed &mdash; an attic nobody opened, a crawl space nobody mentioned &mdash; we stop and come back
+    to you rather than quietly adding to the bill. The number that was approved is the number unless somebody
+    agrees to a different one.
+  </p>
+
+  <h3>Documentation where it exists</h3>
+  <p>
+    Every request carries its own work reference, which is the thing to quote on an invoice or in a message about
+    it. We send photographs of the finished space where we have them. We do not manufacture before-and-after
+    marketing out of a client&rsquo;s property.
+  </p>
+
+  <h3>Recovery rather than straight to landfill</h3>
+  <p>
+    Where it is practical and the owner has authorized it, usable material is separated for donation, recycling,
+    scrap or resale instead of being buried. Worth knowing if your client cares what happens to the contents, and
+    on some jobs it affects the price.
+  </p>
+
+  <h3>Vendor paperwork on request</h3>
+  <p>
+    A W-9 and the usual vendor onboarding paperwork are available on request &mdash; ask and we will send them to
+    you directly. They are not published on this page, and nor is anything else that belongs in a file rather than
+    on a website.
+  </p>
+
+  <div class="panel notice">
+    <h3>What we don&rsquo;t claim, and won&rsquo;t</h3>
+    <p>
+      So you are not relying on something nobody checked: RYDJA does not claim to be insured, bonded, licensed,
+      accredited or certified on this page, because none of that has been separately verified. If your process
+      requires a certificate of insurance or a licence number before you can place work with a vendor, ask us
+      directly and we will tell you honestly what we can and cannot produce. We would rather lose the job than
+      have you discover the answer later.
+    </p>
+    <p>
+      We are also not attorneys, an eviction service, process servers, appraisers, a cleaning company or a
+      structural demolition contractor. Where a job needs one of those, that is what we will tell you.
+    </p>
+  </div>
+
+  <h2>What we need from you on a job</h2>
+  <ul>
+    <li><strong>Authority</strong> &mdash; confirmation that the owner or an authorized agent has the right to have the contents removed</li>
+    <li><strong>Access</strong> &mdash; lockbox, code, key handover, or somebody meeting us there; and whether a truck and trailer can get close</li>
+    <li><strong>A clear statement of what stays</strong> &mdash; appliances included in a let, anything the owner is keeping, anything already sold</li>
+    <li><strong>The date</strong> &mdash; the closing, listing, inspection or turnover date, so we can tell you honestly whether it is workable</li>
+    <li><strong>Known hazards</strong> &mdash; anything on the exclusion list, so we can arrange around it rather than discover it</li>
+  </ul>
+
+  <div class="panel notice">
+    <h3>What we can&rsquo;t take on</h3>
+    <ul>
+      <li>No hazardous waste, asbestos, chemicals, fuels, solvents, paint, propane or batteries</li>
+      <li>No biohazards, regulated medical waste, sewage, or contaminated or soiled material</li>
+      <li>No pest, mould or environmental remediation</li>
+      <li>No cleaning, decorating, repairs or surface preparation &mdash; we clear and sweep</li>
+      <li>Nothing structural: no building demolition, no load-bearing work, no excavation</li>
+      <li>No gas, plumbing or hard-wired electrical disconnection &mdash; a licensed trade first</li>
+      <li>No legal, probate, title, eviction or tenancy advice, and no determination of abandonment</li>
+      <li>We do not appraise, value or purchase property contents</li>
+    </ul>
+    <p>If you are unsure whether a particular job fits, send photographs and ask before you commit a date to anybody.</p>
+  </div>
+
+  <h2>Common questions</h2>
+
+  <h3>Can I get a price without anyone visiting the property?</h3>
+  <p>
+    Yes &mdash; that is the normal route. Photographs of the rooms and buildings involved, plus the route out, are
+    enough to price almost any cleanout. Send them through the <a class="text-link" href="/quote">quote form</a>
+    and the price comes back to you.
+  </p>
+
+  <h3>Can my client approve and pay rather than me?</h3>
+  <p>
+    Yes. Tell us who the quote should go to and that is who receives it and approves it. Equally, if you are
+    arranging and settling it yourself, that is fine too &mdash; just say which when you send the request.
+  </p>
+
+  <h3>Can you work to a closing, listing or turnover date?</h3>
+  <p>
+    Send the date with the request. You will get a straight answer about whether it is workable rather than an
+    encouraging one. A missed closing is a far bigger problem for you than a job we turned down.
+  </p>
+
+  <h3>Do you take on more than one property at a time?</h3>
+  <p>
+    Yes, and more than one unit in a building. Photograph each one separately so the quote covers all of them, and
+    say whether they have to be done together or can be staged over a week or two.
+  </p>
+
+  <h3>Will you buy the contents?</h3>
+  <p>
+    No. RYDJA is not a buyer, dealer or appraiser and will not make an offer on what is in a property. If you
+    think there is something genuinely valuable in there, get it looked at by a specialist before we arrive. We
+    are the people who clear what is left afterwards.
+  </p>
+
+  <h3>Do you work outside the named service area?</h3>
+  <p>
+    Sometimes, and larger jobs travel further than small ones. A whole-property clearance is often worth a longer
+    drive where a single-item pickup is not. See the
+    <a class="text-link" href="/service-area">service area</a> for where we work and ask about anything just
+    outside it.
+  </p>
+
+  <h2>Where we work</h2>
+  <p>
+    RYDJA serves <%= serviceArea %>, and <%= legalEntity %> is the entity behind the brand. Every job is quoted
+    individually from photographs &mdash; there are no packages, no per-unit rates and no minimum contract to sign
+    before you can send one over.
+  </p>
+
+  <h2>Related work</h2>
+  <ul>
+    <li><a class="text-link" href="/estate-cleanouts">How an estate or whole-property cleanout runs</a></li>
+    <li><a class="text-link" href="/rental-property-cleanouts">Rental property cleanouts and tenant turnovers</a></li>
+    <li><a class="text-link" href="/cleanouts">Garage, basement and property cleanouts</a></li>
+    <li><a class="text-link" href="/junk-removal">Junk removal and hauling, one load or several</a></li>
+    <li><a class="text-link" href="/services">Everything RYDJA takes on, service by service</a></li>
+  </ul>
+
+  <p class="cta-inline">
+    <a class="button" href="/quote?service=<%= encodeURIComponent('Rental / property turnover') %>">Request a property cleanout quote</a>
+    <% if (businessPhone) { %>
+      <span class="or-call">or call or text RYDJA on <a class="text-link" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a></span>
+    <% } %>
+  </p>
+</main>
+
+<script type="application/ld+json"><%- breadcrumbJsonLd %></script>
+
+<%- include('partials/foot') %>

@@ -539,3 +539,50 @@ test('no filter dropdown renders an object where a label belongs', async () => {
     assert.ok(!(await page(url)).includes('[object Object]'), url);
   }
 });
+
+// A work reference is RYDJA- plus six characters from an alphabet that is
+// mostly digits, so stripping it to its digits leaves a two- or three-digit
+// needle. Run that against every phone number with its punctuation removed
+// and a group of customers sharing an exchange all match: one reference in
+// the search box returned the entire inbox.
+//
+// Intermittent by construction, because it depends on which reference the
+// generator happened to mint. These two assert the fix directly rather than
+// relying on a random value to expose it.
+test('a work reference finds one lead, whatever digits it happens to contain', async () => {
+  // Active leads only: earlier tests in this file archive some, and the
+  // default view correctly hides those.
+  const rows = app.read
+    .prepare('select work_ref from leads where archived_at is null')
+    .all()
+    .map((r) => r.work_ref);
+  assert.ok(rows.length > 1, 'needs several active leads to be worth asserting');
+
+  for (const ref of rows) {
+    assert.equal(rowCount(await page('/admin/leads?q=' + encodeURIComponent(ref))), 1,
+      ref + ' should find exactly its own lead');
+  }
+});
+
+test('a phone number still finds its lead however it is punctuated', async () => {
+  const { customer_phone: phone } = app.read
+    .prepare(`select c.phone as customer_phone from leads l
+              join customers c on c.id = l.customer_id
+              where l.archived_at is null order by l.id limit 1`)
+    .get();
+
+  const area = phone.slice(0, 3);
+  const exchange = phone.slice(3, 6);
+  const line = phone.slice(6);
+
+  for (const typed of [
+    phone,
+    `(${area}) ${exchange}-${line}`,
+    `${area}-${exchange}-${line}`,
+    `${area}.${exchange}.${line}`,
+    `${exchange}-${line}`
+  ]) {
+    assert.ok(rowCount(await page('/admin/leads?q=' + encodeURIComponent(typed))) >= 1,
+      typed + ' should still find the lead it belongs to');
+  }
+});

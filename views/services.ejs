@@ -1,31 +1,67 @@
 <%- include('partials/head', {
-  title: 'Services',
+  fullTitle: 'Junk Removal & Property Cleanout Services in West Michigan | RYDJA',
   canonicalPath: '/services',
-  description: 'Junk removal, garage and basement cleanouts, estate and rental cleanouts, yard cleanup, furniture and appliance removal, moving help and light demo in West Michigan.'
+  description: 'Junk removal and hauling, garage and basement cleanouts, estate and rental cleanouts, yard cleanup, furniture and appliance removal and shed removal in West Michigan.'
 }) %>
 
 <main id="main" tabindex="-1" class="section shell">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> <span aria-hidden="true">&rsaquo;</span>
+    <span aria-current="page">Services</span>
+  </nav>
+
   <div class="section-heading">
     <div class="eyebrow">SERVICES</div>
-    <h1>What we take on.</h1>
-    <p class="lede smaller">Labor, a truck, cleanup, or just getting something handled. If it is physical property work, send it in. Serving <%= serviceArea %>.</p>
+    <h1>Junk removal, cleanouts and property services</h1>
+    <p class="lede smaller">
+      Every job below has a page of its own explaining how it runs, what it covers and what we cannot take.
+      All of it is quoted the same way: send photographs, get a price, decide. Serving <%= serviceArea %>.
+    </p>
   </div>
 
+  <%# One card per real page, from the canonical catalog. There is no second
+      list of services anywhere -- a card here cannot exist without the page
+      it links to, which is the whole point of building it this way. %>
   <div class="service-grid">
-    <% services.forEach(function(s) { %>
-      <article<%= s.flagship ? ' class="flagship-card"' : '' %>>
-        <% if (s.flagship) { %><div class="eyebrow">FLAGSHIP</div><% } %>
-        <h3><% if (s.href) { %><a href="<%= s.href %>"><%= s.name %></a><% } else { %><%= s.name %><% } %></h3>
-        <p><%= s.blurb %></p>
-        <% if (s.href) { %>
-          <a class="text-link" href="<%= s.href %>">Read about <%= s.name.toLowerCase() %> &rarr;</a>
-          <a class="text-link" href="/quote?service=<%= encodeURIComponent(s.quote || s.name) %>">Get a quote &rarr;</a>
-        <% } else { %>
-          <a class="text-link" href="/quote?service=<%= encodeURIComponent(s.name) %>">Get a quote &rarr;</a>
-        <% } %>
+    <% servicePages.forEach(function(p, i) { %>
+      <article<%= i === 0 ? ' class="flagship-card"' : '' %>>
+        <% if (i === 0) { %><div class="eyebrow">FLAGSHIP</div><% } %>
+        <h3><a href="/<%= p.slug %>"><%= p.card.title %></a></h3>
+        <p><%= p.card.blurb %></p>
+        <div class="card-links">
+          <a class="text-link" href="/<%= p.slug %>">Read about <%= p.card.title.toLowerCase() %> &rarr;</a>
+          <a class="text-link" href="/quote?service=<%= encodeURIComponent(p.quoteService) %>">Get a quote &rarr;</a>
+        </div>
       </article>
     <% }) %>
   </div>
+
+  <%# The B2B page, in a band of its own rather than as an eighth homeowner
+      card. It is not a service somebody buys -- it is the page we hand to
+      people who place this work on somebody else's behalf. %>
+  <section class="flagship pro-band" aria-labelledby="pro-band-head">
+    <div class="flagship-copy">
+      <div class="eyebrow">FOR PROPERTY PROFESSIONALS</div>
+      <h2 id="pro-band-head">Placing cleanout work for somebody else?</h2>
+      <p class="lede smaller">
+        Realtors, property managers, landlords, estate-sale companies, auctioneers, senior move managers and
+        investors use RYDJA as the crew that clears a property. Photo-based scoping, one point of contact, and a
+        quote you approve before anything is scheduled.
+      </p>
+      <div class="hero-actions">
+        <a class="button" href="/property-professionals">How RYDJA works with professionals</a>
+        <a class="text-link" href="/quote?service=<%= encodeURIComponent('Rental / property turnover') %>">Request a property cleanout quote &rarr;</a>
+      </div>
+    </div>
+    <ul class="flagship-list">
+      <li>Estate and inherited-property cleanouts</li>
+      <li>Rental turnovers between tenants</li>
+      <li>Pre-listing property clearing</li>
+      <li>Garages, basements and outbuildings</li>
+      <li>Furniture, appliance and debris removal</li>
+      <li>Light demolition where it is appropriate</li>
+    </ul>
+  </section>
 
   <%# The same work again, in the words a customer would actually type. One
       honest list beats twenty thin pages that say the same thing. %>
@@ -44,7 +80,14 @@
     <p>No hazardous waste, asbestos, biohazards, unknown chemicals, regulated medical waste or similar. If you are unsure about something, send a photo and ask before the crew arrives.</p>
   </div>
 
-  <p class="center-cta"><a class="button" href="/quote">Request a quote</a></p>
+  <p class="center-cta">
+    <a class="button" href="/quote">Request a quote</a>
+  </p>
+  <p class="center-cta">
+    <a class="text-link" href="/service-area">See where RYDJA works across West Michigan &rarr;</a>
+  </p>
 </main>
+
+<script type="application/ld+json"><%- breadcrumbJsonLd %></script>
 
 <%- include('partials/foot') %>

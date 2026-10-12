@@ -302,15 +302,22 @@ test('the homepage gives the service prominent placement and both links', async 
 test('the services page carries it as a major card, ahead of the smaller work', async () => {
   const doc = await html('/services');
 
-  const estate = doc.indexOf('Estate &amp; Whole-Property Cleanouts');
+  // The card copy now comes from the page itself rather than from a separate
+  // marketing array in server.js, which is why these are the page's own
+  // card titles and not a second set of names invented alongside them.
+  const estate = doc.indexOf('>Estate Cleanouts<');
   assert.ok(estate !== -1, 'the services page needs the card');
-  for (const smaller of ['Junk &amp; Hauling', 'Light Demo', 'Other Jobs']) {
-    assert.ok(estate < doc.indexOf(smaller), 'the flagship card should come before ' + smaller);
+  for (const smaller of ['Junk Removal &amp; Hauling', 'Shed Removal &amp; Light Demolition',
+                         'Yard Cleanup &amp; Debris Removal']) {
+    const at = doc.indexOf(smaller);
+    assert.ok(at !== -1, 'the services page should carry a card for ' + smaller);
+    assert.ok(estate < at, 'the flagship card should come before ' + smaller);
   }
 
   const card = doc.slice(estate - 500, estate + 900);
   assert.match(card, /href="\/estate-cleanouts"/, 'the card should link the dedicated page');
   assert.ok(card.includes('/quote?service=' + encodeURIComponent(ESTATE)), 'and prefill a quote');
+  assert.match(card, /FLAGSHIP/, 'and still be marked as the flagship');
 });
 
 test('the service area mentions estate work without widening the coverage claim', async () => {

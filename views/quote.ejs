@@ -27,16 +27,8 @@
         <label>Phone<input required name="phone" type="tel" value="<%= v('phone') %>" placeholder="(555) 555-5555"></label>
       </div>
       <div class="two">
-        <label>Email<input name="email" type="email" value="<%= v('email') %>" placeholder="you@example.com"></label>
         <label>ZIP code<input required name="zip" inputmode="numeric" value="<%= v('zip') %>" placeholder="49503"></label>
-      </div>
-
-      <label>Street address <span class="hint">optional &mdash; helps us judge access</span>
-        <input name="address" value="<%= v('address') %>" placeholder="123 Main St">
-      </label>
-      <div class="two">
-        <label>City<input name="city" value="<%= v('city') %>"></label>
-        <label>State<input name="state" value="<%= v('state') %>" maxlength="20"></label>
+        <label>Email <span class="hint">optional</span><input name="email" type="email" value="<%= v('email') %>" placeholder="you@example.com"></label>
       </div>
 
       <label>What do you need?
@@ -58,6 +50,17 @@
         <textarea required name="description" rows="5" placeholder="Example: One-car garage, mostly boxes and old furniture. Everything can go except the red toolbox."><%= v('description') %></textarea>
       </label>
 
+      <%# The photo upload sits here, directly under the description, because
+          this is the one field that most decides whether we can price the job
+          at all. It used to be the last thing before the button, below three
+          optional sections -- which is a long way to scroll past things you do
+          not have to fill in to reach the thing we most want. %>
+      <label class="upload">
+        <span>Photos</span>
+        <input type="file" name="photos" accept="image/*" multiple>
+        <small>Up to 12 photos. Clear shots of everything you want handled, plus the way out to the driveway.</small>
+      </label>
+
       <div class="two">
         <label>Where is the material?
           <select name="access">
@@ -74,6 +77,32 @@
           </select>
         </label>
       </div>
+
+      <%# ---- optional: where the property is ----
+          Three fields that help us judge access and route, and not one of them
+          is needed to get a price -- the ZIP above is. Collapsed, so the path
+          to the button is short for somebody who just wants a number, and open
+          already if a rejected submission came back carrying any of it.
+
+          <details> rather than a script: the inputs are in the DOM whether the
+          section was ever opened or not, so everything typed into it is
+          submitted, and the form behaves identically with JavaScript blocked. %>
+      <% var addressOpen = Boolean(v('address') || v('city') || v('state')) %>
+      <details class="prefs" <%= addressOpen ? 'open' : '' %>>
+        <summary>Where is the property? <span class="optional-tag">optional</span></summary>
+        <div class="details-body">
+          <p class="hint block">
+            Helps us judge access and plan the route. Your ZIP above is enough for a price.
+          </p>
+          <label>Street address
+            <input name="address" value="<%= v('address') %>" placeholder="123 Main St">
+          </label>
+          <div class="two">
+            <label>City<input name="city" value="<%= v('city') %>"></label>
+            <label>State<input name="state" value="<%= v('state') %>" maxlength="20"></label>
+          </div>
+        </div>
+      </details>
 
       <%# ---- optional: estate / whole-property detail ----
           Revealed for the flagship service only. Nothing here is required:
@@ -111,9 +140,25 @@
         </label>
       </fieldset>
 
-      <%# ---- optional: when would suit them ---- %>
-      <fieldset class="prefs">
-        <legend>When would you like us to come?</legend>
+      <%# ---- optional: when would suit them ----
+          Collapsed by default, and the reason is the whole point of this pass:
+          nobody should have to plan an appointment in order to ask what a job
+          costs. These were four visible scheduling controls between the
+          customer and the submit button, every one of them optional.
+
+          Open already if a submission came back carrying any preference, so a
+          validation error never appears to have swallowed what somebody typed.
+          The inputs are in the DOM either way, so a closed section still posts
+          whatever is in it. %>
+      <%
+        const schedulingOpen = Boolean(
+          v('preferred_date_1') || v('preferred_date_2') || v('scheduling_note') ||
+          (values && values.scheduling_flexible)
+        );
+      %>
+      <details class="prefs" <%= schedulingOpen ? 'open' : '' %>>
+        <summary>When would you like us to come? <span class="optional-tag">optional</span></summary>
+        <div class="details-body">
         <p class="hint block">
           These are preferred times, not confirmed appointments. We&rsquo;ll confirm availability with your quote.
           Leave it blank if you&rsquo;d rather talk it through.
@@ -153,13 +198,8 @@
         <label>Anything we should know about timing? <span class="hint">optional</span>
           <textarea name="scheduling_note" rows="2" maxlength="300" placeholder="Example: After 3 PM is easiest. Gate code is on the sign."><%= v('scheduling_note') %></textarea>
         </label>
-      </fieldset>
-
-      <label class="upload">
-        <span>Photos</span>
-        <input type="file" name="photos" accept="image/*" multiple>
-        <small>Up to 12 photos. Clear shots of everything you want handled.</small>
-      </label>
+        </div>
+      </details>
 
       <label class="check">
         <input type="checkbox" name="hazard_ack" value="1" required>

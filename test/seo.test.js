@@ -19,10 +19,13 @@ const SITE_URL = 'https://getrydja.com';
 const { SERVICE_PAGES } = require('../content/service-pages');
 
 // The indexable set, in sitemap order. Derived from the service page content so
-// adding a page cannot leave this behind.
+// adding a service page cannot leave this behind. /property-professionals is
+// listed explicitly: it is indexable but is not a service, so it is not in
+// SERVICE_PAGES and never will be.
 const PUBLIC_PAGES = [
   '/', '/quote', '/services',
   ...SERVICE_PAGES.map((p) => '/' + p.slug),
+  '/property-professionals',
   '/service-area', '/terms', '/privacy', '/accessibility', '/image-credits'
 ];
 
@@ -107,12 +110,38 @@ test('the services page names the work in the words a customer would use', async
   const doc = await html('/services');
 
   for (const term of [
-    'Junk removal', 'Garage cleanouts', 'Basement cleanouts', 'Barn cleanouts',
-    'Storage unit cleanouts', 'Estate cleanouts', 'Yard cleanup', 'Furniture removal',
-    'Appliance removal', 'Moving help', 'Light demolition', 'Scrap pickup', 'Property resets'
+    'Junk removal', 'Junk hauling', 'Garage cleanouts', 'Basement cleanouts', 'Barn cleanouts',
+    'Storage unit cleanouts', 'Estate cleanouts', 'Tenant move-out cleanouts', 'Yard cleanup',
+    'Storm debris removal', 'Furniture removal', 'Appliance removal', 'Moving help',
+    'Shed removal', 'Light demolition', 'Scrap pickup', 'Property resets'
   ]) {
     assert.ok(doc.includes(term), 'services page should mention ' + term);
   }
+});
+
+// The hub is the page that has to link every service, because it is the one a
+// visitor reaches by clicking "Services" and the one the breadcrumb on every
+// service page points back at. A card that linked nowhere was the original
+// defect here.
+test('the services hub links every service page, with a quote CTA on each', async () => {
+  const doc = await html('/services');
+
+  for (const page of SERVICE_PAGES) {
+    assert.ok(doc.includes('href="/' + page.slug + '"'), '/services should link /' + page.slug);
+    // The card title as the page renders it: an ampersand in copy is escaped.
+    assert.ok(doc.includes(page.card.title.replace(/&/g, '&amp;')),
+      '/services should name ' + page.card.title);
+    assert.ok(
+      doc.includes('/quote?service=' + encodeURIComponent(page.quoteService)),
+      '/services should offer a quote prefilled for /' + page.slug
+    );
+  }
+
+  // The flagship still leads, and the B2B page sits in its own band rather
+  // than masquerading as an eighth homeowner service card.
+  assert.ok(doc.indexOf('/estate-cleanouts') < doc.indexOf('/light-demolition'));
+  assert.ok(doc.includes('href="/property-professionals"'), '/services should link the referral page');
+  assert.match(doc, /FOR PROPERTY PROFESSIONALS/);
 });
 
 test('the footer carries the contact block, and no private address', async () => {
@@ -278,18 +307,32 @@ test('the homepage carries valid structured data, and invents nothing', async ()
   assert.equal(data.telephone, '1-616-929-3360');
   assert.equal(data.logo, SITE_URL + '/img/rydja-logo.jpg');
   assert.match(data.description, /West Michigan/);
-  assert.deepEqual(
-    data.areaServed.map((a) => a.name),
-    ['Lowell, Michigan', 'Stanton, Michigan', 'West Michigan']
-  );
+  // The communities the owner actually set on the Business Profile, as
+  // business-listing-master.md §6 records them. "Michigan, USA" is on that
+  // profile too and is deliberately not propagated: a service-area business
+  // with one truck does not serve a state.
+  assert.deepEqual(data.areaServed.map((a) => a.name), [
+    'Lowell, Michigan', 'Stanton, Michigan', 'Belding, Michigan', 'Ionia, Michigan',
+    'Grand Rapids, Michigan', 'Rockford, Michigan', 'Ada Township, Michigan',
+    'Alto, Michigan', 'Baldwin, Michigan', 'West Michigan'
+  ]);
+  assert.ok(!data.areaServed.some((a) => /Michigan,?\s*USA/i.test(a.name)),
+    'a statewide claim must not reach areaServed');
   assert.ok(data.knowsAbout.includes('junk removal'));
 
   // Claims we have no basis for must not appear. A wrong knowledge panel is
   // worse than no knowledge panel.
-  for (const invented of ['address', 'openingHours', 'openingHoursSpecification',
-                          'priceRange', 'aggregateRating', 'review']) {
+  for (const invented of ['address', 'openingHours', 'priceRange', 'aggregateRating', 'review']) {
     assert.ok(!(invented in data), 'must not invent ' + invented);
   }
+
+  // Two things that became facts rather than guesses, and are therefore
+  // allowed: the formed entity, and hours the owner confirmed off the
+  // Business Profile. Both are also stated in the page a visitor reads.
+  assert.equal(data.legalName, 'RYDJA LLC');
+  assert.equal(data.openingHoursSpecification[0].opens, '07:00');
+  assert.equal(data.openingHoursSpecification[0].closes, '19:00');
+  assert.equal(data.openingHoursSpecification[0].dayOfWeek.length, 7);
 
   // sameAs is allowed, but only for profiles that actually exist. Every entry
   // must be a real account we hold.

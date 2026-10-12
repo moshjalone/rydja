@@ -111,6 +111,10 @@
     We serve <%= serviceArea %>. If you are just outside that, it is still worth asking &mdash; see the
     <a class="text-link" href="/service-area">service area</a> for how we decide.
   </p>
+  <%# A page may add what the area means for this particular job: a whole
+      property justifies a drive a single pickup does not. Optional, because
+      on most pages the sentence above is the whole truth of it. %>
+  <% if (page.areaNote) { %><p><%- page.areaNote %></p><% } %>
 
   <h2>Related work</h2>
   <p>You might also want:</p>

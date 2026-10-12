@@ -39,6 +39,15 @@ const PAGES = [
       }
     },
     nav: 'Estate Cleanouts',
+    // How this service is named and described wherever it is listed rather
+    // than read: the homepage grid and the services hub. Longer than `nav`,
+    // because a card has room to say what the job actually is, and written
+    // for a customer scanning rather than for a crawler counting.
+    card: {
+      title: 'Estate Cleanouts',
+      blurb:
+        'A whole property emptied after a death, a move or an inheritance. House, garage, basement, attic, barn and outbuildings, at the pace the family needs.'
+    },
     // The quote form's own option for this work. The nav label is shorter than
     // the form's wording, and a CTA has to prefill something the select
     // actually offers -- server.js checks that at boot.
@@ -131,7 +140,8 @@ const PAGES = [
         h: 'Executors, agents and property managers',
         paras: [
           'A good share of this work comes from people clearing a property they do not live in. Executors and personal representatives settling an estate. Agents and owners getting a house empty before photographs are taken. Landlords and property managers turning over a unit or an entire building.',
-          'What we need from you is the same in every case: the authority to have the contents removed, safe and lawful access to the property, and a clear statement of what stays. We handle the physical clearing only &mdash; we are not involved in probate, title, tenancy law or anything an attorney should be handling, and we will say so rather than offer an opinion we have no business having.'
+          'What we need from you is the same in every case: the authority to have the contents removed, safe and lawful access to the property, and a clear statement of what stays. We handle the physical clearing only &mdash; we are not involved in probate, title, tenancy law or anything an attorney should be handling, and we will say so rather than offer an opinion we have no business having.',
+          'If you place this kind of work regularly rather than once, there is a page written for you: <a class="text-link" href="/property-professionals">how RYDJA works with Realtors, property managers and estate professionals</a>. For a tenancy ending rather than an estate being settled, see <a class="text-link" href="/rental-property-cleanouts">rental property cleanouts and turnovers</a>.'
         ]
       }
     ],
@@ -198,37 +208,109 @@ const PAGES = [
         a: 'Items you designate for removal may be disposed of, recycled, donated, scrapped, reused or resold. Where it is practical and you have authorized it, we separate the usable from the genuinely finished rather than sending it all the same way. We cannot retrieve anything once it has been processed, which is why the pass through the rooms beforehand matters so much.'
       }
     ],
+    // Larger jobs travel better than small ones, and on this page that is
+    // worth saying rather than leaving the reader to infer it from the area
+    // page. Replaces the shared sentence, so nothing is said twice.
+    areaNote:
+      'A whole-property cleanout is usually worth the drive to anywhere we work, and often to somewhere a little past it &mdash; several loads over several visits pays for the travel in a way a single pickup does not. Send the address with your photographs and we will tell you plainly whether we can reach it.',
     related: [
       { href: '/cleanouts', label: 'a single garage, basement or storage unit rather than a whole property' },
+      { href: '/rental-property-cleanouts', label: 'a rental turnover after a tenant has moved out' },
       { href: '/junk-removal', label: 'one load of household junk, with no sorting involved' },
       { href: '/hauling-moving-help', label: 'moving or delivering the things you are keeping' },
-      { href: '/light-demolition', label: 'taking down shelving, sheds or built-ins once a space is empty' }
+      { href: '/light-demolition', label: 'taking down shelving, sheds or built-ins once a space is empty' },
+      { href: '/property-professionals', label: 'placing this work as a Realtor, property manager or estate professional' }
     ]
   },
 
   // ------------------------------------------------------------------ junk
+  //
+  // This page owns BOTH of the disposal-side phrases: junk removal and junk
+  // hauling. They are the same job -- material leaves the property and does
+  // not come back -- and splitting them into two pages would have produced
+  // two thin pages competing with each other for one intent.
+  //
+  // The transport side is a genuinely different job and lives on
+  // /hauling-moving-help: there the thing has a destination. The line between
+  // the two pages is "does it have somewhere to go?", and both pages point at
+  // each other so a visitor who landed on the wrong one can cross over.
   {
     slug: 'junk-removal',
     nav: 'Junk Removal',
-    title: 'Junk Removal in West Michigan | RYDJA',
-    h1: 'Junk removal in West Michigan',
+    card: {
+      title: 'Junk Removal & Hauling',
+      blurb:
+        'Household junk, furniture, appliances, scrap and debris hauled away. One item or a whole load, and you do not have to carry it outside.'
+    },
+    quoteService: 'Junk / hauling',
+    title: 'Junk Removal & Junk Hauling in West Michigan | RYDJA',
+    h1: 'Junk removal and hauling in West Michigan',
     description:
-      'Local junk removal and hauling: household junk, furniture, appliances, scrap and debris. Send photos and get a price back, with no obligation.',
+      'Junk removal and junk hauling across West Michigan: household junk, furniture, appliances, scrap and debris. One item or a whole load. Send photos for a price.',
     lede:
       'The pile in the corner of the garage, the couch nobody wants, the load that will not fit in your car. Send photos, get a price, and we take it away.',
     intro: [
-      'Junk removal is the core of what RYDJA does. You point at what needs to go, we load it, and we haul it off. Most jobs are one visit, and you do not have to be the one lifting anything.',
-      'We work from photos rather than a sales visit. That means you get a real number without anyone standing in your kitchen, and we arrive already knowing what we are picking up and what it will take.'
+      'This is the core of what RYDJA does. You point at what needs to go, we load it, and we haul it off the property. Most jobs are one visit, and you do not have to be the one lifting anything.',
+      'Junk removal and junk hauling are the same job described two ways, and both are this page: unwanted material leaves and does not come back. If what you have needs taking <em>somewhere</em> rather than taking away &mdash; a delivery, a Marketplace pickup, furniture moving between two houses &mdash; that is <a class="text-link" href="/hauling-moving-help">local hauling and moving help</a> instead.',
+      'We work from photographs rather than a sales visit. That means you get a real number without anyone standing in your kitchen, and we arrive already knowing what we are picking up and what it will take.'
     ],
-    jobsHeading: 'Typical junk removal jobs',
+    jobsHeading: 'Typical junk removal and hauling jobs',
     jobs: [
       'Single items &mdash; a couch, a mattress, a fridge, a treadmill',
       'The slow accumulation in a garage, shed or spare room',
       'Boxes, bags and household clutter after a sort-out',
-      'Old furniture left behind by a tenant or a previous owner',
+      'Old furniture and unwanted items left behind by a tenant or a previous owner',
       'Scrap metal, appliances and anything else with a bit of weight to it',
       'Construction offcuts and small amounts of renovation debris',
       'A truckload of mixed junk you simply want gone'
+    ],
+    // Three sections, each answering a question the old version of this page
+    // left the visitor to guess at: will you take my kind of thing, what
+    // actually happens on the day, and is my job too small to bother with.
+    sections: [
+      {
+        h: 'What we haul away',
+        paras: [
+          'The most common question on this page is simply whether we take a particular kind of thing. Almost always the answer is yes. In rough order of how often it comes up:'
+        ],
+        list: [
+          '<strong>Couches, sectionals and furniture</strong> &mdash; including the sleeper sofa nobody can get back down the stair',
+          '<strong>Mattresses and box springs</strong> &mdash; the item kerbside collection most often refuses',
+          '<strong>Appliances</strong> &mdash; fridges, freezers, washers, dryers, ovens, dishwashers, water heaters',
+          '<strong>Household clutter</strong> &mdash; the spare room, the closet, the pile that has been growing behind the door',
+          '<strong>Boxes and bagged junk</strong> &mdash; after a sort-out, a move or a clear-out',
+          '<strong>Garage junk</strong> &mdash; tools, tyres, paint-free leftovers, shelving, the half of it you have not touched in years',
+          '<strong>Basement junk</strong> &mdash; decades of storage, carried up the stair by us rather than by you',
+          '<strong>Scrap metal</strong> &mdash; appliances, bed frames, pipe, fencing and anything with salvage weight',
+          '<strong>Exercise equipment</strong> &mdash; treadmills, weight benches, rowers, the bike that became a clothes rail',
+          '<strong>Shelving and storage units</strong> &mdash; freestanding or dismantled off a wall',
+          '<strong>Outdoor clutter</strong> &mdash; grills, planters, patio furniture, play equipment, the thing under the tarp',
+          '<strong>Small amounts of renovation debris</strong> &mdash; offcuts, old cabinetry, torn-out carpet, drywall from one room'
+        ],
+        note:
+          'Bulkier outdoor material &mdash; brush, branches, storm damage &mdash; is <a class="text-link" href="/yard-cleanup">yard cleanup and debris removal</a>, and a whole space coming back to empty is a <a class="text-link" href="/cleanouts">garage, basement or property cleanout</a>. Same truck, same crew; they are separate pages because they are priced differently and the photographs we need are different.'
+      },
+      {
+        h: 'What a junk-removal job actually looks like',
+        paras: [
+          'Nobody books this twice a year, so here is the whole shape of it before you send anything.'
+        ],
+        list: [
+          '<strong>A photo quote</strong> &mdash; you send pictures of what is going, we send back a price. No sales visit, no walkthrough appointment, no obligation.',
+          '<strong>Access</strong> &mdash; we look at the route out as closely as the pile itself: the stair, the doorway, the turn, and where a truck and trailer can actually park.',
+          '<strong>Loading</strong> &mdash; our labour, our equipment. You point at things; we carry them.',
+          '<strong>Haul-away</strong> &mdash; it leaves on the same visit in almost every case. We do not stage material at the kerb for someone else to deal with.',
+          '<strong>Sorting and recovery</strong> &mdash; what still has life in it gets pulled out for donation, recycling, scrap or resale instead of being buried, where you have authorized that.',
+          '<strong>Disposal</strong> &mdash; what genuinely has nowhere else to go goes to a proper disposal site, and the fee for that is already inside the price you approved.'
+        ]
+      },
+      {
+        h: 'One item or a whole load: both are normal',
+        paras: [
+          'There is no minimum here. A single couch is a job we quote and do, and so is a trailer packed to the rail. The small ones are frequently the reason somebody calls at all: one heavy awkward thing, no truck, no second pair of hands.',
+          'What this is <em>not</em> is a bin service or a replacement for your weekly collection. RYDJA is on-demand: you ask when you have something to shift, we come once, and there is nothing recurring to cancel. If what you need is a dumpster parked on the drive for a fortnight, that is a different trade and we will say so.'
+        ]
+      }
     ],
     expect: [
       {
@@ -242,18 +324,47 @@ const PAGES = [
       {
         h: 'One price, agreed before we start',
         p: 'You see the number before anyone turns up. If the job turns out to be materially bigger than the photos showed, we talk to you before carrying on &mdash; we do not quietly add to the bill.'
+      },
+      {
+        h: 'Stairs, basements and tight access are the job, not a surprise',
+        p: 'A basement with a narrow stair takes longer than a garage with a driveway, which is why we ask for a photo of the route rather than only the pile. Send both and the price you get is the price that holds.'
       }
     ],
     limits: [
       'No hazardous waste, asbestos, chemicals, fuels, solvents or paint',
       'No biohazards, medical waste or anything contaminated',
       'No propane tanks, batteries or anything that should not go in a trailer',
+      'Not a bin, dumpster or recurring collection service &mdash; we come when you ask us',
       'Anything you want to keep needs pointing out before we load'
     ],
     faqs: [
       {
         q: 'What kinds of junk do you take?',
-        a: 'Household junk, furniture, appliances, scrap metal, yard waste, renovation debris and general clutter. If it is physical property work and it is not on the exclusion list above, it is probably a yes &mdash; send a photo and ask.'
+        a: 'Household clutter, furniture, mattresses, appliances, scrap metal, garage and basement contents, yard waste, small amounts of renovation debris and general unwanted items. If it is physical property work and it is not on the exclusion list above, it is probably a yes &mdash; send a photo and ask.'
+      },
+      {
+        q: 'Do you haul junk from inside the house, or only from outside?',
+        a: 'From inside. Bedrooms, basements, attics, closets, up and down stairs &mdash; wherever it is. Carrying it out is what you are paying for, and a job where everything is already on the drive is simply a cheaper version of the same job.'
+      },
+      {
+        q: 'Do I need to move it to the kerb first?',
+        a: 'No. Leave it where it is and tell us how to get to it. If it <em>is</em> already at the kerb or in the driveway, say so when you send the photos &mdash; easy access shows up in the price.'
+      },
+      {
+        q: 'Will you take just one item?',
+        a: 'Yes. Single-item pickups are completely normal and there is no minimum load. One couch, one fridge, one treadmill &mdash; send a photo and we price it like any other job.'
+      },
+      {
+        q: 'Do you take construction or renovation debris?',
+        a: 'Small volumes, yes &mdash; offcuts, old cabinetry, torn-out carpet, the drywall from one room. Heavy material like concrete, brick, soil and roofing needs checking first, because weight rather than space is the limit on a trailer. Send a photo and tell us roughly how much.'
+      },
+      {
+        q: 'Can you remove furniture and appliances in the same visit?',
+        a: 'Yes, and that is one job and one price rather than two. If appliances are involved, make sure they are unplugged, emptied and defrosted, and tell us about anything that still needs a plumber or an electrician to disconnect &mdash; that is work we are not licensed to do.'
+      },
+      {
+        q: 'Is this the same as my weekly trash collection?',
+        a: 'No. Municipal collection is recurring and takes what fits in the bin. This is on-demand junk removal for the things that do not: the volume, the weight and the awkward items. You call when you have something to shift, and there is nothing ongoing to cancel.'
       },
       {
         q: 'Do I need to be there?',
@@ -265,10 +376,12 @@ const PAGES = [
       }
     ],
     related: [
+      { href: '/furniture-appliance-removal', label: 'one heavy item &mdash; a couch, a mattress, a fridge' },
       { href: '/cleanouts', label: 'clearing a whole garage, basement or storage unit' },
+      { href: '/yard-cleanup', label: 'brush, branches and outdoor debris instead' },
+      { href: '/rental-property-cleanouts', label: 'what a tenant left behind in a rental' },
       { href: '/estate-cleanouts', label: 'emptying an entire house or property' },
-      { href: '/furniture-appliance-removal', label: 'single furniture and appliance pickups' },
-      { href: '/hauling-moving-help', label: 'hauling and moving labour' }
+      { href: '/hauling-moving-help', label: 'moving something rather than getting rid of it' }
     ]
   },
 
@@ -284,25 +397,33 @@ const PAGES = [
       }
     },
     nav: 'Cleanouts',
-    title: 'Cleanouts in West Michigan | RYDJA',
+    card: {
+      title: 'Garage, Basement & Property Cleanouts',
+      blurb:
+        'A whole space back to empty: garages, basements, barns, outbuildings, storage units and spare rooms. Cleared and swept, however many loads it takes.'
+    },
+    quoteService: 'Garage / basement cleanout',
+    title: 'Garage, Basement & Property Cleanouts in West Michigan | RYDJA',
     h1: 'Garage, basement and property cleanouts',
     description:
-      'Full cleanouts across West Michigan: garages, basements, barns, storage units, rental turnovers and estates. Photo quotes, no obligation.',
+      'Garage, basement, barn, outbuilding and storage unit cleanouts across West Michigan. A whole space emptied and swept. Photo quotes, no obligation.',
     lede:
-      'A cleanout is a whole space emptied, not a single pickup. Garages, basements, barns, storage units, rentals and estates &mdash; we clear the lot and leave the floor swept.',
+      'A cleanout is a whole space emptied, not a single pickup. Garages, basements, barns, outbuildings, storage units and spare rooms &mdash; we clear the lot and leave the floor swept.',
     intro: [
-      'Cleanouts are the jobs where a space has to come back to empty. They tend to be bigger, slower and more personal than a straight junk pickup, and they are usually happening because something else is going on: a move, a sale, a tenancy ending, a family member who has died.',
-      'We quote a cleanout from photos of the whole space rather than a list of items, because what matters is volume, access and how much sorting is involved.'
+      'Cleanouts are the jobs where a space has to come back to empty. They tend to be bigger and slower than a straight junk pickup, and they are usually happening because something else is going on: a move, a sale, a tenancy ending, a space that has to be useful again.',
+      'We quote a cleanout from photographs of the whole space rather than a list of items, because what matters is volume, access and how much sorting is involved.',
+      'Two kinds of cleanout have pages of their own, because the job around them is different rather than the lifting: <a class="text-link" href="/estate-cleanouts">estate and whole-property cleanouts</a>, where a family is settling a house, and <a class="text-link" href="/rental-property-cleanouts">rental turnovers</a>, where a landlord or property manager is working to a date between tenants. Everything else is this page.'
     ],
     jobsHeading: 'The cleanouts we handle',
     jobs: [
       '<strong>Garage cleanouts</strong> &mdash; the most common job we do, and usually a single visit',
       '<strong>Basement cleanouts</strong> &mdash; stairs, tight corners and decades of storage',
       '<strong>Barn and outbuilding cleanouts</strong> &mdash; mixed scrap, timber, old equipment',
+      '<strong>Shed and workshop clear-outs</strong> &mdash; emptied, and taken down too if that is what you want',
       '<strong>Storage unit cleanouts</strong> &mdash; often on a deadline before the next billing date',
-      '<strong>Rental and property cleanouts</strong> &mdash; turnovers, abandoned belongings, getting a unit relettable',
-      '<strong>Estate cleanouts</strong> &mdash; handled carefully, at whatever pace the family needs',
-      '<strong>Moving cleanouts</strong> &mdash; everything the movers would not take'
+      '<strong>Spare room, attic and closet cleanouts</strong> &mdash; a room you want back',
+      '<strong>Move-out cleanouts</strong> &mdash; everything the movers would not take, before you hand the keys over',
+      '<strong>Whole-space resets before a sale or an inspection</strong> &mdash; empty, swept and photographable'
     ],
     expect: [
       {
@@ -310,8 +431,8 @@ const PAGES = [
         p: 'This matters more on a cleanout than on any other job. Walk the space, set aside or mark anything that is staying, and make sure documents, medication, firearms, photographs and anything of sentimental value are out before we load. We work from what you point out.'
       },
       {
-        h: 'Estate work goes at your pace',
-        p: 'Estate cleanouts are rarely just a volume problem. If the family needs to go through things first, or wants certain items kept back, say so and we will plan around it rather than around our schedule.'
+        h: 'A storage unit is usually a deadline, not a volume problem',
+        p: 'Most storage-unit cleanouts are racing a billing date. Send the unit size and the date you need it empty by along with the photographs, and we will tell you straight away whether it is workable rather than optimistically.'
       },
       {
         h: 'Access decides a lot of the price',
@@ -334,19 +455,204 @@ const PAGES = [
         a: 'Yes, and it is the job we do most. Send photos of the whole space with the door open, including the path from the garage to where a truck can park.'
       },
       {
+        q: 'Can you empty a basement if everything has to come up a stair?',
+        a: 'Yes &mdash; that is normal and it is most of the labour on a basement job. Photograph the stair, the doorway at the top and the turn at the bottom, because those decide the price far more than the volume does.'
+      },
+      {
+        q: 'Do you clear barns and outbuildings?',
+        a: 'Yes. Barns tend to hold mixed scrap, timber, old equipment and things nobody has looked at in years, which usually means more sorting and more than one load. Photograph each building separately so the quote covers all of it.'
+      },
+      {
+        q: 'Can you clear a storage unit before my next billing date?',
+        a: 'Often, yes. Send the unit size, the facility access hours and the date it has to be empty by. We would rather tell you no than have you pay for another month because we were optimistic.'
+      },
+      {
         q: 'Do I need to sort everything first?',
         a: 'No. Sorting is part of the work. What you do need to do is identify what is staying, because we cannot tell a box of keepsakes from a box of junk by looking at it.'
       },
       {
         q: 'Can you do it before a property closing or a tenancy ends?',
-        a: 'Send the date when you request the quote and we will tell you honestly whether it is workable. We would rather say no than miss your deadline.'
+        a: 'Send the date when you request the quote and we will tell you honestly whether it is workable. We would rather say no than miss your deadline. If it is a tenancy, the <a class="text-link" href="/rental-property-cleanouts">rental turnover page</a> covers how those jobs run.'
       }
     ],
     related: [
       { href: '/estate-cleanouts', label: 'a whole property, or an estate the family is settling' },
+      { href: '/rental-property-cleanouts', label: 'a rental between tenants, on a turnover deadline' },
       { href: '/junk-removal', label: 'a single load rather than a whole space' },
       { href: '/furniture-appliance-removal', label: 'furniture and appliances on their own' },
       { href: '/light-demolition', label: 'taking down shelving, sheds or built-ins first' }
+    ]
+  },
+
+  // ------------------------------------------------- rental property cleanouts
+  //
+  // Genuinely a different page from /cleanouts rather than the same job with
+  // "rental" in front of it. The physical work overlaps; everything around it
+  // does not. The reader is a landlord, a property manager or an investor, the
+  // clock is a turnover date rather than a weekend, and the authorization
+  // question is live in a way it never is in somebody's own garage.
+  //
+  // The hard constraint on this page: RYDJA clears property, and the owner or
+  // their authorized agent is the one who holds -- and warrants -- the lawful
+  // authority to have the contents removed. Nothing here may read as advice on
+  // eviction, abandonment or tenancy law, because none of that is ours to
+  // give. Every sentence that touches it points back at the customer's own
+  // counsel, deliberately.
+  {
+    slug: 'rental-property-cleanouts',
+    nav: 'Rental Cleanouts',
+    card: {
+      title: 'Rental Property Cleanouts',
+      blurb:
+        'Turnovers for landlords, property managers and investors. Abandoned furniture and household contents cleared to a date, so the unit can be relet.'
+    },
+    quoteService: 'Rental / property turnover',
+    title: 'Rental Property Cleanouts & Turnovers in West Michigan | RYDJA',
+    h1: 'Rental property cleanouts and turnovers',
+    description:
+      'Rental turnover cleanouts in West Michigan for landlords and property managers: abandoned furniture, household contents, garages and storage cleared to your date.',
+    lede:
+      'A unit that cannot be shown is a unit that is not earning. We clear what the last tenant left so the turnover can get on with painting, cleaning and reletting.',
+    intro: [
+      'Rental turnovers are a timing problem before they are a volume problem. The unit is empty of people and full of things, the next showing is already in the diary, and every day it stays like that is a day of lost rent.',
+      'RYDJA handles the clearing part of that: furniture, appliances, bagged household contents, the garage, the storage area, whatever is in the basement. One visit on most units, several on the bigger ones. What we hand back is an empty space the painters and cleaners can actually work in.',
+      'This work comes from landlords, property managers, real-estate investors, owners and authorized agents, and it is quoted the same way as everything else &mdash; from photographs, remotely, without anyone needing to meet us at the property.'
+    ],
+    jobsHeading: 'Rental and turnover work we take on',
+    jobs: [
+      '<strong>Tenant move-out cleanouts</strong> &mdash; what was left behind once the unit is vacant and yours to clear',
+      '<strong>Rental turnover clearing</strong> &mdash; the gap between one tenancy ending and the next beginning',
+      '<strong>Apartment and single-unit cleanouts</strong> &mdash; one unit, one load, often one visit',
+      '<strong>Abandoned furniture and household contents</strong> &mdash; beds, couches, wardrobes, white goods, bagged belongings',
+      '<strong>House cleanouts after a move-out</strong> &mdash; a whole single-family rental emptied room by room',
+      '<strong>Garage, basement and storage-area clearing</strong> &mdash; the parts of a unit that get forgotten until the walkthrough',
+      '<strong>Multi-load and multi-unit cleanouts</strong> &mdash; a building, a block of units, or one unit that turns out to hold four trailer loads',
+      '<strong>Pre-listing clearing on an investment property</strong> &mdash; getting a rental empty before it is photographed and sold'
+    ],
+    sections: [
+      {
+        h: 'Rental turnovers do not wait, so neither does the quote',
+        paras: [
+          'The reason this is quoted from photographs rather than from a site visit is that a site visit costs you two days you do not have. Send pictures from your phone &mdash; or have whoever did the walkthrough send theirs &mdash; and the price comes back without anybody arranging to meet.',
+          'Tell us the date the unit has to be clear by when you send it. We will give you a straight answer about whether that date is workable rather than an encouraging one, because a turnover you planned around a promise we could not keep is worse than a turnover you planned around a no.'
+        ]
+      },
+      {
+        h: 'Working with property managers and owners at a distance',
+        paras: [
+          'Plenty of these jobs are arranged by somebody who will never be at the property. That is normal and the process is built for it.'
+        ],
+        list: [
+          '<strong>One point of contact</strong> &mdash; you deal with the owner-operator who priced the job and who will be on site, not a dispatcher',
+          '<strong>Remote approval</strong> &mdash; the quote goes to your phone or inbox and you approve it from there; nothing is scheduled until you do',
+          '<strong>Access on your terms</strong> &mdash; lockbox, key handover, a code, or a maintenance contact meeting us there; tell us which when you send the request',
+          '<strong>A reference on every job</strong> &mdash; each request carries its own work reference, which is the thing to quote on an invoice or in a message about it',
+          '<strong>Photographs where we have them</strong> &mdash; we send pictures of the finished space, which is usually what you need for your own file',
+          '<strong>Repeat work handled the same way</strong> &mdash; if you turn units over regularly, see <a class="text-link" href="/property-professionals">how RYDJA works with property professionals</a>'
+        ]
+      },
+      {
+        h: 'What has to be settled before we arrive',
+        paras: [
+          'This is the part that is genuinely different from clearing your own garage, and it is worth being plain about.',
+          'RYDJA removes contents on the instruction of the owner or their authorized agent. By asking us to clear a unit you are confirming that you hold the lawful authority to have those contents removed and that the property is yours to let us into. That is the whole basis on which we take the job.',
+          'What we do not do is decide that question for you. We are not attorneys, an eviction service, process servers or law enforcement, and we do not advise on tenancy law, notice periods, storage obligations or whether particular belongings count as abandoned. Those are real legal questions with real consequences and they belong with your own counsel or your management company&rsquo;s, not with the people loading the trailer.',
+          'So: once possession is yours and the contents are yours to remove, send it through and we will clear it. If that is still unresolved, resolve it first &mdash; we would rather wait a week than be the reason a dispute gets worse.'
+        ]
+      }
+    ],
+    stepsHeading: 'How a turnover cleanout runs',
+    steps: [
+      {
+        h: 'Send photographs and the date',
+        p: 'Every room that has something in it, plus the garage, basement and any storage area. Include the route out and where a truck can park. The date it has to be clear by matters as much as the volume.'
+      },
+      {
+        h: 'Tell us the access arrangement',
+        p: 'Lockbox, code, key collection, or someone meeting us there. Also say whether anything in the unit is staying &mdash; appliances that come with the let, for instance.'
+      },
+      {
+        h: 'We send a price',
+        p: 'Based on volume, access, labour and disposal. No obligation, nothing booked, and no site visit needed to get it.'
+      },
+      {
+        h: 'You approve it remotely',
+        p: 'Approve from wherever you are. If we have proposed a time with the quote, confirming it schedules the job; if that slot does not fit the turnover, ask for another.'
+      },
+      {
+        h: 'We clear it and tell you it is done',
+        p: 'We load, haul and dispose of what you authorized, separate what can be reused, and sweep up. You get told when the unit is empty rather than having to chase it.'
+      }
+    ],
+    expect: [
+      {
+        h: 'Say what stays, in writing, before we load',
+        p: 'On a rental that usually means the appliances, the window blinds, anything the let includes and anything the owner is storing on site. Mark it or list it in the request. We clear what you designate and nothing else.'
+      },
+      {
+        h: 'Personal documents are set aside, not binned',
+        p: 'Paperwork turns up in abandoned contents more often than people expect. If we find documents, identification or anything that looks personal and important, we stop and set it aside for you rather than making a judgement about it.'
+      },
+      {
+        h: 'Multi-load jobs are one price, not a running meter',
+        p: 'A unit that holds four loads is quoted as a four-load job up front. If the photographs understated it materially we come back to you before carrying on &mdash; the number you approved is the number unless you agree to a different one.'
+      },
+      {
+        h: 'We clear and sweep; we are not the cleaning crew',
+        p: 'What you get back is an empty, swept space ready for your cleaners and painters. Carpet shampooing, deep cleaning, paint prep and repairs are somebody else&rsquo;s trade and we will not pretend otherwise.'
+      }
+    ],
+    limits: [
+      'No hazardous waste, asbestos, chemicals, fuels, solvents, paint or propane',
+      'No biohazards, regulated medical waste, sewage, or contaminated or soiled material',
+      'No pest or mould remediation &mdash; we are not a remediation contractor',
+      'We are not a cleaning service: we clear and sweep, we do not deep clean or prepare surfaces',
+      'No legal, eviction, notice-serving or tenancy advice of any kind, and we do not determine abandonment',
+      'Nothing structural, and no repairs, patching or decorating',
+      'Lawful possession, access and authority to remove the contents are yours to hold before we start'
+    ],
+    faqs: [
+      {
+        q: 'Can you clear a rental after a tenant has moved out?',
+        a: 'Yes &mdash; that is the most common job on this page. Once the unit is vacant and the contents are yours to remove, send photographs and the date you need it clear by, and we will price it and take it away.'
+      },
+      {
+        q: 'Can a property manager authorize the job without being there?',
+        a: 'Yes. Quote, approval and scheduling all happen remotely, and plenty of these jobs are arranged by somebody in another city. What we need is the access arrangement, a clear statement of anything that stays, and your authorization to remove the rest.'
+      },
+      {
+        q: 'Can you work to a turnover deadline between tenants?',
+        a: 'Send the date with the request. We will tell you plainly whether it is workable &mdash; and if it is tight, what would make it work, such as splitting the job across two visits or starting with the rooms the painters need first.'
+      },
+      {
+        q: 'What if belongings in the unit may still legally belong to the tenant?',
+        a: 'Then that has to be resolved before we arrive. The owner or property manager is responsible for holding lawful authority to remove belongings from a unit, including any notice or storage obligations that apply. RYDJA does not determine whether property is abandoned and does not advise on tenancy rights &mdash; that is a question for your own attorney or management company. Once the contents are yours to clear, we will clear them.'
+      },
+      {
+        q: 'Do you handle multiple units or a whole building?',
+        a: 'Yes. Photograph each unit separately when you send the request so the quote covers all of them, and tell us whether they have to be done together or can be staged over a week or two.'
+      },
+      {
+        q: 'Will you take appliances and furniture in the same job?',
+        a: 'Yes, and that is one price rather than two. Appliances need to be unplugged, emptied and defrosted, and anything still connected to gas, water or hard wiring has to be disconnected by a licensed trade before we arrive.'
+      },
+      {
+        q: 'How is it priced?',
+        a: 'From the photographs: volume, access, labour and what disposal will cost. There is no flat per-unit rate on this page because a studio with a couch in it and a four-bedroom house with a full garage are not the same job.'
+      },
+      {
+        q: 'Do you clean the unit afterwards?',
+        a: 'We clear it and sweep it. Deep cleaning, carpets, paint and repairs are a different trade &mdash; what we hand back is an empty space your cleaners can start on the same day.'
+      }
+    ],
+    areaNote:
+      'Turnovers are usually single-unit jobs, so travel has to make sense for the size of the load. If you manage property a little outside the named communities it is still worth asking, particularly if you turn units over regularly or have more than one to clear at once.',
+    related: [
+      { href: '/cleanouts', label: 'a garage, basement or storage unit on its own' },
+      { href: '/junk-removal', label: 'a single load of junk rather than a whole unit' },
+      { href: '/furniture-appliance-removal', label: 'one abandoned couch, mattress or appliance' },
+      { href: '/estate-cleanouts', label: 'an inherited property rather than a tenancy ending' },
+      { href: '/property-professionals', label: 'placing this work regularly as a manager or investor' }
     ]
   },
 
@@ -354,25 +660,34 @@ const PAGES = [
   {
     slug: 'yard-cleanup',
     nav: 'Yard Cleanup',
-    title: 'Yard Cleanup & Debris Removal | RYDJA',
+    card: {
+      title: 'Yard Cleanup & Debris Removal',
+      blurb:
+        'Brush, branches, fallen limbs, storm debris and outdoor clutter cleared and hauled off. Material already on the ground: we are not a tree service.'
+    },
+    quoteService: 'Yard / brush cleanup',
+    title: 'Yard Cleanup & Debris Removal in West Michigan | RYDJA',
     h1: 'Yard cleanup and debris removal',
     description:
-      'Brush, branches, storm debris, leaves and outdoor clutter cleared and hauled away across West Michigan. Send photos for a quote.',
+      'Brush removal, branch and fallen-limb cleanup, storm debris hauling and outdoor junk removal across West Michigan. Send photos for a quote.',
     lede:
       'Brush piles, storm damage, the corner of the yard that has been filling up for years. We clear it, load it and haul it off.',
     intro: [
-      'Yard work generates volume fast, and most of it will not fit in a car or a kerbside bin. A single downed limb can be a trailer load once it is cut up.',
-      'We take the outdoor material and the clutter that has drifted outside with it &mdash; old furniture on a porch, a collapsed shed, scrap behind the garage.'
+      'Yard work generates volume fast, and most of it will not fit in a car or a kerbside bin. A single downed limb can be a trailer load once it is cut up, and a bad night of wind can put three of them across a lawn.',
+      'We take the outdoor material and the clutter that has drifted outside with it &mdash; brush and branches, leaf and seasonal piles, storm debris, old furniture on a porch, a collapsed shed, scrap behind the garage.',
+      'One honest limit up front, because it decides whether this is the right page: we clear material that is already down. We do not fell standing trees, climb, or work at height.'
     ],
     jobsHeading: 'Outdoor jobs we take on',
     jobs: [
-      'Brush, branches and cut limbs',
-      'Storm debris after a bad night',
-      'Leaf and seasonal clean-up piles',
-      'Old fencing, decking boards and landscape timber',
-      'Outdoor furniture, grills, play equipment and planters',
-      'Scrap and junk that has accumulated behind a garage or along a fence line',
-      'General property tidy-ups before a sale or an inspection'
+      '<strong>Brush and branch removal</strong> &mdash; piles that have been growing at the back of a lot for years',
+      '<strong>Fallen-limb cleanup</strong> &mdash; material already on the ground, cut down further where that is practical',
+      '<strong>Storm debris removal</strong> &mdash; the morning after, hauled off rather than stacked at the kerb',
+      '<strong>Leaf and seasonal clean-up piles</strong> &mdash; bagged or loose',
+      '<strong>Old fencing, decking boards and landscape timber</strong>',
+      '<strong>Outdoor junk removal</strong> &mdash; furniture, grills, play equipment, planters, the thing under the tarp',
+      '<strong>Yard debris hauling</strong> &mdash; a load you have already gathered yourself and cannot shift',
+      '<strong>Scrap and junk along a fence line or behind a garage</strong>',
+      '<strong>General property tidy-ups</strong> &mdash; before a sale, a showing or an inspection'
     ],
     expect: [
       {
@@ -409,9 +724,10 @@ const PAGES = [
       }
     ],
     related: [
-      { href: '/hauling-moving-help', label: 'hauling a load you have already gathered' },
-      { href: '/junk-removal', label: 'indoor junk and household clutter' },
-      { href: '/light-demolition', label: 'taking down a shed, deck or fence' }
+      { href: '/junk-removal', label: 'indoor junk, household clutter and debris hauling' },
+      { href: '/light-demolition', label: 'taking down a shed, deck, fence or playset' },
+      { href: '/cleanouts', label: 'emptying the garage or barn while we are there' },
+      { href: '/hauling-moving-help', label: 'hauling a load you have already gathered somewhere' }
     ]
   },
 
@@ -419,25 +735,34 @@ const PAGES = [
   {
     slug: 'furniture-appliance-removal',
     nav: 'Furniture & Appliances',
-    title: 'Furniture & Appliance Removal | RYDJA',
-    h1: 'Furniture and appliance removal',
+    card: {
+      title: 'Furniture & Appliance Removal',
+      blurb:
+        'Couch removal, mattress removal, fridges, washers and dryers. One heavy awkward item carried out and hauled off by us, not by you.'
+    },
+    quoteService: 'Furniture / appliance removal',
+    title: 'Furniture, Couch & Appliance Removal in West Michigan | RYDJA',
+    h1: 'Furniture, couch and appliance removal',
     description:
-      'Couch, mattress, fridge, washer and other heavy single-item removals across West Michigan. We carry it out, you do not.',
+      'Couch, sofa, mattress, fridge, washer and dryer removal across West Michigan. Single-item pickups welcome. We carry it out, you do not.',
     lede:
       'One couch down a narrow stair, a fridge that will not fit through the door, a mattress nobody will take. Heavy single items are their own kind of problem.',
     intro: [
       'Plenty of calls are not a whole cleanout. They are one heavy, awkward thing that has to leave the building, and the real difficulty is getting it out rather than getting rid of it.',
-      'That is a labour and logistics job: two people, the right angle through a doorway, and a trailer waiting outside. We would rather do that than have you hurt your back on a sleeper sofa.'
+      'That is a labour and logistics job: two people, the right angle through a doorway, and a trailer waiting outside. We would rather do that than have you hurt your back on a sleeper sofa.',
+      'Single-item junk removal is a completely normal booking here &mdash; there is no minimum, and one couch is a job we quote the same way as any other. If several things are going at once, that is <a class="text-link" href="/junk-removal">junk removal and hauling</a> and usually a better price per item.'
     ],
     jobsHeading: 'What we pick up',
     jobs: [
-      'Sofas, sectionals, recliners and sleeper sofas',
-      'Mattresses and box springs',
-      'Fridges, freezers, washers, dryers, ovens and dishwashers',
-      'Dressers, wardrobes, desks and bookcases',
-      'Pianos, safes, gun cabinets and other dead weight &mdash; ask first',
-      'Exercise equipment and treadmills',
-      'Hot tubs and large outdoor items &mdash; ask first, these vary enormously'
+      '<strong>Couch and sofa removal</strong> &mdash; sectionals, recliners and sleeper sofas included',
+      '<strong>Mattress and box-spring removal</strong> &mdash; the item kerbside collection most often refuses',
+      '<strong>Refrigerator and freezer removal</strong> &mdash; unplugged, emptied and defrosted, with the sealed system intact',
+      '<strong>Washer and dryer removal</strong> &mdash; disconnected before we arrive',
+      '<strong>Ovens, ranges and dishwashers</strong> &mdash; electric unplugged, or disconnected by a licensed trade',
+      '<strong>Dressers, wardrobes, desks and bookcases</strong>',
+      '<strong>Exercise equipment</strong> &mdash; treadmills, weight benches, rowers',
+      '<strong>Pianos, safes and gun cabinets</strong> &mdash; ask first; dead weight is its own calculation',
+      '<strong>Hot tubs and large outdoor items</strong> &mdash; ask first, these vary enormously'
     ],
     expect: [
       {
@@ -470,12 +795,21 @@ const PAGES = [
       },
       {
         q: 'Will you take just one item?',
-        a: 'Yes. Single-item pickups are a normal part of the work. Send a photo and we will price it like any other job.'
+        a: 'Yes. Single-item pickups are a normal part of the work and there is no minimum load. Send a photo and we will price it like any other job.'
+      },
+      {
+        q: 'Do you take mattresses? Nobody else will.',
+        a: 'Yes, mattresses and box springs both. They are bulky rather than heavy and they are one of the most common single items we are called for, precisely because kerbside collection usually refuses them.'
+      },
+      {
+        q: 'Can you take a washer and dryer out of a basement?',
+        a: 'Yes, as long as they have been disconnected from the water, drain and gas before we arrive. The carrying is ours; the plumbing is not &mdash; we are not licensed for that work and will not pretend otherwise.'
       }
     ],
     related: [
       { href: '/junk-removal', label: 'a mixed load rather than one item' },
-      { href: '/cleanouts', label: 'emptying a whole room or garage' },
+      { href: '/cleanouts', label: 'emptying a whole room, garage or basement' },
+      { href: '/rental-property-cleanouts', label: 'furniture a tenant left behind in a rental' },
       { href: '/hauling-moving-help', label: 'moving something rather than disposing of it' }
     ]
   },
@@ -496,25 +830,32 @@ const PAGES = [
         alt: 'A pickup and trailer loaded with furniture and household items for a haul'
       }
     },
-    title: 'Hauling & Moving Help | RYDJA',
-    h1: 'Hauling and moving help',
+    card: {
+      title: 'Hauling, Delivery & Moving Help',
+      blurb:
+        'When the thing has somewhere to go: local hauling, furniture delivery, Marketplace and auction pickups, loading and unloading help. Labour-only is fine.'
+    },
+    quoteService: 'Moving / delivery help',
+    title: 'Local Hauling, Delivery & Moving Help in West Michigan | RYDJA',
+    h1: 'Local hauling, delivery and moving help',
     description:
-      'A truck, a trailer and the labour to load it: local hauling, delivery, Marketplace pickups and labour-only moving help in West Michigan.',
+      'Local hauling, furniture delivery, Marketplace and auction pickups, single-item transport and loading or unloading help across West Michigan.',
     lede:
       'Sometimes nothing needs throwing away &mdash; it just needs moving, and you do not have a truck or a second pair of hands.',
     intro: [
       'This is the job where the thing has somewhere to go. A purchase that will not fit in your car, a delivery across town, furniture moving between two rooms or two houses, a load to the transfer station you would rather not make yourself.',
-      'We bring the vehicle and the labour. Where it goes is up to you.'
+      'That destination is the whole difference between this page and <a class="text-link" href="/junk-removal">junk removal and hauling</a>. There, material leaves and does not come back. Here it is transport: we bring the vehicle and the labour, and where it goes is up to you.'
     ],
     jobsHeading: 'What hauling and moving help covers',
     jobs: [
-      'Marketplace, auction and estate-sale pickups',
-      'Local delivery of furniture, appliances and materials',
-      'Labour-only help loading or unloading a truck you have already hired',
-      'Moving heavy items between rooms, floors or properties',
-      'Hauling a load you have already gathered to disposal or donation',
-      'Single-item transport where a car will not do',
-      'An extra set of hands on moving day'
+      '<strong>Marketplace pickups</strong> &mdash; the thing you bought that will not fit in your car',
+      '<strong>Auction and estate-sale pickups</strong> &mdash; collected and delivered, often on the sale&rsquo;s own deadline',
+      '<strong>Local furniture delivery</strong> &mdash; a purchase, a gift, a piece moving between family houses',
+      '<strong>Appliance and material delivery</strong> &mdash; picked up from the store or the yard and brought to you',
+      '<strong>Loading and unloading help</strong> &mdash; labour only, for a truck or container you have already hired',
+      '<strong>Moving help</strong> &mdash; heavy items between rooms, floors or properties on moving day',
+      '<strong>Single-item transport</strong> &mdash; one piece, one trip, where a car will not do',
+      '<strong>Hauling a gathered load somewhere</strong> &mdash; to disposal, to donation, to storage'
     ],
     expect: [
       {
@@ -562,25 +903,32 @@ const PAGES = [
   {
     slug: 'light-demolition',
     nav: 'Light Demolition',
-    title: 'Light Demolition & Debris Hauling | RYDJA',
-    h1: 'Light demolition and debris hauling',
+    card: {
+      title: 'Shed Removal & Light Demolition',
+      blurb:
+        'Sheds, playsets, fences, small decks, shelving and cabinets taken down and hauled away in one job. Non-structural work only.'
+    },
+    quoteService: 'Light demolition',
+    title: 'Shed Removal & Light Demolition in West Michigan | RYDJA',
+    h1: 'Shed removal, light demolition and debris hauling',
     description:
-      'Sheds, decks, fences, playsets and built-ins taken down and hauled away in West Michigan. Non-structural work only, debris included.',
+      'Shed removal, playset and fence removal, small deck tear-downs and shelving or cabinet removal in West Michigan. Non-structural only, debris hauled away.',
     lede:
-      'Some things have to come apart before they can leave. Sheds, decks, fences, playsets and built-in units &mdash; taken down and taken away in one job.',
+      'Some things have to come apart before they can leave. Sheds, playsets, fences, small decks and built-in units &mdash; taken down and taken away in one job.',
     intro: [
       'Light demolition is tear-down plus haul-away. The point is that you are left with a clear space, not a pile of broken timber and a second problem.',
       'The word to pay attention to is <strong>light</strong>. This is non-structural work: nothing holding a building up, nothing requiring an engineer, nothing we are not equipped for.'
     ],
     jobsHeading: 'What we take down',
     jobs: [
-      'Garden sheds and small outbuildings',
-      'Decks, porches and raised platforms',
-      'Fencing and gates',
-      'Playsets, swing sets and trampolines',
-      'Garage shelving, workbenches and built-in storage',
-      'Non-structural interior fittings &mdash; old cabinetry, closet systems, panelling',
-      'Small concrete pads and walkways &mdash; ask first, weight limits apply'
+      '<strong>Shed removal</strong> &mdash; garden sheds and small outbuildings, dismantled and hauled off',
+      '<strong>Playset and swing-set removal</strong> &mdash; including trampolines and the frame nobody has used in years',
+      '<strong>Fence removal</strong> &mdash; fencing, gates and posts',
+      '<strong>Small deck removal</strong> &mdash; low decks, porches and raised platforms',
+      '<strong>Shelving removal</strong> &mdash; garage shelving, workbenches and built-in storage',
+      '<strong>Cabinet removal</strong> &mdash; old cabinetry, closet systems and panelling, non-structural only',
+      '<strong>Small concrete pads and walkways</strong> &mdash; ask first, weight limits apply',
+      '<strong>Tear-down and haul-away as one job</strong> &mdash; the debris leaves with us'
     ],
     expect: [
       {
@@ -619,12 +967,87 @@ const PAGES = [
     ],
     related: [
       { href: '/junk-removal', label: 'hauling the debris from work you have already done' },
-      { href: '/yard-cleanup', label: 'clearing the yard around it' },
-      { href: '/cleanouts', label: 'emptying the space before the tear-down' }
+      { href: '/yard-cleanup', label: 'clearing the brush and yard debris around it' },
+      { href: '/cleanouts', label: 'emptying the shed or garage before the tear-down' },
+      { href: '/estate-cleanouts', label: 'clearing a whole property, outbuildings included' }
     ]
   }
 ];
 
+/**
+ * Every field of a page that reaches the browser through <%= %> rather than
+ * <%- %>, paired with its name.
+ *
+ * The distinction is not cosmetic. A card blurb is plain text, a <title> and a
+ * meta description are attribute values, and a heading is interpolated
+ * escaped -- so "hauled off &mdash; by us" in any of them is rendered to the
+ * reader literally, ampersand and semicolon included. The prose fields (lede,
+ * intro, jobs, the paragraphs and lists inside sections, faq answers, related
+ * labels) are rendered raw and may use entities and markup freely.
+ *
+ * Kept in step with views/service-page.ejs by hand, which is why it is written
+ * out rather than inferred: if a field moves from <%= %> to <%- %> or back,
+ * this list is the thing to change with it.
+ */
+function escapedFields(page) {
+  const out = [
+    ['nav', page.nav],
+    ['title', page.title],
+    ['description', page.description],
+    ['h1', page.h1],
+    ['jobsHeading', page.jobsHeading],
+    ['card.title', page.card.title],
+    ['card.blurb', page.card.blurb]
+  ];
+  if (page.stepsHeading) out.push(['stepsHeading', page.stepsHeading]);
+  (page.steps || []).forEach((s, i) => out.push([`steps[${i}].h`, s.h]));
+  (page.expect || []).forEach((e, i) => out.push([`expect[${i}].h`, e.h]));
+  (page.sections || []).forEach((b, i) => out.push([`sections[${i}].h`, b.h]));
+  (page.faqs || []).forEach((f, i) => out.push([`faqs[${i}].q`, f.q]));
+  return out;
+}
+
 const BY_SLUG = new Map(PAGES.map((p) => [p.slug, p]));
+
+// This array is the marketing service catalog, full stop. The homepage grid,
+// the services hub, the service-area list, the offer catalog, the routes and
+// the sitemap all read from it, and there is deliberately no second list of
+// services anywhere -- there used to be, in server.js, and it drifted: it
+// named five services with different wording, linked almost none of them to
+// the pages that already existed, and omitted one page entirely.
+//
+// A card without a page is the shape of that bug, so it cannot be written
+// here: every entry must carry the copy its card needs and the quote-form
+// option its CTA prefills. A missing one fails at require time rather than
+// quietly shipping a card that links nowhere or a lead labelled something
+// nothing else recognises.
+for (const page of PAGES) {
+  for (const field of ['slug', 'nav', 'title', 'h1', 'description', 'lede', 'quoteService']) {
+    if (!page[field]) throw new Error(`service page "${page.slug || '?'}" is missing ${field}`);
+  }
+  if (!page.card || !page.card.title || !page.card.blurb) {
+    throw new Error(`service page "${page.slug}" needs card.title and card.blurb to appear in a list`);
+  }
+  for (const rel of page.related || []) {
+    if (rel.href === '/' + page.slug) throw new Error(`service page "${page.slug}" lists itself as related work`);
+  }
+
+  // These five are rendered escaped -- a card is plain text, a <title> and a
+  // meta description are attribute values. An HTML entity written into one of
+  // them is shown to the reader as its own source: "hauled off &mdash; by us".
+  // Prose fields (lede, intro, jobs, expect, sections, faqs) are rendered raw
+  // and may use entities and markup freely; these may not.
+  for (const [field, value] of escapedFields(page)) {
+    if (/&[a-zA-Z#][a-zA-Z0-9]*;/.test(value)) {
+      throw new Error(
+        `service page "${page.slug}" has an HTML entity in ${field}, which is rendered escaped ` +
+        `and would be shown to the reader as its own source: ${value}`
+      );
+    }
+    if (/<[a-zA-Z/]/.test(value)) {
+      throw new Error(`service page "${page.slug}" has markup in ${field}, which is rendered escaped`);
+    }
+  }
+}
 
 module.exports = { SERVICE_PAGES: PAGES, servicePage: (slug) => BY_SLUG.get(slug) || null };

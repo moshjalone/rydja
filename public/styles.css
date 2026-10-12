@@ -754,3 +754,91 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
    rather than letting the bar wrap. Must come after the block above, which
    is what turns it on. */
 @media(max-width:359px){.nav::after{display:none}}
+
+/* ---------- service cards: two links, not one ----------
+   A card now offers "how it works" and "get a quote" rather than a single
+   read-more. They sit on one row where there is room and wrap where there is
+   not, and they stay at the foot of the card however long the blurb is. */
+.card-links{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:8px}
+.card-links .text-link{font-size:14px}
+
+/* ---------- homepage: what can RYDJA haul away? ----------
+   Five groups of six items. Auto-fit rather than a fixed column count, so the
+   same rule covers desktop, tablet and phone without a breakpoint per step. */
+/* Three across, to match the service grid above it rather than fighting it.
+   Five groups then read as 3 + 2 instead of 4 + a lonely one. */
+.haul-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:1000px){.haul-grid{grid-template-columns:repeat(2,1fr)}}
+.haul-grid article{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px 26px;display:flex;flex-direction:column;gap:12px}
+.haul-grid h3{font-size:18px;margin:0;letter-spacing:-.02em}
+.haul-grid ul{list-style:none;margin:0;padding:0;flex:1;font-size:15px;line-height:1.75;color:#3c3e38}
+.haul-grid li{display:flex;gap:9px;align-items:baseline}
+.haul-grid li::before{content:"—";color:var(--accent);font-weight:900;flex:0 0 auto}
+.haul-grid .text-link{font-size:13px;align-self:flex-start}
+.haul-note{max-width:760px;margin-top:26px}
+
+/* ---------- homepage: when people call RYDJA ----------
+   Situations, as a wrapping list of tappable rows. Each is a real link to the
+   page that handles it, so the whole row is the target rather than a word in
+   the middle of it. */
+.situation-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px}
+.situation-list a{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-weight:700;font-size:15px;line-height:1.45;color:var(--ink)}
+.situation-list a:hover{border-color:var(--ink);background:#f2efe4}
+.situation-list a::after{content:" →";color:var(--muted);font-weight:900;white-space:nowrap}
+#situations .price-note{margin-top:24px;max-width:700px}
+
+/* ---------- the for-professionals band on /services ---------- */
+.pro-band{margin-top:70px;padding-bottom:0}
+.pro-band h2{font-size:clamp(26px,3.4vw,40px)}
+
+/* ---------- the collapsible optional sections on the quote form ----------
+   <details> rather than a script: the fields are real inputs in the DOM either
+   way, so everything inside is submitted whether the section was ever opened
+   or not, and the form still works with JavaScript blocked. */
+.quote-form details.prefs{padding:0}
+.quote-form details.prefs > summary{
+  list-style:none;cursor:pointer;font-weight:800;font-size:15px;padding:18px 20px;
+  display:flex;align-items:center;gap:10px;border-radius:14px
+}
+.quote-form details.prefs > summary::-webkit-details-marker{display:none}
+.quote-form details.prefs > summary::after{content:"+";margin-left:auto;font-size:19px;font-weight:900;color:var(--accent);line-height:1}
+.quote-form details.prefs[open] > summary::after{content:"–"}
+.quote-form details.prefs > summary:hover{background:#2c2e29}
+.quote-form details.prefs > summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.quote-form details.prefs > .details-body{padding:0 20px 20px}
+.quote-form details.prefs .optional-tag{font-weight:400;font-size:12px;color:#a8aaa2}
+.quote-form .section-label{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#a8aaa2;margin:26px 0 12px}
+.quote-form .upload{margin-bottom:18px}
+
+/* ---------- the mobile call / quote bar ----------
+   Hidden entirely above the mobile breakpoint: the sticky header already
+   carries "Get a Quote" there, and a fixed bar on a desktop page would be
+   clutter rather than help. Rendered only on public marketing pages and only
+   when a phone number is configured -- see views/partials/foot.ejs. */
+.mobile-cta{display:none}
+@media(max-width:860px){
+  .mobile-cta{
+    display:grid;grid-template-columns:1fr 1fr;gap:1px;
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:#3a3c36;
+    box-shadow:0 -6px 24px rgba(0,0,0,.18);
+    padding-bottom:env(safe-area-inset-bottom)
+  }
+  .mobile-cta a{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    min-height:58px;padding:9px 12px;text-align:center;text-decoration:none
+  }
+  .mobile-cta strong{font-size:15px;font-weight:900;letter-spacing:-.01em}
+  .mobile-cta span{font-size:11px;font-weight:700;opacity:.72}
+  .mobile-cta-call{background:var(--dark);color:#fff}
+  .mobile-cta-quote{background:var(--accent);color:#111}
+  .mobile-cta a:focus-visible{outline:3px solid #fff;outline-offset:-3px}
+  /* Reserve the bar's height so it covers nothing at the foot of a page. */
+  body.has-mobile-cta{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
+  /* The admin bulk bar is also sticky to the bottom, and the two are never on
+     the same page -- but if one is ever added to a public list, lift it clear. */
+  body.has-mobile-cta .bulk-bar{bottom:calc(58px + env(safe-area-inset-bottom))}
+  .haul-grid{grid-template-columns:1fr}
+  .situation-list{grid-template-columns:1fr}
+  .pro-band{margin-top:40px}
+}
