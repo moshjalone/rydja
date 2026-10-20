@@ -323,7 +323,9 @@ test('the mobile bar offers three real actions, each doing what it says', async 
 
   // Nothing to dismiss, nothing to remember, no script.
   assert.doesNotMatch(bar, /onclick|data-dismiss|<button/);
-  assert.match(doc, /<body class="has-mobile-cta">/);
+  // The class, wherever it sits in the tag: the body also carries the
+  // measurement page name now, and the order of attributes is not the point.
+  assert.match(doc, /<body[^>]*class="has-mobile-cta"/);
 });
 
 test('nothing anywhere still labels a tel: link as texting', async () => {

@@ -871,7 +871,11 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .admin-nav{display:none}
 @media(max-width:860px){
   .admin-nav{
-    display:grid;grid-template-columns:repeat(3,1fr);
+    /* Four sections now, and "Dashboard" needs more than a quarter of a
+       390px screen. auto-fit wraps rather than squeezing, so every link stays
+       visible and full width however many there are -- nothing is hidden and
+       nothing scrolls sideways. */
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));
     background:var(--dark);border-bottom:1px solid #000
   }
   .admin-nav a{
@@ -879,7 +883,9 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
     /* 52px: comfortably past the 44px minimum touch target, and short enough
        that it does not eat a phone screen before the list even starts. */
     min-height:52px;padding:10px 8px;
-    color:#cfd1c6;font-weight:800;font-size:14px;letter-spacing:-.01em;
+    /* 13px rather than 14: four labels across a 390px screen, and
+       "Dashboard" is the long one. */
+    color:#cfd1c6;font-weight:800;font-size:13px;letter-spacing:-.01em;
     text-decoration:none;text-align:center;
     border-bottom:3px solid transparent
   }
@@ -889,3 +895,50 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   .admin-nav a.here{color:#fff;background:#2a2c27;border-bottom-color:var(--accent)}
   .admin-nav a:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
 }
+
+/* ---------- admin: traffic and funnel ----------
+   One page of numbers about the website itself. Everything here reuses the
+   dashboard's panels and tables; what is new is the range tabs, the day bars
+   and the note panel the page uses to say what the figures do not mean. */
+.dash-h3{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:26px 0 12px}
+
+/* Three links, not a select: a chosen range is a URL you can bookmark, and
+   it works with scripting off like the rest of the admin. */
+.range-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 0}
+.range-tabs a{
+  padding:9px 14px;border:1px solid var(--line);border-radius:999px;
+  background:var(--panel);color:var(--muted);
+  font-size:13px;font-weight:800;text-decoration:none
+}
+.range-tabs a:hover{border-color:var(--ink);color:var(--ink)}
+.range-tabs a.here{background:var(--ink);border-color:var(--ink);color:#fff}
+.range-tabs a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* A note panel is a panel that is prose rather than figures. Used for the
+   "a crawl is not an index" paragraph and the privacy summary, both of which
+   exist to stop a number being read as something it is not. */
+.note-panel p,.note-panel li{color:#4b4d46;font-size:14px;line-height:1.6}
+.note-panel p{margin:0}
+.note-panel ul{margin:0;padding-left:20px}
+.note-panel li{margin-bottom:8px}
+.note-panel li:last-child{margin-bottom:0}
+
+/* Visitors per day. A bar chart made of two spans, because it is one series
+   of small integers and a charting library would be a hundred times its
+   weight. The number is printed as well as drawn, so the information does not
+   depend on seeing the bar. */
+.day-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.day-bars li{display:grid;grid-template-columns:96px 1fr 44px;align-items:center;gap:12px;font-size:13px}
+.day-label{color:var(--muted);font-variant-numeric:tabular-nums}
+.day-bar{background:#e9e5da;border-radius:999px;height:14px;overflow:hidden}
+.day-bar span{display:block;height:100%;background:var(--accent);border-radius:999px;min-width:3px}
+.day-count{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+
+@media(max-width:700px){
+  /* The metric grids collapse to two columns rather than one: these are short
+     labels and large figures, and four stacked cards is a lot of scrolling
+     before the funnel even starts. */
+  .metrics.four,.metrics.five,.metrics.three{grid-template-columns:repeat(2,1fr)}
+  .day-bars li{grid-template-columns:84px 1fr 36px;gap:8px;font-size:12px}
+}
+

@@ -18,6 +18,7 @@ const { HAUL_AWAY_GROUPS, CALL_SITUATIONS, checkLinks } = require('./content/hom
 const { LOCAL_PAGES, linkedServiceSlugs } = require('./content/local-pages');
 const indexnow = require('./indexnow');
 const attribution = require('./attribution');
+const analytics = require('./analytics');
 
 // ---------------------------------------------------------------- config
 //
@@ -496,6 +497,35 @@ checkLinks([...SERVICE_PAGES.map((p) => '/' + p.slug), PROFESSIONALS_PATH]);
 const PUBLIC_CTA_PATH = /^\/(?!admin|q\/|quote|uploads\/|api\/)[^.]*$/;
 
 
+// ---------------------------------------------------------------- measurement
+//
+// Every public path the site has, as a set.
+//
+// Two jobs, and the second is the reason it is a set rather than a regular
+// expression. It decides which pages report a view, and it is the allowlist
+// the measurement endpoint validates a reported path against -- a browser
+// says which page it is on, and a browser is something a visitor controls, so
+// a path that is not one of ours is bucketed rather than stored.
+//
+// Built from the same catalogs that drive the routes and the sitemap, so a new
+// page is measured the day it ships without anybody remembering to add it
+// here. /quote/sent is in it because reaching that page is the one unambiguous
+// success on the whole site.
+const PUBLIC_PATHS = new Set([
+  '/',
+  '/services',
+  '/quote',
+  '/quote/sent',
+  PROFESSIONALS_PATH,
+  '/service-area',
+  '/terms',
+  '/privacy',
+  '/accessibility',
+  '/image-credits',
+  ...SERVICE_PAGES.map((p) => '/' + p.slug),
+  ...LOCAL_PAGES.map((p) => '/' + p.slug)
+]);
+
 // The city pages whose city the configured service area actually names.
 //
 // Computed once: the list does not change at runtime, and the pages linking it
@@ -810,6 +840,32 @@ function jobProfit(jobId) {
 
 // ---------------------------------------------------------------- app
 
+// ---------------------------------------------------------------- analytics
+//
+// The two analytics tables, created if they are not there. In analytics.js
+// rather than schema.sql for the same reason the archived_at columns are in
+// db.js: a database that predates this feature has to be able to boot the
+// deploy that introduces it.
+analytics.migrate(db);
+
+
+/**
+ * The day-rotating visitor key for this request.
+ *
+ * Computed, never stored on the request and never sent to the browser. See
+ * analytics.js for why it is shaped the way it is -- the short version is
+ * that it counts people for one day and identifies nobody on any day.
+ */
+function visitorFor(req) {
+  return analytics.visitorKey(req.ip, req.get('user-agent'), SESSION_SECRET);
+}
+
+/** The attribution a request is already carrying, as event columns. */
+function eventAttribution(req) {
+  const attr = attribution.fromRequest(req, SESSION_SECRET) || {};
+  return { source: attr.source || null, campaign: attr.campaign || null, referrer: attr.referrer || null };
+}
+
 const app = express();
 
 app.set('view engine', 'ejs');
@@ -881,6 +937,47 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * Record named crawlers fetching public URLs.
+ *
+ * This is the one piece of measurement that has to be server-side, because
+ * the thing being measured does not run scripts. It answers a question the
+ * business genuinely could not answer before: has Googlebot actually been to
+ * this site, which pages did it fetch, and what did it get back?
+ *
+ * What it is NOT is proof of indexing. A crawl is Google *seeing* a page.
+ * Whether it chose to index it is a separate fact that only Search Console
+ * reports, and the admin page built on this says exactly that, in those words,
+ * where the numbers are. The distinction matters: "Googlebot fetched it" is
+ * the evidence you use to rule out a reachability problem, not the evidence
+ * you use to claim a page is in the index.
+ *
+ * Registered above express.static on purpose, so robots.txt and sitemap.xml
+ * are covered -- those two are the most useful fetches in the whole table,
+ * because they are the ones that tell you a crawler is working through the
+ * site deliberately rather than following one stray link.
+ *
+ * Only the bot's name is kept. The user-agent string itself is never stored:
+ * it is the one field in an HTTP request that a scanner uses to carry a
+ * payload, and the label is all the owner can act on anyway.
+ */
+const CRAWL_RECORDABLE = /^\/(?!admin|q\/|uploads\/|api\/)/;
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (!CRAWL_RECORDABLE.test(req.path)) return next();
+
+  const bot = analytics.crawlerName(req.get('user-agent'));
+  if (!bot) return next();
+
+  // On finish, so the status code recorded is the one the crawler actually
+  // received -- a 404 or a 500 being crawled is exactly what you want to see.
+  res.on('finish', () => {
+    analytics.recordCrawl(db, { bot, path: req.path.slice(0, 200), status: res.statusCode });
+  });
+  next();
+});
+
 // Values every template can use. Registered before the static mounts so the
 // 404/500 pages can still render when a static request is what failed.
 app.use((req, res, next) => {
@@ -945,6 +1042,12 @@ app.use((req, res, next) => {
   // not an operator bar over the top of it.
   res.locals.adminArea = req.path === '/admin' || req.path.startsWith('/admin/');
   res.locals.currentPath = req.path;
+  // Which page the browser should report a view for, or '' for a page that is
+  // not measured at all. The server decides, not the client: a page outside
+  // this set renders no data-track attribute, so the script on it has nothing
+  // to report and sends nothing. That is what keeps the admin and a customer's
+  // own job page out of the measurement entirely.
+  res.locals.trackPath = PUBLIC_PATHS.has(req.path) ? req.path : '';
   next();
 });
 
@@ -1122,6 +1225,71 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------------------------------------------------------------- public
+// ---------------------------------------------------------------- measurement
+//
+// One endpoint, one job: a browser on a public page saying "this happened".
+//
+// Deliberately boring. It accepts two short fields, validates both against
+// closed sets, writes one row and answers 204 with no body. There is nothing
+// to read back, nothing to enumerate, and no way to make it return anything
+// about anybody else.
+//
+// Why it is safe to leave open:
+//
+//   - the event name must be one of six. Anything else is dropped.
+//   - the path must be a page this site actually has. Anything else is
+//     recorded as '/other' rather than stored as given.
+//   - 'quote_submit' is a server event and is refused here outright, so the
+//     one number the owner would act on cannot be inflated from a browser.
+//   - the visitor key is computed here from the connection, never accepted
+//     from the request, so a client cannot invent visitors.
+//   - it is rate limited per IP, generously enough that a real person
+//     clicking around a site never meets it.
+//
+// The worst a determined visitor can do is add some rows that say somebody
+// looked at a page. That is the same thing they could do by reloading the
+// page, and it is why nothing here is treated as authoritative: the funnel's
+// bottom step is counted on the server, where it cannot be forged.
+
+const eventLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  // Forty events an hour is far more than a person browsing generates and far
+  // less than it takes to distort a month. No page is rendered on refusal:
+  // this endpoint has no user interface.
+  max: 40,
+  name: 'measurement',
+  onBlock: (req, res) => res.status(204).end()
+});
+
+app.post('/api/event', eventLimiter, (req, res) => {
+  const name = String((req.body && req.body.name) || '').slice(0, 40);
+  const known = analytics.CLIENT_EVENTS.has(name);
+
+  // A crawler that executes scripts is still a crawler. Preview fetchers and
+  // headless browsers do run them, and counting those as visitors is exactly
+  // the inflation this whole design exists to avoid.
+  const isCrawler = Boolean(analytics.crawlerName(req.get('user-agent')));
+
+  if (known && !isCrawler) {
+    // Recorded before the response rather than after it. The write is a
+    // synchronous SQLite insert measured in microseconds, so there is nothing
+    // to gain by deferring it -- and deferring it makes the endpoint's effect
+    // arrive after its own answer, which is the kind of ordering that is
+    // untestable and surprising for no benefit.
+    analytics.record(db, {
+      name,
+      path: analytics.safePath((req.body && req.body.path) || '', PUBLIC_PATHS),
+      visitor: visitorFor(req),
+      ...eventAttribution(req)
+    });
+  }
+
+  // The same answer either way, with no body. A refusal must be
+  // indistinguishable from acceptance: this endpoint tells a prober nothing
+  // about what it accepts, and there is nothing here to read back.
+  res.status(204).end();
+});
+
 
 // ------------------------------------------------- notifying ourselves
 //
@@ -1649,6 +1817,20 @@ app.post('/quote', quoteLimiter, upload.array('photos', 12), async (req, res) =>
   console.log(
     `[lead] new lead #${leadId} ${workRef} — ${f.service} — ${photos.length} photo(s) — ${source || 'unknown'}`
   );
+
+  // The bottom of the measured funnel, counted here rather than in the
+  // browser. Everything above it in the funnel is reported by a script and is
+  // therefore an estimate; this one is a fact, recorded at the moment a lead
+  // row exists, and it is the number the owner would actually act on.
+  //
+  // After the insert and deliberately outside the transaction: a failure to
+  // record a statistic must never roll back a customer's quote request.
+  analytics.record(db, {
+    name: 'quote_submit',
+    path: '/quote',
+    visitor: visitorFor(req),
+    ...eventAttribution(req)
+  });
 
   // Committed above, in a transaction, before anything here runs. The lead is
   // safe whatever the provider does with the next few lines.
@@ -2377,12 +2559,105 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
     }
   ];
 
+  // The website's own numbers for the same calendar month, so the dashboard
+  // can put "how many people arrived" beside "how many of them became a
+  // lead". Both come from the same functions the traffic page uses, so the
+  // two pages can never disagree about a figure.
+  //
+  // The month's last day is whatever today is, which is what the rest of this
+  // dashboard already means by "this month".
+  const trafficFrom = period.dateStart;
+  const trafficTo = analytics.localDay();
+  const traffic = {
+    visitors: analytics.summary(db, trafficFrom, trafficTo).counts.view.people,
+    funnel: analytics.funnel(db, trafficFrom, trafficTo),
+    // Whether any crawler at all has been here this month. A boolean, because
+    // the dashboard's job is to say "look at this", and the detail is one
+    // click away on the traffic page.
+    crawled: analytics.crawlerSummary(db, trafficFrom, trafficTo).length > 0
+  };
+
   res.render('admin/dashboard', {
     period,
     month,
     totals: monthMoney(period),
     sources: sourceBreakdown(period),
-    attention
+    attention,
+    traffic
+  });
+});
+
+// ---------------------------------------------------------------- admin traffic
+//
+// Where the website's own numbers are read. A new page rather than more rows
+// on the dashboard, because this is the detail -- the dashboard carries the
+// headline and a link to here, and the two read from the same functions so
+// they cannot disagree.
+
+/** The day ranges the traffic page offers, as inclusive YYYY-MM-DD pairs. */
+const TRAFFIC_RANGES = {
+  '7': { label: 'Last 7 days', days: 7 },
+  '30': { label: 'Last 30 days', days: 30 },
+  '90': { label: 'Last 90 days', days: 90 }
+};
+
+const DEFAULT_RANGE = '30';
+
+/**
+ * An inclusive local-day range ending today.
+ *
+ * Local days throughout, matching the column they are compared against. The
+ * range includes today, so `days: 7` is today plus the six before it -- which
+ * is what somebody means by "the last week" when they are looking at it on a
+ * Tuesday afternoon.
+ */
+function trafficPeriod(key) {
+  const range = TRAFFIC_RANGES[key] || TRAFFIC_RANGES[DEFAULT_RANGE];
+  const end = new Date();
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - (range.days - 1));
+  return {
+    key: TRAFFIC_RANGES[key] ? key : DEFAULT_RANGE,
+    label: range.label,
+    days: range.days,
+    from: analytics.localDay(start),
+    to: analytics.localDay(end)
+  };
+}
+
+app.get('/admin/traffic', requireAdmin, (req, res) => {
+  const period = trafficPeriod(String(req.query.range || ''));
+  const { from, to } = period;
+
+  const totals = analytics.summary(db, from, to);
+  const sources = analytics.trafficSources(db, from, to).map((row) => ({
+    ...row,
+    label: attribution.sourceLabel(row.source || null)
+  }));
+
+  // Leads over the same window, so the page can put what the site measured
+  // next to what the business actually received. These are two independent
+  // records of the same funnel and they are allowed to differ -- a lead taken
+  // over the phone has no page view behind it at all.
+  const leadsInPeriod = db
+    .prepare(
+      `select count(*) as n from leads
+        where ${LEAD_ACTIVE} and date(created_at) >= ? and date(created_at) <= ?`
+    )
+    .get(from, to).n;
+
+  res.render('admin/traffic', {
+    period,
+    ranges: Object.entries(TRAFFIC_RANGES).map(([key, r]) => ({ key, label: r.label })),
+    totals,
+    funnel: analytics.funnel(db, from, to),
+    sources,
+    referrers: analytics.referrers(db, from, to),
+    topPages: analytics.topPages(db, from, to),
+    daily: analytics.daily(db, from, to),
+    crawlers: analytics.crawlerSummary(db, from, to),
+    googlebot: analytics.crawledPaths(db, from, to, 'googlebot'),
+    leadsInPeriod,
+    eventLabels: analytics.EVENT_LABELS
   });
 });
 

@@ -573,15 +573,27 @@ test in the same commit as the page.
 
 ### Tracking
 
-Audited at the time of writing: **no analytics, no advertising pixels, no
-session recording, no third-party scripts.** The only script the site serves is
-its own `app.js`. Public pages set **one** cookie, `ps_attr`, which records
-which link brought the visitor; the admin session cookie appears only after a
-staff member signs in.
+**No third-party analytics, no advertising pixels, no session recording, no
+third-party scripts.** The only script the site serves is its own `app.js`, and
+no page makes a request to any host but this one. There is therefore still no
+cookie banner, correctly.
 
-There is therefore no cookie banner, correctly. If analytics are ever added,
-that decision changes and the privacy policy and consent position have to be
-revisited first.
+The site does count its own visits. That is new, it is first-party, and it is
+disclosed on `/privacy` in plain words. The mechanism is in `analytics.js` and
+is described under [Measurement](#measurement) below; the short version is that
+it sets **no cookie**, stores **no IP address and no user-agent string**, and
+counts a visitor with an HMAC that has the calendar day inside it, so the same
+person tomorrow is a different value and cannot be recognised. Tests assert all
+of that against the database rather than against the policy text.
+
+Public pages set exactly **one** cookie, `ps_attr`, which records which link
+brought the visitor so their quote can be credited to it. It is not used for
+counting visits. The admin session cookie appears only after a staff member
+signs in.
+
+If a third-party analytics product is ever added, that decision changes
+everything in this section and the privacy policy and consent position have to
+be revisited first.
 
 ---
 
@@ -835,6 +847,85 @@ it is not Google, and it can be set up by importing the Search Console
 property. [bing.com/webmasters](https://www.bing.com/webmasters) → Import from
 Google Search Console. The site already pings Bing on deploy — see
 [IndexNow](#indexnow) — but nothing reports back without the property.
+
+---
+
+## Measurement
+
+What the website records about itself, and the admin page that reads it.
+
+`analytics.js` is first-party, holds no personal data, and contacts nobody. The
+reasoning is at the top of that file; this is the operational summary.
+
+### What is recorded
+
+| Event | Recorded by | Meaning |
+|---|---|---|
+| `view` | the browser | A public page was rendered in a real browser |
+| `quote_cta` | the browser | A link to the quote form was clicked |
+| `form_start` | the browser | The first field of the quote form was touched |
+| `photos_added` | the browser | Photos were attached |
+| `call_click` / `text_click` | the browser | A `tel:` or `sms:` link was tapped |
+| `quote_submit` | **the server** | A lead row was written |
+
+Page views come from the browser rather than the server on purpose. A server
+counts every request, and most requests to a small site are crawlers — counting
+those as visitors would inflate the one number the owner is reading, and
+inflate it towards "we have traffic", which is the most expensive wrong
+conclusion available. The cost is that a visitor with scripting off is not
+counted. The bottom of the funnel is counted on the server, so the number that
+matters is exact.
+
+Crawlers are recorded separately, in `crawler_visits`, by **name only** — never
+by their user-agent string. That table is what makes "has Googlebot actually
+been here" answerable.
+
+### What is not recorded
+
+- No cookie is set for any of it, and `DNT: 1` turns it off.
+- No IP address and no user-agent string is stored. A visitor is counted with
+  `HMAC(secret + day, ip + ua)` truncated to 16 hex characters: one-way, and
+  because the day is **inside** the salt, the same visitor tomorrow is a
+  completely different value. Returning visitors are therefore not countable,
+  by construction. That is the trade.
+- Nothing typed into the quote form, no screen size, no fingerprint, and no
+  referring page beyond its host.
+- Nothing on `/admin` or on a customer's `/q/<token>` page. Those pages render
+  no `data-track` attribute, so the script on them sends nothing at all.
+
+### Reading it
+
+`/admin/traffic`, linked from the dashboard, over 7, 30 or 90 days:
+
+- **The headline** — visitors, page views, quote requests, and the lead count
+  beside them. The last two are two independent records of the same month and
+  are allowed to differ: a lead taken over the phone has no page view behind it.
+- **The funnel** — visitors → clicked a quote button → reached the form →
+  started filling it in → sent a request. Every step counts **people**, not
+  clicks, and a percentage is only shown where there is a denominator.
+- **Call and text taps**, beside the funnel rather than in it, because somebody
+  who taps Call never sees the form.
+- **Sources**, **referring hosts** and **top pages**.
+- **Crawler activity**, under a paragraph saying in those words that a crawl is
+  not an index.
+
+The dashboard carries a four-figure summary and a link.
+
+**The diagnostic this exists for.** Low lead count, and:
+
+| Traffic page says | The problem is | Where to spend the month |
+|---|---|---|
+| Visitors ≈ 0 | Nobody is arriving | Business Profile, local content, partners. Not the pages |
+| Visitors fine, quote buttons ≈ 0 | The offer is not landing | Headlines, the first screen, what the CTA says |
+| Buttons fine, forms started ≈ 0 | The form is frightening people | Fields, length, what it asks before it earns the right to |
+| Forms started, requests ≈ 0 | The form is failing | Validation, errors, the photo upload on a real phone |
+
+### Retention
+
+Nothing is pruned automatically. `analytics.prune(db, 'YYYY-MM-DD')` deletes
+everything before a day and exists so that a retention decision is one line
+rather than a schema change. Decide one when the table is large enough to care
+about; at this site's volume that is years away.
 
 ---
 

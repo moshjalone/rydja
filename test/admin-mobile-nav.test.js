@@ -4,12 +4,12 @@
 //
 // The defect: the header's <nav> is `display:none` below 860px. For the
 // public links that is fine -- they have a footer and a homepage to live in.
-// For the admin it was a dead end. Dashboard, Leads and Jobs existed ONLY in
-// that hidden nav, so the only way from the lead inbox to the job board on a
-// phone was editing the address bar.
+// For the admin it was a dead end. Every admin section exists ONLY in that
+// hidden nav, so the only way from the lead inbox to the job board on a phone
+// was editing the address bar.
 //
-// The acceptance test is the plain one: signed in, from each of the three
-// admin sections, every other section is one tap away. Everything else in
+// The acceptance test is the plain one: signed in, from each admin section in
+// SECTIONS, every other section is one tap away. Everything else in
 // here guards the ways that could be true and still wrong -- a public visitor
 // seeing operator links, a customer's own page sprouting an admin bar, or the
 // thing being hidden behind JavaScript on the one device least likely to run
@@ -22,7 +22,7 @@ const assert = require('node:assert/strict');
 const { startServer, freshStamp, submission } = require('./helpers');
 
 const SITE = 'https://getrydja.com';
-const SECTIONS = ['/admin/dashboard', '/admin/leads', '/admin/jobs'];
+const SECTIONS = ['/admin/dashboard', '/admin/leads', '/admin/jobs', '/admin/traffic'];
 
 let app;
 let cookie;
@@ -64,7 +64,7 @@ test('from every admin section, every other section is one tap away', async () =
   }
 });
 
-test('it reaches the deeper admin pages too, not just the three lists', async () => {
+test('it reaches the deeper admin pages too, not just the section roots', async () => {
   const deeper = [
     '/admin',
     '/admin/leads/' + lead.id,
@@ -155,9 +155,11 @@ test('it is real HTML that works with scripting off', async () => {
 
   assert.doesNotMatch(nav, /onclick|data-|<button|<script/, 'plain links only');
   assert.match(nav, /aria-label="Admin sections"/);
-  // Three anchors, each with a real href. Nothing is a span waiting for JS.
-  assert.equal((nav.match(/<a /g) || []).length, 3);
-  assert.equal((nav.match(/href="\/admin\//g) || []).length, 3);
+  // One anchor per section, each with a real href. Nothing is a span waiting
+  // for JS, and the count is derived so adding a fifth section does not mean
+  // editing this line as well as the template.
+  assert.equal((nav.match(/<a /g) || []).length, SECTIONS.length);
+  assert.equal((nav.match(/href="\/admin\//g) || []).length, SECTIONS.length);
 
   // app.js knows nothing about it.
   const js = await (await app.get('/app.js')).text();

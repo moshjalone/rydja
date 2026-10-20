@@ -34,6 +34,35 @@
     Counted over jobs marked complete this month. Revenue less recorded expenses, plus salvage actually sold.
   </p>
 
+  <%# The website's own side of the same month.
+
+      Here rather than only on the traffic page because it answers the first
+      question to ask when the lead count is low, and the answer changes what
+      you do next: nobody arriving is a reach problem, and plenty arriving and
+      nobody asking is a page problem. Four figures and a link; the detail
+      lives on /admin/traffic. %>
+  <h2 class="dash-h2">Website this month</h2>
+  <div class="metrics four">
+    <div><span>Visitors</span><strong><%= traffic.visitors %></strong></div>
+    <div><span>Quote buttons clicked</span><strong><%= traffic.funnel.steps[1].people %></strong></div>
+    <div><span>Forms started</span><strong><%= traffic.funnel.steps[3].people %></strong></div>
+    <div><span>Call / text taps</span><strong><%= traffic.funnel.contact.call + traffic.funnel.contact.text %></strong></div>
+  </div>
+  <p class="dash-note">
+    <% if (!traffic.visitors) { %>
+      No measured visits yet this month. If that stays at zero the bottleneck is upstream of the site, not on it.
+    <% } else if (!traffic.funnel.steps[4].people) { %>
+      People are arriving and none of them has sent a request yet this month. That is a page problem, not a reach
+      problem.
+    <% } else { %>
+      Visitors are counted per day and hold no identifier.
+    <% } %>
+    <% if (!traffic.crawled) { %>
+      <strong>No search-engine crawler has fetched a page this month.</strong>
+    <% } %>
+    <a class="text-link" href="/admin/traffic">Full traffic and funnel &rarr;</a>
+  </p>
+
   <h2 class="dash-h2">Needs attention</h2>
   <div class="attention">
     <% attention.forEach(function(item) { %>

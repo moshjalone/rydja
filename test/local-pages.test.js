@@ -368,9 +368,11 @@ test('the city pages are in the sitemap and reachable from the site', async () =
   }
 });
 
-test('the city pages are indexable, with no noindex from the new template', async () => {
+test('the city pages are measured like any other public page', async () => {
   for (const page of LOCAL_PAGES) {
     const doc = await html('/' + page.slug);
+    assert.ok(doc.includes('data-track="/' + page.slug + '"'), page.slug + ' should be measured');
+    // And indexable: no noindex crept in with the new template.
     assert.ok(!doc.includes('name="robots"'), page.slug + ' must not be noindex');
   }
 });

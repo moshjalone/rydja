@@ -1,4 +1,4 @@
-/* The two scripts on the site. No framework, no date library.
+/* The scripts on the site. No framework, no date library, nothing third-party.
  *
  * Native <input type="date"> already has a calendar; on desktop it only opens
  * from the small indicator at the right edge, which is why the field reads as
@@ -146,4 +146,122 @@
   });
 
   sync();
+})();
+
+/* Measurement.
+ *
+ * Reports six things to our own server, and nothing to anybody else: this page
+ * was viewed, a quote button was clicked, the quote form was started, photos
+ * were attached, a call link was tapped, a text link was tapped.
+ *
+ * What it does not do is the point. It sets no cookie, reads no cookie, mints
+ * no identifier, stores nothing locally, and sends no URL, no referrer, no
+ * screen size and nothing typed into any field. The only thing leaving the
+ * browser is one of six fixed words and the path of the page -- which the
+ * server already knew, because it served it.
+ *
+ * It runs only where the server rendered a data-track attribute on <body>,
+ * which is only on the public marketing pages. On the admin and on a
+ * customer's own job page the attribute is absent and this exits immediately.
+ *
+ * sendBeacon rather than fetch: it survives the page being navigated away
+ * from, which is the common case for every click event here -- the whole
+ * point of a quote-button click is that the page is about to change. Where it
+ * is unavailable nothing is sent, and nothing breaks.
+ */
+(function () {
+  'use strict';
+
+  var body = document.body;
+  var page = body && body.getAttribute('data-track');
+  if (!page) return;
+  if (typeof navigator.sendBeacon !== 'function') return;
+
+  // Honour the browser's own stated preference. Nothing here tracks anybody
+  // across sites, so Do Not Track does not strictly apply to it -- but a
+  // visitor who has asked not to be measured has asked clearly, and a count
+  // of page views is not worth overriding that for.
+  if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+
+  function send(name) {
+    try {
+      var data = new URLSearchParams();
+      data.set('name', name);
+      data.set('path', page);
+      // URLSearchParams gives sendBeacon a urlencoded body, which is the one
+      // content type the server already parses. No JSON, no preflight.
+      navigator.sendBeacon('/api/event', data);
+    } catch (err) {
+      /* Measurement is never worth an error on a customer's page. */
+    }
+  }
+
+  send('view');
+
+  /* Clicks, by delegation off one listener on the document.
+   *
+   * Delegation rather than a listener per link because the interesting
+   * elements -- quote buttons, tel: links, sms: links -- appear in the header,
+   * the footer, the sticky mobile bar and the body copy, and a new one should
+   * be measured without this file knowing it was added. */
+  document.addEventListener(
+    'click',
+    function (event) {
+      var link = event.target && event.target.closest && event.target.closest('a');
+      if (!link) return;
+
+      var href = link.getAttribute('href') || '';
+      if (href.indexOf('tel:') === 0) return send('call_click');
+      if (href.indexOf('sms:') === 0) return send('text_click');
+
+      // A quote button is any link whose destination is the quote form,
+      // written either as a path or as an absolute URL on this host. The
+      // form's own submit button is not one: that is a submission, counted on
+      // the server.
+      if (href === '/quote' || href.indexOf('/quote?') === 0) return send('quote_cta');
+      if (href.indexOf('http') === 0) {
+        try {
+          var url = new URL(href);
+          if (url.host === window.location.host && url.pathname === '/quote') return send('quote_cta');
+        } catch (err) {
+          /* not a URL we can read; not a quote button */
+        }
+      }
+    },
+    // Capture phase, so the event is seen even if something downstream stops
+    // it, and passive, so this can never delay a navigation.
+    { capture: true, passive: true }
+  );
+
+  /* The quote form: started, and photos attached.
+   *
+   * "Started" fires once, on the first real interaction with any field, and
+   * then unbinds itself. It is the measurement that separates "nobody is
+   * reaching the form" from "people reach it and give up on it", which are
+   * different problems with different fixes. */
+  var form = document.querySelector('form.quote-form');
+  if (!form) return;
+
+  var started = false;
+  function onFirstInput() {
+    if (started) return;
+    started = true;
+    send('form_start');
+    form.removeEventListener('input', onFirstInput);
+    form.removeEventListener('change', onFirstInput);
+  }
+  form.addEventListener('input', onFirstInput, { passive: true });
+  form.addEventListener('change', onFirstInput, { passive: true });
+
+  var photos = form.querySelector('input[type="file"]');
+  if (!photos) return;
+  photos.addEventListener(
+    'change',
+    function () {
+      // Only when files are actually attached. Opening the picker and
+      // cancelling fires change with an empty list on some browsers.
+      if (photos.files && photos.files.length) send('photos_added');
+    },
+    { passive: true }
+  );
 })();

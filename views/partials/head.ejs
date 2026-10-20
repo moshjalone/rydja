@@ -62,14 +62,18 @@
 </head>
 <%# The class reserves room at the bottom of the page for the fixed mobile
     call/quote bar, on exactly the pages that render one. %>
-<body<%- locals.mobileCta ? ' class="has-mobile-cta"' : '' %>>
+<%# data-track names the page for the measurement script, and is
+    rendered only on the public pages the server measures -- so on the admin
+    and on a customer's own job page the script has nothing to report and
+    sends nothing at all. %>
+<body<%- locals.mobileCta ? ' class="has-mobile-cta"' : '' %><%- locals.trackPath ? ' data-track="' + locals.trackPath + '"' : '' %>>
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="nav">
   <a class="brand" href="/"><%= brand %></a>
   <nav>
     <a href="/services">Services</a>
     <a href="/#how">How it works</a>
-    <% if (isAdmin) { %><a href="/admin/dashboard">Dashboard</a><a href="/admin/leads">Leads</a><a href="/admin/jobs">Jobs</a><% } %>
+    <% if (isAdmin) { %><a href="/admin/dashboard">Dashboard</a><a href="/admin/leads">Leads</a><a href="/admin/jobs">Jobs</a><a href="/admin/traffic">Traffic</a><% } %>
   </nav>
   <a class="button small" href="/quote">Get a Quote</a>
 </header>
@@ -103,7 +107,8 @@
     const adminSections = [
       { href: '/admin/dashboard', label: 'Dashboard' },
       { href: '/admin/leads', label: 'Leads' },
-      { href: '/admin/jobs', label: 'Jobs' }
+      { href: '/admin/jobs', label: 'Jobs' },
+      { href: '/admin/traffic', label: 'Traffic' }
     ];
   %>
   <nav class="admin-nav" aria-label="Admin sections">

@@ -1,0 +1,233 @@
+<%- include('../partials/head', { title: 'Traffic', noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN</div>
+      <h1>Traffic &amp; funnel</h1>
+      <p class="dash-sub"><%= period.label %> &mdash; <%= period.from %> to <%= period.to %></p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/dashboard">Dashboard</a>
+      <a class="button small ghost" href="/admin/leads">Lead inbox</a>
+    </div>
+  </div>
+
+  <%# Range is a link set rather than a form: three choices, bookmarkable,
+      and it works with scripting off like everything else in here. %>
+  <nav class="range-tabs" aria-label="Time range">
+    <% ranges.forEach(function(r) { %>
+      <a href="/admin/traffic?range=<%= r.key %>"<%- r.key === period.key ? ' class="here" aria-current="page"' : '' %>><%= r.label %></a>
+    <% }) %>
+  </nav>
+
+  <h2 class="dash-h2">The headline</h2>
+  <div class="metrics four">
+    <div><span>Visitors</span><strong><%= totals.counts.view.people %></strong></div>
+    <div><span>Page views</span><strong><%= totals.counts.view.events %></strong></div>
+    <div><span>Quote requests sent</span><strong><%= totals.counts.quote_submit.events %></strong></div>
+    <div><span>Leads recorded</span><strong><%= leadsInPeriod %></strong></div>
+  </div>
+  <p class="dash-note">
+    Visitors counts people for one day at a time, so somebody who comes back tomorrow is counted again &mdash; that
+    is the deliberate cost of holding no identifier for anybody. &ldquo;Leads recorded&rdquo; is the lead table,
+    which includes work that arrived by phone and never touched the website at all; the two columns are two
+    independent records of the same month and are allowed to differ.
+  </p>
+
+  <h2 class="dash-h2">The funnel</h2>
+  <% if (!funnel.steps[0].people && !totals.counts.quote_submit.events) { %>
+    <div class="panel empty">
+      No measured visits in this window yet. If the site is live and this stays at zero, the problem is upstream of
+      the website &mdash; nobody is arriving &mdash; and no amount of changing the pages will move it.
+    </div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead>
+          <tr><th>Step</th><th class="num">People</th><th class="num">Of the step above</th></tr>
+        </thead>
+        <tbody>
+          <% funnel.steps.forEach(function(step) { %>
+            <tr>
+              <td><%= step.label %></td>
+              <td class="num" data-label="People"><%= step.people %></td>
+              <%# A rate with nothing above it to divide by is not a rate. %>
+              <td class="num" data-label="Of the step above"><%= step.rate === null ? '—' : step.rate + '%' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="dash-note">
+      Each step counts people, not clicks: one person tapping a quote button four times is one person who wanted a
+      quote. Every step except the last is reported by the browser and so misses anybody with scripting off; the
+      last step is counted on the server when the lead row is written, and is exact.
+    </p>
+  <% } %>
+
+  <h2 class="dash-h2">Reaching us directly</h2>
+  <div class="metrics three">
+    <div><span>Tapped Call</span><strong><%= funnel.contact.call %></strong></div>
+    <div><span>Tapped Text</span><strong><%= funnel.contact.text %></strong></div>
+    <div><span>Of all visitors</span><strong><%= funnel.contact.ofVisitors === null ? '—' : funnel.contact.ofVisitors + '%' %></strong></div>
+  </div>
+  <p class="dash-note">
+    Not part of the funnel above, and deliberately kept out of it: somebody who taps Call never sees the quote form,
+    so folding these in would double-count the people who do both. A tap is somebody starting a call or a message
+    on their phone &mdash; it is not proof they went through with it, and nothing here can know whether they did.
+  </p>
+
+  <h2 class="dash-h2">Where visitors came from</h2>
+  <% if (!sources.length) { %>
+    <div class="panel empty">Nothing recorded in this window.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Source</th><th class="num">Visitors</th><th class="num">Page views</th></tr></thead>
+        <tbody>
+          <% sources.forEach(function(row) { %>
+            <tr>
+              <td><span class="src-chip src-<%= row.source || 'unknown' %>"><%= row.label %></span></td>
+              <td class="num" data-label="Visitors"><%= row.people %></td>
+              <td class="num" data-label="Page views"><%= row.views %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <% if (referrers.length) { %>
+    <h3 class="dash-h3">Referring sites</h3>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Host</th><th class="num">Visitors</th></tr></thead>
+        <tbody>
+          <% referrers.forEach(function(row) { %>
+            <tr><td><%= row.referrer %></td><td class="num" data-label="Visitors"><%= row.people %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="dash-note">Hosts only. The page somebody was reading before they arrived is not recorded.</p>
+  <% } %>
+
+  <h2 class="dash-h2">Which pages people landed on</h2>
+  <% if (!topPages.length) { %>
+    <div class="panel empty">Nothing recorded in this window.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Page</th><th class="num">Visitors</th><th class="num">Views</th></tr></thead>
+        <tbody>
+          <% topPages.forEach(function(row) { %>
+            <tr>
+              <td><a class="text-link" href="<%= row.path %>"><%= row.path %></a></td>
+              <td class="num" data-label="Visitors"><%= row.people %></td>
+              <td class="num" data-label="Views"><%= row.views %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <% if (daily.length) { %>
+    <h2 class="dash-h2">Day by day</h2>
+    <%
+      // The scale for the bars. Computed here rather than in the route: it is
+      // a presentation detail and nothing else needs it.
+      var peak = daily.reduce(function (m, d) { return Math.max(m, d.people); }, 0) || 1;
+    %>
+    <div class="panel">
+      <ul class="day-bars" role="list">
+        <% daily.forEach(function(d) { %>
+          <li>
+            <span class="day-label"><%= d.day %></span>
+            <span class="day-bar"><span style="width: <%= Math.round((d.people / peak) * 100) %>%"></span></span>
+            <span class="day-count"><%= d.people %></span>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+    <p class="dash-note">Visitors per day. Days with nobody on them are absent rather than drawn as zero.</p>
+  <% } %>
+
+  <h2 class="dash-h2">Crawler activity</h2>
+  <%# The single most important paragraph on this page. A crawl is not an
+      index, these numbers cannot tell you whether a page ranks, and the only
+      thing that can is Search Console. Said plainly, next to the numbers,
+      because a figure labelled "Googlebot" is exactly the sort of thing that
+      gets read as proof of something it is not. %>
+  <div class="panel note-panel">
+    <p>
+      <strong>This is evidence of crawling, not of indexing.</strong> A page Googlebot fetched is a page Google has
+      <em>seen</em>. Whether Google chose to index it, and what it ranks for, is reported only in
+      <a class="text-link" href="https://search.google.com/search-console" target="_blank" rel="noopener noreferrer">Google
+      Search Console</a> &mdash; nothing on this server can answer it. What this table is good for is ruling
+      something out: if Googlebot has never been here, the problem is reachability or verification, not content.
+    </p>
+  </div>
+  <% if (!crawlers.length) { %>
+    <div class="panel empty">
+      No crawler has fetched a public page in this window. On a site that has been live for a while that is worth
+      acting on: check that the property is verified in Search Console and that the sitemap has been submitted.
+    </div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Crawler</th><th class="num">Fetches</th><th class="num">Pages</th><th>Last seen</th></tr></thead>
+        <tbody>
+          <% crawlers.forEach(function(row) { %>
+            <tr>
+              <td><%= row.bot %></td>
+              <td class="num" data-label="Fetches"><%= row.fetches %></td>
+              <td class="num" data-label="Pages"><%= row.paths %></td>
+              <td data-label="Last seen"><%= prettyDate(row.last_seen) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <% if (googlebot.length) { %>
+    <h3 class="dash-h3">What Googlebot fetched</h3>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Path</th><th class="num">Fetches</th><th class="num">Status</th><th>Last seen</th></tr></thead>
+        <tbody>
+          <% googlebot.forEach(function(row) { %>
+            <tr>
+              <td><%= row.path %></td>
+              <td class="num" data-label="Fetches"><%= row.fetches %></td>
+              <td class="num" data-label="Status"><%= row.status %></td>
+              <td data-label="Last seen"><%= prettyDate(row.last_seen) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <p class="dash-note">
+      A status other than 200 against a page that should be public is the one thing in here worth chasing
+      immediately.
+    </p>
+  <% } %>
+
+  <h2 class="dash-h2">What this does and does not hold</h2>
+  <div class="panel note-panel">
+    <ul>
+      <li>No cookie is set for any of this, and no third party is contacted. Everything on this page was recorded by
+        this server.</li>
+      <li>No IP address and no browser identification string is stored. A visitor is counted with a one-way key that
+        changes every day, so there is nothing here that can be traced to a person or followed to another site.</li>
+      <li>Page views come from the browser, so a visitor with scripting turned off is not counted. Quote requests are
+        counted on the server and are exact.</li>
+      <li>Nothing typed into the quote form is recorded here. The lead itself is the record of that.</li>
+      <li>Crawlers are stored by name only, never by their full identification string.</li>
+    </ul>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

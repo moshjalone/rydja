@@ -369,11 +369,51 @@ test('the privacy policy discloses the attribution cookie accurately', async () 
 
   assert.match(doc, /utm_source/, 'name the campaign labels we actually store');
   assert.match(doc, /domain only/i, 'say that only the referring domain is kept');
-  assert.match(doc, /no analytics, no advertising pixels/i, 'the standing claim must survive');
+
+  // The standing claim, narrowed to what is still true. The site now counts
+  // its own visits, so "no analytics" would be false; "no third-party
+  // analytics" is the claim, and it must say third-party rather than drop the
+  // word and leave a reader to assume the wider version.
+  assert.match(
+    doc,
+    /no third-party analytics, no advertising pixels/i,
+    'the no-third-party claim must survive, and must say third-party'
+  );
+  assert.ok(
+    !/\bruns no analytics\b/i.test(doc),
+    'the site does run its own analytics now; the policy must not deny it'
+  );
 
   // And it must not have acquired a claim we would be unable to defend.
   for (const overclaim of ['google analytics', 'advertising cookie', 'advertising cookies',
                            'we track you', 'third-party cookie']) {
+    assert.ok(!doc.toLowerCase().includes(overclaim), 'privacy policy must not say: ' + overclaim);
+  }
+});
+
+// The measurement disclosure. The site counts visits itself, so the policy has
+// to say so, say how, and say what it refuses to keep -- and every claim it
+// makes has a test somewhere that holds the code to it.
+test('the privacy policy discloses the visit counting accurately', async () => {
+  const doc = await html('/privacy');
+
+  assert.match(doc, /We do count visits, and we do it ourselves/i, 'own the fact plainly');
+  assert.match(doc, /No cookie is used for any of that/i, 'say no cookie is involved for it');
+  assert.match(doc, /no identifier is created for you/i, 'say no identifier is minted');
+  assert.match(doc, /today&rsquo;s date|today's date/i, 'explain the daily rotation');
+  assert.match(
+    doc,
+    /never\s+store your network address/i,
+    'say the IP address itself is not kept'
+  );
+  assert.match(doc, /asks sites not to track you/i, 'disclose that Do Not Track is honoured');
+  assert.match(doc, /crawler fetches a page/i, 'disclose the crawler log');
+
+  // It must not claim consent it never asked for, or a legal basis it has not
+  // established. The counting is disclosed, not consented to, and saying
+  // otherwise would be a false record of consent.
+  for (const overclaim of ['you consent to', 'by using this site you agree to tracking',
+                           'anonymous forever', 'we cannot identify anyone ever']) {
     assert.ok(!doc.toLowerCase().includes(overclaim), 'privacy policy must not say: ' + overclaim);
   }
 });
