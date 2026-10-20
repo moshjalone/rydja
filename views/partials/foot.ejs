@@ -49,6 +49,11 @@
       <a href="/services">Services</a>
       <a href="/property-professionals">For Professionals</a>
       <a href="/service-area">Service Area</a>
+      <%# The two local pages, in the footer so they are reachable from every
+          page rather than only from the one that lists places. Rendered from
+          the content file, so a third page would appear here without this
+          markup being touched. %>
+      <% localPages.forEach(function(p) { %><a href="/<%= p.slug %>"><%= p.city %>, MI</a><% }) %>
       <a href="/quote">Get a Quote</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>

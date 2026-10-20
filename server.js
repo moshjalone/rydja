@@ -15,6 +15,7 @@ const { configFromEnv } = require('./s3');
 const scheduleBackup = require('./schedule-backup');
 const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
 const { HAUL_AWAY_GROUPS, CALL_SITUATIONS, checkLinks } = require('./content/homepage');
+const { LOCAL_PAGES, linkedServiceSlugs } = require('./content/local-pages');
 const indexnow = require('./indexnow');
 const attribution = require('./attribution');
 
@@ -464,11 +465,47 @@ const PROFESSIONALS_PATH = '/property-professionals';
 // page. Checked at boot against the routes that actually exist.
 checkLinks([...SERVICE_PAGES.map((p) => '/' + p.slug), PROFESSIONALS_PATH]);
 
+// The local pages link to service pages by slug. Checked here rather than
+// trusted, because the content file names them as strings and a renamed
+// service page would otherwise leave two dead links on a city page and a
+// crash in the template that reads the service's title off the catalog.
+(function checkLocalPages() {
+  const services = new Set(SERVICE_PAGES.map((p) => p.slug));
+  for (const slug of linkedServiceSlugs()) {
+    if (!services.has(slug)) {
+      throw new Error(`a local page links the service "${slug}", which is not a service page`);
+    }
+  }
+  // A CTA has to prefill something the quote form actually offers, the same
+  // condition the service pages are held to.
+  for (const page of LOCAL_PAGES) {
+    if (!QUOTE_SERVICES.includes(page.quoteService)) {
+      throw new Error(`local page ${page.slug} prefills "${page.quoteService}", which the quote form does not offer`);
+    }
+  }
+  // And a city page must not collide with a service page's slug.
+  for (const page of LOCAL_PAGES) {
+    if (services.has(page.slug)) throw new Error(`local page slug ${page.slug} collides with a service page`);
+  }
+})();
+
 // Where the sticky mobile call/quote bar is allowed to appear: public
 // marketing pages. Excluded, in order -- the admin, a customer's own job page,
 // the quote form and its confirmation (the bar's own destination), and
 // anything that looks like a file request.
 const PUBLIC_CTA_PATH = /^\/(?!admin|q\/|quote|uploads\/|api\/)[^.]*$/;
+
+
+// The city pages whose city the configured service area actually names.
+//
+// Computed once: the list does not change at runtime, and the pages linking it
+// are rendered on every request. With the default configuration this is both
+// of them, which is the condition a test asserts -- the filter exists for the
+// deployment that narrows the area, so that a link can never outlive the claim
+// behind it.
+const LOCAL_PAGES_IN_AREA = LOCAL_PAGES.filter((p) =>
+  SERVICE_AREA_PLACES.includes(p.city + ', ' + p.state)
+);
 
 const EXPENSE_CATEGORIES = [
   { value: 'dump', label: 'Dump / disposal fee' },
@@ -872,6 +909,13 @@ app.use((req, res, next) => {
   res.locals.serviceArea = SERVICE_AREA;
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
   res.locals.servicePages = SERVICE_PAGES;
+  // Only the city pages whose city the configuration says we actually serve.
+  //
+  // A page for a city is a coverage claim, and /service-area and the footer are
+  // where it is made. If SERVICE_AREA_PLACES is ever narrowed, the links have
+  // to narrow with it rather than go on promising the old area -- the places
+  // list and the local pages must not be able to disagree in public.
+  res.locals.localPages = LOCAL_PAGES_IN_AREA;
   res.locals.facebookUrl = FACEBOOK_URL;
   res.locals.instagramUrl = INSTAGRAM_URL;
   res.locals.sourceLabel = attribution.sourceLabel;
@@ -1306,6 +1350,97 @@ for (const page of SERVICE_PAGES) {
 app.get('/service-area', (req, res) =>
   res.render('service-area', { breadcrumbJsonLd: breadcrumbJsonLd('Service Area', '/service-area') })
 );
+
+/**
+ * A local page's structured data.
+ *
+ * A Service with an areaServed of exactly one place, provided by the business
+ * node. Not a second LocalBusiness: there is one business, it has one @id, and
+ * minting a LocalBusiness per city is how a single-truck operation ends up
+ * looking like a chain of branch offices that do not exist. The address is
+ * absent for the same reason it is absent everywhere else -- the registered
+ * one is residential.
+ */
+function localJsonLd(page) {
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: `Junk removal and cleanouts in ${page.city}, ${page.state}`,
+    description: page.description,
+    url: SITE_URL + '/' + page.slug,
+    serviceType: 'Junk removal and property cleanouts',
+    provider: { '@type': 'HomeAndConstructionBusiness', '@id': SITE_URL + '/#business', name: BRAND },
+    areaServed: {
+      '@type': 'City',
+      name: page.city,
+      containedInPlace: { '@type': 'AdministrativeArea', name: page.county + ', ' + page.state }
+    }
+  });
+}
+
+/**
+ * The questions on a page, as FAQPage markup.
+ *
+ * Built from the same array the template renders, so the markup and the page
+ * cannot say different things. That is not a style preference: structured data
+ * describing an answer a visitor cannot read on the page is exactly what the
+ * guidelines call out, and it is trivially detectable.
+ *
+ * HTML is stripped from the answers rather than passed through. The property
+ * takes a text or HTML answer, and a half-escaped anchor inside a JSON string
+ * inside a script tag is a worse failure than a plain sentence.
+ */
+function faqJsonLd(faqs) {
+  const text = (s) => String(s).replace(/<[^>]+>/g, '').replace(/&mdash;/g, '—').replace(/&rsquo;/g, '’');
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: text(faq.q),
+      acceptedAnswer: { '@type': 'Answer', text: text(faq.a) }
+    }))
+  });
+}
+
+// The local pages. Two, deliberately, and the reasoning for that -- plus the
+// rule a third would have to satisfy -- is at the top of
+// content/local-pages.js. One layout; the substance of each page is its own.
+for (const page of LOCAL_PAGES) {
+  app.get('/' + page.slug, (req, res) =>
+    res.render('local-page', {
+      page,
+      jsonLd: localJsonLd(page),
+      breadcrumbJsonLd: localBreadcrumbJsonLd(page),
+      faqJsonLd: faqJsonLd(page.faqs)
+    })
+  );
+}
+
+/**
+ * Breadcrumbs for a local page: Home > Service Area > this city.
+ *
+ * Its own function rather than a parameter on breadcrumbJsonLd(), because the
+ * second level genuinely differs -- a city is a place, and /service-area is
+ * the page that owns places. The template renders the same trail.
+ */
+function localBreadcrumbJsonLd(page) {
+  const trail = [
+    { name: 'Home', item: SITE_URL + '/' },
+    { name: 'Service Area', item: SITE_URL + '/service-area' },
+    { name: page.nav, item: SITE_URL + '/' + page.slug }
+  ];
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: trail.map((step, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: step.name,
+      item: step.item
+    }))
+  });
+}
 
 // The IndexNow key file. One literal path, registered only when a key is
 // configured, answering with that key and nothing else.

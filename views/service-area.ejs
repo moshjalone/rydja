@@ -24,14 +24,39 @@
 
   <%# The communities themselves come from configuration -- the same list that
       feeds areaServed in the structured data -- so the page and the markup
-      cannot disagree, and nobody has to remember to update two places. There
-      are deliberately no per-city pages behind these: a page per town with the
-      same copy and the name swapped is a doorway page, and it would read like
-      one to a visitor as much as to a crawler. %>
+      cannot disagree, and nobody has to remember to update two places.
+
+      Most of these deliberately have no page of their own. A page per town
+      with the same copy and the name swapped is a doorway page, and it would
+      read like one to a visitor as much as to a crawler. The two that do have
+      pages earned them by having something true and specific to say about
+      doing this work there -- the rule a third would have to satisfy is
+      written down at the top of content/local-pages.js. %>
   <h2>Communities we serve</h2>
   <ul class="area-list">
     <% serviceAreaPlaces.forEach(function(place) { %><li><%= place %></li><% }) %>
   </ul>
+
+  <%# Only the cities the configuration says we serve have a page linked here,
+      and the sentence above the list is written from the data rather than
+      naming them -- so narrowing SERVICE_AREA_PLACES narrows this too instead
+      of leaving a promise behind. The whole block disappears if none of them
+      is in the configured area. %>
+  <% if (localPages.length) { %>
+  <h3>Where we work from most</h3>
+  <p>
+    <%= localPages.map(function (p) { return p.city; }).join(' and ') %>
+    <%= localPages.length > 1 ? 'are the two ends of the area, in two different counties, and the work is genuinely different at each end. Each has a page of its own:' : 'has a page of its own:' %>
+  </p>
+  <ul>
+    <% localPages.forEach(function(p) { %>
+      <li>
+        <a class="text-link" href="/<%= p.slug %>">Junk removal and cleanouts in <%= p.city %>, <%= p.state %></a>
+        &mdash; <%= p.county %>. <%- p.lede %>
+      </li>
+    <% }) %>
+  </ul>
+  <% } %>
   <p class="price-note">
     These are the places we have actually committed to, not a radius drawn to look impressive. If your town is not
     named, read on &mdash; the boundary is softer than a list makes it look.

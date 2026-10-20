@@ -17,6 +17,7 @@ const SITE_URL = 'https://getrydja.com';
 // customer should be able to read the terms before handing over a photo of
 // their garage.
 const { SERVICE_PAGES } = require('../content/service-pages');
+const { LOCAL_PAGES } = require('../content/local-pages');
 
 // The indexable set, in sitemap order. Derived from the service page content so
 // adding a service page cannot leave this behind. /property-professionals is
@@ -26,7 +27,11 @@ const PUBLIC_PAGES = [
   '/', '/quote', '/services',
   ...SERVICE_PAGES.map((p) => '/' + p.slug),
   '/property-professionals',
-  '/service-area', '/terms', '/privacy', '/accessibility', '/image-credits'
+  '/service-area',
+  // The two local pages. Derived from the content file for the same reason
+  // the service pages are: adding one must not be able to leave this behind.
+  ...LOCAL_PAGES.map((p) => '/' + p.slug),
+  '/terms', '/privacy', '/accessibility', '/image-credits'
 ];
 
 let app;

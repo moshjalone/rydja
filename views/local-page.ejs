@@ -1,0 +1,125 @@
+<%- include('partials/head', {
+  fullTitle: page.title,
+  canonicalPath: '/' + page.slug,
+  description: page.description
+}) %>
+
+<main id="main" tabindex="-1" class="section shell narrow legal service-page">
+  <%# The trail is Home > Service Area > this city, not Home > Services:
+      a city page is a place, and /service-area is the page that owns places.
+      The breadcrumb structured data says the same thing. %>
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a> <span aria-hidden="true">&rsaquo;</span>
+    <a href="/service-area">Service Area</a> <span aria-hidden="true">&rsaquo;</span>
+    <span aria-current="page"><%= page.nav %></span>
+  </nav>
+
+  <h1><%= page.h1 %></h1>
+  <p class="lede smaller"><%- page.lede %></p>
+
+  <% page.intro.forEach(function(para) { %><p><%- para %></p><% }) %>
+
+  <p class="cta-inline">
+    <a class="button" href="/quote?service=<%= encodeURIComponent(page.quoteService) %>">Send photos for a quote</a>
+    <% if (businessPhone) { %>
+      <span class="or-call">or call <%- include('partials/call-text') %></span>
+    <% } %>
+  </p>
+
+  <%# The substance. Not "we serve <city>" restated five ways -- the things
+      about this particular place that change the job, the quote or the plan.
+      If a city page cannot fill this section with something true and specific
+      to it, it should not be a page; see the rule in content/local-pages.js. %>
+  <h2><%= page.localHeading %></h2>
+  <% page.local.forEach(function(item) { %>
+    <h3><%= item.h %></h3>
+    <p><%- item.p %></p>
+  <% }) %>
+
+  <h2>What we are asked for in <%= page.city %></h2>
+  <ul>
+    <% page.services.forEach(function(entry) { %>
+      <%
+        // [slug, why it comes up here]. The label comes off the service
+        // catalog so a page cannot call a service something the service page
+        // does not call itself.
+        var slug = entry[0];
+        var why = entry[1];
+        var service = servicePages.find(function (p) { return p.slug === slug; });
+      %>
+      <li>
+        <a class="text-link" href="/<%= slug %>"><%= service.card.title %></a> &mdash; <%- why %>
+      </li>
+    <% }) %>
+  </ul>
+
+  <h2><%= page.nearbyHeading %></h2>
+  <ul class="area-list">
+    <% page.nearby.forEach(function(place) { %><li><%= place %></li><% }) %>
+  </ul>
+  <p class="price-note"><%- page.nearbyNote %></p>
+
+  <%# These places get a mention and deliberately not a page of their own.
+      One sentence, so a reader in Saranac or Sheridan can see that they are
+      covered without the site growing a page per township. %>
+
+  <h2>How a job in <%= page.city %> runs</h2>
+  <ol class="area-steps">
+    <li>Send photographs and a short description through the <a class="text-link" href="/quote">quote form</a>, or call and talk it through.</li>
+    <li>We look at volume, access, labour and disposal, and send you a written price.</li>
+    <li>You approve it, and confirm a time we propose or ask for a different one.</li>
+    <li>We turn up, clear what you have told us to clear, and haul it away.</li>
+  </ol>
+  <p class="price-note">
+    <%= businessHours.label %>, and the quote form is open whenever you are. Nothing is booked and nothing is owed
+    until you approve the price.
+  </p>
+
+  <h2>Common questions &mdash; <%= page.city %></h2>
+  <% page.faqs.forEach(function(faq) { %>
+    <h3><%= faq.q %></h3>
+    <p><%- faq.a %></p>
+  <% }) %>
+
+  <div class="panel notice">
+    <h3>What we can&rsquo;t take</h3>
+    <%# One list, named once, shared by both local pages on purpose. These are
+        facts about the business rather than about the city, and writing two
+        different versions of them would be two chances to get a legal limit
+        wrong. The city-specific version of the same point lives above, in the
+        sections that are genuinely local -- the asbestos barn roof, the
+        two-stroke fuel in the boathouse. %>
+    <ul>
+      <li>Hazardous waste, asbestos, biohazards, unknown chemicals and other regulated material</li>
+      <li>Fuels, solvents, paint, propane tanks, pesticides and vehicle batteries</li>
+      <li>Anything that needs a licensed abatement contractor rather than a hauler</li>
+    </ul>
+    <p>
+      If you are not sure which side of that line something falls on, photograph it and ask before the crew is
+      booked. We would rather answer the question than find it on the day.
+    </p>
+  </div>
+
+  <h2>Where else we work</h2>
+  <p>
+    <%= page.city %> is one of the places we have actually committed to, not a radius drawn to look impressive. The
+    full list, and how we decide about a job just outside it, is on the
+    <a class="text-link" href="/service-area">service area</a> page.
+  </p>
+
+  <p><%- page.closing %></p>
+
+  <p class="cta-inline">
+    <a class="button" href="/quote?service=<%= encodeURIComponent(page.quoteService) %>">Request a quote</a>
+  </p>
+</main>
+
+<script type="application/ld+json"><%- jsonLd %></script>
+<script type="application/ld+json"><%- breadcrumbJsonLd %></script>
+<%# The page's own questions, as structured data. Only the questions that are
+    actually rendered above, with the same answers -- markup describing
+    something a visitor cannot read on the page is the thing that gets a site
+    a manual action. %>
+<script type="application/ld+json"><%- faqJsonLd %></script>
+
+<%- include('partials/foot') %>

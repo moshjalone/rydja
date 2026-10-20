@@ -338,8 +338,9 @@ backup first anyway (`npm run backup`); that advice never changes.
 
 ## Search engines and sharing
 
-The public surface is seventeen pages: the homepage, `/services`, `/quote`,
-the eight service pages, `/property-professionals`, `/service-area` and the
+The public surface is nineteen pages: the homepage, `/services`, `/quote`,
+the eight service pages, `/property-professionals`, `/service-area`, the two
+city pages (`/junk-removal-lowell-mi`, `/junk-removal-stanton-mi`) and the
 four legal pages. Everything else -- the customer's own `/q/<token>` page and
 the whole admin -- carries `noindex,nofollow`, has no canonical and no Open
 Graph tags, and is kept out of the sitemap. A private link pasted into a chat
@@ -348,11 +349,12 @@ app will not unfurl into a preview card.
 | URL | What it is |
 |---|---|
 | `/robots.txt` | Allows the whole site and points at the sitemap. Deliberately **no** `Disallow` lines: robots.txt is public, so listing `/admin` there advertises it. `noindex` on the page is what actually keeps private pages out of an index |
-| `/sitemap.xml` | The seventeen indexable pages, absolute `https://getrydja.com` URLs. A literal file, edited by hand; a test fails until it matches the routes |
+| `/sitemap.xml` | The nineteen indexable pages, absolute `https://getrydja.com` URLs. A literal file, edited by hand; a test fails until it matches the routes |
 | `/og-image.jpg` | 1200x630 share card, 39KB |
 | JSON-LD on `/` | `HomeAndConstructionBusiness`: name, legalName, url, phone, description, areaServed, logo, opening hours, offer catalog |
 | `/<key>.txt` | The IndexNow key file, when `INDEXNOW_KEY` is set. See below |
 | `<meta name="google-site-verification">` | On every indexable page when `GOOGLE_SITE_VERIFICATION` is set. See [Google Search Console](#google-search-console) |
+| JSON-LD on a city page | `Service` with a one-city `areaServed`, `BreadcrumbList`, and `FAQPage` built from the questions actually rendered on the page |
 
 **The structured data claims only what we actually know.** No street address,
 no price range, no ratings, no reviews -- a knowledge panel that is wrong in
@@ -585,12 +587,14 @@ revisited first.
 
 ## Local SEO
 
-Six service pages, one per thing people actually search for:
+Eight service pages, one per thing people actually search for:
 
 | Page | Covers |
 |---|---|
+| `/estate-cleanouts` | The flagship: a whole property emptied after a death, a move or an inheritance |
 | `/junk-removal` | The core service: household junk, furniture, appliances, scrap, debris |
-| `/cleanouts` | Garage, basement, barn, storage unit, rental, estate, moving cleanouts |
+| `/cleanouts` | Garage, basement, barn, storage unit and moving cleanouts |
+| `/rental-property-cleanouts` | Tenant move-outs and rental turnover |
 | `/yard-cleanup` | Brush, storm debris, leaves, outdoor clutter |
 | `/furniture-appliance-removal` | Heavy single items and the stairs they have to come down |
 | `/hauling-moving-help` | Truck, trailer and labour where nothing is being thrown away |
@@ -600,10 +604,59 @@ Plus `/service-area`, which reads from `SERVICE_AREA` and `SERVICE_AREA_PLACES`
 rather than carrying its own list.
 
 The copy lives in `content/service-pages.js`, not in the template. One layout
-renders all six, but the substance of each is written separately and differs
+renders all eight, but the substance of each is written separately and differs
 throughout -- a test measures vocabulary overlap between every pair and fails
-above 0.6, because six pages that are one template with the nouns swapped are
+above 0.6, because eight pages that are one template with the nouns swapped are
 doorway pages and deserve to be treated as such.
+
+### The two city pages
+
+```
+/junk-removal-lowell-mi      Lowell, Kent County
+/junk-removal-stanton-mi     Stanton, Montcalm County
+```
+
+This section used to say "no city pages", and the reasoning behind that --
+a page per town with the name swapped is a doorway page -- was right and has
+not changed. What changed is narrower: somebody in Lowell types "junk removal
+lowell mi", and the honest answer to that query is a page about doing this work
+in Lowell, not a statewide page with Lowell in a bulleted list of ten
+communities.
+
+So there are **exactly two**, for the two places the business leads with, and
+each had to earn it. The content is in `content/local-pages.js`, which carries
+the rule a third would have to satisfy:
+
+1. It is a place RYDJA has actually committed to on the Business Profile, and
+   `SERVICE_AREA_PLACES` names it. A page is a coverage claim.
+2. Somebody can say what is *different* about doing this work there -- the
+   housing stock, the county, the drive, the disposal, the kind of property.
+   If the only difference is the name, there is no page.
+3. It does not repeat the other city pages' sentences.
+
+Rule 3 is mechanical. `test/local-pages.test.js` measures the overlap between
+the authored prose of every city page and fails above 10%; `local-seo.test.js`
+additionally checks that neither page is the other with the nouns swapped, and
+that every plausible generated slug -- `/lowell`, `/junk-removal-belding-mi`,
+`/cleanouts-lowell-mi` and the rest -- still 404s.
+
+What makes these two genuinely different, and not interchangeable:
+
+| | Lowell | Stanton |
+|---|---|---|
+| County | Kent | Montcalm |
+| The work | Split: tight older houses in town, acreage with pole barns outside it | Mostly whole properties — the probate court for the county is in Stanton |
+| The drive | Shortest on the map, so a single-item pickup makes sense | Far end, so a small job may genuinely not |
+| The hard part | Getting it out of the building | The outbuildings nobody mentioned |
+
+The links to them follow configuration: `/service-area` and the footer render
+only the city pages whose city `SERVICE_AREA_PLACES` names, so narrowing the
+area narrows the links rather than leaving a promise behind.
+
+**Nothing on either page claims a price, a rating, a review count, a credential
+or a street address**, and a test asserts each of those stays absent — a city
+page is exactly where that kind of thing gets added by somebody chasing a
+ranking.
 
 ### The homepage heading
 
@@ -616,8 +669,15 @@ make sure nobody makes it so later.
 ### Structured data
 
 `HomeAndConstructionBusiness` with an `@id`, plus `hasOfferCatalog` listing the
-six services. Each service page carries its own `Service` node pointing back at
-that `@id`, and a `BreadcrumbList`.
+eight services. Each service page carries its own `Service` node pointing back
+at that `@id`, and a `BreadcrumbList`.
+
+A city page carries a `Service` whose `areaServed` is that one city, pointing at
+the same `@id` — deliberately **not** a second `LocalBusiness` per city, which
+is how a one-truck operation comes to look like a chain of branch offices that
+do not exist. It also carries a `FAQPage` built from the questions the template
+actually renders, so the markup can never describe an answer a visitor cannot
+read on the page.
 
 Still nothing invented: no address, hours, price range, ratings, reviews, social
 profiles or awards, and **no price on any offer** -- every job is quoted

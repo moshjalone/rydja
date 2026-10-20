@@ -13,6 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startServer, freshStamp, submission } = require('./helpers');
 const { SERVICE_PAGES } = require('../content/service-pages');
+const { LOCAL_PAGES } = require('../content/local-pages');
 
 const SITE = 'https://getrydja.com';
 const SERVICE_PATHS = SERVICE_PAGES.map((p) => '/' + p.slug);
@@ -20,7 +21,9 @@ const SERVICE_PATHS = SERVICE_PAGES.map((p) => '/' + p.slug);
 // a SERVICE_PAGE: it offers no distinct job, so it carries no Service schema
 // and is not an Offer in the catalog.
 const PROFESSIONALS = '/property-professionals';
+const LOCAL_PATHS = LOCAL_PAGES.map((p) => '/' + p.slug);
 const INDEXABLE = ['/', '/services', '/quote', ...SERVICE_PATHS, PROFESSIONALS, '/service-area',
+                   ...LOCAL_PATHS,
                    '/privacy', '/terms', '/accessibility', '/image-credits'];
 
 let app;
@@ -375,16 +378,63 @@ test('the service area names the verified communities and explains the boundary'
   }
 });
 
-test('no thin city pages were generated', async () => {
-  // Only the one area page exists. Per-city pages come later, with real
-  // local content behind them.
-  for (const guess of ['/junk-removal-lowell', '/lowell', '/junk-removal-stanton', '/stanton',
-                       '/junk-removal-near-me', '/west-michigan']) {
-    assert.equal((await app.get(guess)).status, 404, guess + ' should not exist yet');
+// This test used to assert that there were no city pages at all. Two now
+// exist, for Lowell and Stanton, and the reasoning plus the rule a third would
+// have to satisfy is at the top of content/local-pages.js. The guard did not
+// go away -- it changed from "none" to "these two and nothing else", which is
+// the version that still catches the thing it was built to catch: a site that
+// quietly grows a page per town.
+//
+// The substance of those two pages is held in place by test/local-pages.test.js,
+// which measures how much prose they share.
+test('the only city pages are the two that earned one', async () => {
+  const allowed = new Set(LOCAL_PAGES.map((p) => '/' + p.slug));
+
+  // The shapes a generator would produce, including the two real slugs'
+  // near misses. Everything that is not one of the two must 404.
+  for (const guess of ['/lowell', '/stanton', '/junk-removal-lowell', '/junk-removal-stanton',
+                       '/junk-removal-near-me', '/west-michigan', '/junk-removal-belding-mi',
+                       '/junk-removal-ionia-mi', '/junk-removal-grand-rapids-mi',
+                       '/junk-removal-rockford-mi', '/junk-removal-alto-mi',
+                       '/cleanouts-lowell-mi', '/estate-cleanouts-stanton-mi']) {
+    if (allowed.has(guess)) continue;
+    assert.equal((await app.get(guess)).status, 404, guess + ' must not exist');
   }
 
+  // Exactly the two in the sitemap, and nothing else naming a city.
   const xml = await (await app.get('/sitemap.xml')).text();
-  assert.ok(!/lowell|stanton/i.test(xml), 'no city pages belong in the sitemap yet');
+  const cityUrls = [...xml.matchAll(/<loc>([^<]*-mi)<\/loc>/g)].map((m) => m[1]);
+  assert.deepEqual(cityUrls, LOCAL_PAGES.map((p) => SITE + '/' + p.slug));
+
+  // And neither of them is thin. A city page below this is a stub pretending
+  // to be a page.
+  for (const page of LOCAL_PAGES) {
+    const words = bodyText(await html('/' + page.slug)).split(' ').length;
+    assert.ok(words > 900, '/' + page.slug + ' is thin at ' + words + ' words');
+  }
+});
+
+test('a city page is not another city page with the name swapped', async () => {
+  const [a, b] = LOCAL_PAGES.map((p) => p.slug);
+  const textA = bodyText(await html('/' + a)).toLowerCase();
+  const textB = bodyText(await html('/' + b)).toLowerCase();
+
+  // The same vocabulary measure the service pages are held to. Two pages about
+  // the same business in two towns will share a lot of words legitimately --
+  // the services, the limits, the way a quote works -- so the bar here is the
+  // same 0.6 the service pages pass, and a swapped-noun template lands near 1.
+  const setA = new Set(textA.split(' '));
+  const setB = new Set(textB.split(' '));
+  const shared = [...setA].filter((w) => setB.has(w)).length;
+  const overlap = shared / (setA.size + setB.size - shared);
+  assert.ok(overlap < 0.6, `${a} and ${b} overlap ${overlap.toFixed(2)} — too alike`);
+
+  // Swapping the city name in one page must not produce the other. This is
+  // the literal definition of the thing being guarded against.
+  const swapped = textA
+    .replaceAll(LOCAL_PAGES[0].city.toLowerCase(), LOCAL_PAGES[1].city.toLowerCase())
+    .replaceAll(LOCAL_PAGES[0].county.toLowerCase(), LOCAL_PAGES[1].county.toLowerCase());
+  assert.notEqual(swapped, textB, 'one page is the other with the nouns swapped');
 });
 
 // ------------------------------------------------------------- structured data
