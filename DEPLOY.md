@@ -929,6 +929,65 @@ about; at this site's volume that is years away.
 
 ---
 
+## Referral partners
+
+The system for building a lead source the business owns: `partners.js`, plus
+`/admin/partners`.
+
+**It sends nothing.** There is no outbound mail, no queue and no scheduler
+anywhere in the feature, and a test asserts that absence rather than trusting
+it. It drafts a message, shows it to the owner, and he edits it and sends it
+himself from his own mailbox to one person who has a reason to hear from him.
+That is both the legal position — unsolicited bulk commercial email is
+regulated, and a domain's sending reputation is not recoverable once spent —
+and the practical one, in a market where everybody knows everybody.
+
+**Nothing in it was scraped.** Every partner is entered by hand from somewhere
+public and meant to be read: a business's own website, its own public listing,
+a trade association's published member directory, a county or state register.
+`source_url` records where, so in a year there is still an answer to how we
+know about these people. `/admin/partners` carries the list of sources that
+are fair game and the list of things that are not.
+
+### The referral link
+
+Each partner is given a five-character code and a link:
+
+```
+https://getrydja.com/?ref=K7M2Q
+```
+
+It opens the homepage exactly as normal — there is no partner landing page and
+nothing looks different to their customer. Every quote request that follows is
+credited to that partner, and `/admin/partners/<id>` shows the leads, the
+approvals and the approved value the relationship has produced. The code never
+changes: it may already be printed on something.
+
+The code alphabet has no `0/O`, `1/I/L` or `U/V` in it — the same alphabet the
+work references use, for the same reason. These get read down a phone.
+
+**A `?ref=` code overrides a stored visit**, which is the one exception to
+first-touch attribution. A referrer header and a UTM parameter are inferences
+about how somebody arrived; a partner code is a named local business
+deliberately sending somebody. A customer who browsed in March and is sent back
+in June by an estate-sale company was sent by that company, and recording them
+as Direct would make the one figure the owner uses to judge whether
+partnerships are worth his time quietly wrong.
+
+Partner-sourced leads are their own row on the dashboard's Lead sources table,
+never folded into Referral — those mean different things.
+
+### The record
+
+| What | Where |
+|---|---|
+| Who they are, what kind, which stage, where we found them | `partners` |
+| Every conversation: channel, direction, what happened, when | `partner_touches` |
+| What is due today or overdue | `/admin/partners`, top of the page, and a count on the dashboard |
+
+Nothing reminds anybody of anything. The list is the list, and the owner
+decides. Archiving a partner keeps the history and the leads credited to their
+link, because a referral that happened stays a fact.
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

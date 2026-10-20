@@ -19,6 +19,20 @@
 /** Campaign parameters, in the order Google and everyone else writes them. */
 const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
+/**
+ * The query parameter a referral partner's link carries: /?ref=K7M2Q.
+ *
+ * Its own parameter rather than utm_source, because a partner is a different
+ * kind of thing from a campaign: the code identifies one named business we
+ * have a relationship with, it is handed over on a card rather than clicked in
+ * an ad, and the question it answers -- which partner produced paying work --
+ * is the one the whole referral system exists for.
+ *
+ * Validated against a fixed alphabet in partners.js before it is stored, so a
+ * crafted URL cannot put arbitrary text in the lead table or in the admin.
+ */
+const REF_KEY = 'ref';
+
 // Long enough for any real campaign name, short enough that the session cookie
 // cannot be inflated by a crafted URL.
 const MAX_LEN = 120;
@@ -69,13 +83,19 @@ const UTM_SOURCES = [
 ];
 
 /**
- * One of: google | facebook | bing | referral | direct | other.
+ * One of: partner | google | facebook | bing | referral | direct | other.
  *
  * A bucket for reading the dashboard, not a replacement for the raw values --
  * utm_source is stored untouched alongside it, so a campaign tagged with
  * something this does not recognise is still there to be read.
  */
-function normalizeSource(utmSource, host) {
+function normalizeSource(utmSource, host, partnerCode) {
+  // A partner code wins outright, and is deliberately its own bucket rather
+  // than being folded into 'referral'. 'referral' means "came from some other
+  // website"; 'partner' means "a named business we have a relationship with
+  // sent this person", and conflating the two would lose the only number the
+  // referral system is built to produce.
+  if (partnerCode) return 'partner';
   if (utmSource) {
     const value = utmSource.toLowerCase();
     for (const [pattern, name] of UTM_SOURCES) if (pattern.test(value)) return name;
@@ -114,8 +134,14 @@ function capture(req, siteUrl) {
   const host = referrerHost(req.get && req.get('referer'));
   const external = isSelfReferral(host, siteUrl) ? null : host;
 
+  // Validated here rather than trusted: the shape check lives in partners.js,
+  // and anything that is not that shape is no code at all rather than a code
+  // nothing will ever match.
+  const referralCode = partners.normalizeCode(query[REF_KEY]);
+
   return {
-    source: normalizeSource(utm.utm_source, external),
+    source: normalizeSource(utm.utm_source, external, referralCode),
+    referral_code: referralCode,
     utm_source: utm.utm_source,
     medium: utm.utm_medium,
     campaign: utm.utm_campaign,
@@ -128,7 +154,8 @@ function capture(req, siteUrl) {
 
 /** The columns a lead carries, in insert order. */
 const LEAD_COLUMNS = [
-  'source', 'utm_source', 'medium', 'campaign', 'content', 'term', 'referrer', 'landing_path'
+  'source', 'utm_source', 'medium', 'campaign', 'content', 'term', 'referrer', 'landing_path',
+  'referral_code'
 ];
 
 /**
@@ -157,6 +184,10 @@ function leadValues(stored) {
 // and nothing has to be trusted off the wire.
 
 const crypto = require('crypto');
+
+// For normalizeCode() only -- the alphabet and length a partner code has to
+// match. partners.js does not require this file, so there is no cycle.
+const partners = require('./partners');
 
 const COOKIE_NAME = 'ps_attr';
 
@@ -212,6 +243,7 @@ function fromRequest(req, secret) {
 
 /** How a source reads in the admin. Unknown is an absence, not a bucket. */
 const SOURCE_LABELS = {
+  partner: 'Partner',
   google: 'Google',
   facebook: 'Facebook',
   bing: 'Bing',
@@ -224,6 +256,7 @@ const sourceLabel = (value) => SOURCE_LABELS[value] || (value ? 'Other' : 'Unkno
 
 module.exports = {
   UTM_KEYS,
+  REF_KEY,
   LEAD_COLUMNS,
   SOURCE_LABELS,
   COOKIE_NAME,

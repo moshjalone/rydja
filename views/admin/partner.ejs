@@ -1,0 +1,271 @@
+<%- include('../partials/head', { title: partner.name, noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">REFERRAL PARTNER</div>
+      <h1><%= partner.name %></h1>
+      <p class="dash-sub">
+        <%= partnerKind(partner.kind).label %>
+        <% if (partner.city) { %> &middot; <%= partner.city %><% } %>
+        &middot; <span class="badge <%= partner.status %>"><%= partnerStatusLabel(partner.status) %></span>
+        <% if (partner.archived_at) { %> &middot; <strong>Archived</strong><% } %>
+      </p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/partners">&larr; All partners</a>
+    </div>
+  </div>
+
+  <%# ---- what it has produced ----
+      First, because it is the answer to the only question that decides whether
+      this relationship is worth more of the owner's time. %>
+  <h2 class="dash-h2">What this relationship has produced</h2>
+  <div class="metrics three">
+    <div><span>Leads</span><strong><%= produced.leads %></strong></div>
+    <div><span>Approved</span><strong><%= produced.approved %></strong></div>
+    <div class="net"><span>Approved value</span><strong><%= money(produced.value) %></strong></div>
+  </div>
+  <p class="dash-note">
+    Counted from leads that arrived through this partner&rsquo;s own link. Work they sent by word of mouth, without
+    the link, is not in here &mdash; log it as a touch so there is at least a record of it.
+  </p>
+
+  <%# ---- the link ---- %>
+  <h2 class="dash-h2">Their referral link</h2>
+  <div class="panel">
+    <p class="mono-line"><%= link %></p>
+    <p class="dash-note">
+      Give them this instead of the plain address. It opens the homepage exactly as normal &mdash; there is no
+      partner page and nothing looks different to their customer &mdash; and every quote request that follows is
+      credited here. The code is <strong><%= partner.referral_code %></strong>, which is short enough to read down
+      a phone or write on the back of a card.
+    </p>
+    <p class="dash-note">
+      The code never changes. It may already be printed on something, and a code that changed would silently stop
+      crediting the work it was given for.
+    </p>
+  </div>
+
+  <%# ---- the draft ---- %>
+  <h2 class="dash-h2">A first message, to read and edit</h2>
+  <div class="panel note-panel">
+    <p><strong>Why this kind of business cares:</strong> <%= draft.why %></p>
+  </div>
+  <div class="panel">
+    <p class="kv-line"><strong>Subject:</strong> <%= draft.subject %></p>
+    <%# A textarea rather than a <pre>: the point is that the owner edits it
+        before it goes anywhere, and a text box invites that where a block of
+        formatted text invites copying it unread. Not a form -- there is
+        nothing to post it to. %>
+    <label class="draft-label">
+      <span>Draft</span>
+      <textarea class="draft" rows="18" spellcheck="true" aria-label="Outreach draft"><%= draft.body %></textarea>
+    </label>
+    <p class="dash-note">
+      <strong>Nothing here sends anything.</strong> There is no send button on purpose. Read it, change it so it
+      sounds like you, and send it from your own mailbox to one person who has a reason to hear from you. A message
+      nobody read before it went out is the one that embarrasses a local business in a market where everybody knows
+      everybody &mdash; and sending the same text to thirty addresses at once is a different activity with
+      different rules.
+    </p>
+    <p class="dash-note">
+      It deliberately claims no licence, no insurance and no rating, because none of those has been verified. If
+      that ever changes, change it here and in the record, not just in the email.
+    </p>
+  </div>
+
+  <%# ---- log a conversation ---- %>
+  <h2 class="dash-h2">Log a conversation</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/partners/<%= partner.id %>/touch">
+      <div class="two">
+        <label>How
+          <select name="channel">
+            <% partnerChannels.forEach(function(c) { %><option value="<%= c.value %>"><%= c.label %></option><% }) %>
+          </select>
+        </label>
+        <label>Which way
+          <select name="direction">
+            <option value="out">We contacted them</option>
+            <option value="in">They contacted us</option>
+          </select>
+        </label>
+      </div>
+      <label>What happened <span class="hint">required</span>
+        <textarea required name="summary" rows="3" maxlength="400"
+                  placeholder="e.g. Emailed Sue. Asked to be kept on the list for sale cleanouts."></textarea>
+      </label>
+      <div class="two">
+        <label>When
+          <input type="date" name="happened_on" value="<%= today %>">
+        </label>
+        <label>Move to stage <span class="hint">optional</span>
+          <select name="status">
+            <option value="">Leave as it is</option>
+            <% partnerStatuses.forEach(function(s) { %>
+              <option value="<%= s.value %>"<%= partner.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" value="<%= partner.next_step || '' %>">
+        </label>
+        <label>Due <span class="hint">optional</span>
+          <input type="date" name="next_step_on" min="<%= today %>" value="<%= partner.next_step_on || '' %>">
+        </label>
+      </div>
+      <button class="button" type="submit">Log it</button>
+      <small class="fineprint">
+        Logging a contact against a prospect moves them to Contacted on its own.
+      </small>
+    </form>
+  </div>
+
+  <h2 class="dash-h2">History</h2>
+  <% if (!touches.length) { %>
+    <div class="panel empty">Nothing logged yet.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>When</th><th>How</th><th>What happened</th></tr></thead>
+        <tbody>
+          <% touches.forEach(function(t) { %>
+            <tr>
+              <td data-label="When"><%= t.happened_on || prettyDate(t.created_at) %></td>
+              <td data-label="How">
+                <%= partnerChannelLabel(t.channel) %>
+                <small><%= t.direction === 'in' ? 'they contacted us' : 'we contacted them' %></small>
+              </td>
+              <td data-label="What happened"><%= t.summary %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <h2 class="dash-h2">Leads from this partner</h2>
+  <% if (!leads.length) { %>
+    <div class="panel empty">No lead has come through their link yet.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Reference</th><th>Service</th><th>Status</th><th class="num">Quoted</th><th>When</th></tr></thead>
+        <tbody>
+          <% leads.forEach(function(l) { %>
+            <tr>
+              <td><a class="text-link" href="/admin/leads/<%= l.id %>"><%= l.work_ref %></a></td>
+              <td data-label="Service"><%= l.service %></td>
+              <td data-label="Status"><span class="badge <%= l.status %>"><%= prettyStatus(l.status) %></span></td>
+              <td class="num" data-label="Quoted"><%= l.amount_cents == null ? '—' : money(l.amount_cents) %></td>
+              <td data-label="When"><%= prettyDate(l.created_at) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <%# ---- the record ---- %>
+  <h2 class="dash-h2">Details</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/partners/<%= partner.id %>/edit">
+      <div class="two">
+        <label>Business name <span class="hint">required</span>
+          <input required name="name" maxlength="120" value="<%= partner.name %>">
+        </label>
+        <label>Town
+          <input name="city" maxlength="80" value="<%= partner.city || '' %>">
+        </label>
+      </div>
+      <div class="two">
+        <label>Kind
+          <select name="kind">
+            <% partnerKinds.forEach(function(k) { %>
+              <option value="<%= k.value %>"<%= partner.kind === k.value ? ' selected' : '' %>><%= k.label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Stage
+          <select name="status">
+            <% partnerStatuses.forEach(function(s) { %>
+              <option value="<%= s.value %>"<%= partner.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Contact name
+          <input name="contact_name" maxlength="120" value="<%= partner.contact_name || '' %>">
+        </label>
+        <label>Phone
+          <input name="phone" type="tel" maxlength="40" value="<%= partner.phone || '' %>">
+        </label>
+      </div>
+      <div class="two">
+        <label>Email
+          <input name="email" type="email" maxlength="200" value="<%= partner.email || '' %>">
+        </label>
+        <label>Their website <span class="hint">https only</span>
+          <input name="website" type="url" maxlength="400" value="<%= partner.website || '' %>">
+        </label>
+      </div>
+      <label>Where you found them
+        <input name="source_url" type="url" maxlength="400" value="<%= partner.source_url || '' %>">
+      </label>
+      <label>How you found them
+        <input name="source_note" maxlength="400" value="<%= partner.source_note || '' %>">
+      </label>
+      <label>Notes
+        <textarea name="notes" rows="4" maxlength="400"><%= partner.notes || '' %></textarea>
+      </label>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" value="<%= partner.next_step || '' %>">
+        </label>
+        <label>Due
+          <input type="date" name="next_step_on" min="<%= today %>" value="<%= partner.next_step_on || '' %>">
+        </label>
+      </div>
+      <button class="button" type="submit">Save</button>
+    </form>
+  </div>
+
+  <%# Their own pages, where they exist. Opened in a new tab and with
+      rel="noreferrer" so that reading a partner's website from inside the
+      admin does not hand them a referrer carrying an admin URL. %>
+  <% if (partner.website || partner.source_url) { %>
+    <div class="panel">
+      <% if (partner.website) { %>
+        <p><strong>Their website:</strong>
+          <a class="text-link" href="<%= partner.website %>" target="_blank" rel="noopener noreferrer"><%= partner.website %></a>
+        </p>
+      <% } %>
+      <% if (partner.source_url) { %>
+        <p><strong>Found at:</strong>
+          <a class="text-link" href="<%= partner.source_url %>" target="_blank" rel="noopener noreferrer"><%= partner.source_url %></a>
+        </p>
+      <% } %>
+    </div>
+  <% } %>
+
+  <div class="panel notice">
+    <h3><%= partner.archived_at ? 'Restore' : 'Archive' %></h3>
+    <p>
+      <%= partner.archived_at
+            ? 'This partner is archived and does not appear in the list. Restoring puts them back.'
+            : 'Archiving takes them out of the list. Nothing is deleted — the history and the leads credited to their link are kept, because a referral that happened stays a fact.' %>
+    </p>
+    <form method="post" action="/admin/partners/<%= partner.id %>/archive" class="inline-form">
+      <% if (partner.archived_at) { %><input type="hidden" name="restore" value="1"><% } %>
+      <button class="button small <%= partner.archived_at ? '' : 'ghost' %>" type="submit">
+        <%= partner.archived_at ? 'Restore partner' : 'Archive partner' %>
+      </button>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

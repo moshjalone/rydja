@@ -1,0 +1,219 @@
+<%- include('../partials/head', { title: 'Referral partners', noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN</div>
+      <h1>Referral partners</h1>
+      <p class="dash-sub">Who sends us work, and who we are still talking to.</p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/dashboard">Dashboard</a>
+      <a class="button small" href="#add">Add a partner</a>
+    </div>
+  </div>
+
+  <%# What is due. First on the page, because it is the only part of this that
+      is an instruction rather than a record. Nothing emails anybody -- this is
+      the list, and the owner decides. %>
+  <h2 class="dash-h2">Due now</h2>
+  <% if (!due.length) { %>
+    <div class="panel empty">Nothing is due. Anything with a date set shows up here on the day.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>Partner</th><th>Next step</th><th>Due</th></tr></thead>
+        <tbody>
+          <% due.forEach(function(row) { %>
+            <tr>
+              <td><a class="text-link" href="/admin/partners/<%= row.id %>"><%= row.name %></a>
+                <small><%= partnerKind(row.kind).short %> &middot; <%= partnerStatusLabel(row.status) %></small></td>
+              <td data-label="Next step"><%= row.next_step || '—' %></td>
+              <td data-label="Due"><%= row.next_step_on %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <h2 class="dash-h2">Where everybody stands</h2>
+  <div class="attention">
+    <% summary.forEach(function(stage) { %>
+      <a class="attention-item <%= stage.n ? '' : 'quiet' %>" href="/admin/partners?status=<%= stage.value %>">
+        <strong><%= stage.n %></strong>
+        <span><%= stage.label %></span>
+      </a>
+    <% }) %>
+  </div>
+
+  <h2 class="dash-h2">Everybody</h2>
+  <%# One GET form, so a filtered list is a URL. Same shape as the lead and
+      job lists, and it works with scripting off. %>
+  <form class="toolbar" method="get" action="/admin/partners">
+    <div class="toolbar-search">
+      <label class="sr-only" for="partner-q">Search partners</label>
+      <input id="partner-q" name="q" value="<%= filters.q %>" placeholder="Name, town or contact">
+      <button class="button small" type="submit">Search</button>
+    </div>
+    <div class="toolbar-filters">
+      <label>Stage
+        <select name="status">
+          <option value="">Any stage</option>
+          <% partnerStatuses.forEach(function(s) { %>
+            <option value="<%= s.value %>"<%= filters.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Kind
+        <select name="kind">
+          <option value="">Any kind</option>
+          <% partnerKinds.forEach(function(k) { %>
+            <option value="<%= k.value %>"<%= filters.kind === k.value ? ' selected' : '' %>><%= k.label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="button small" type="submit">Filter</button>
+      <a class="text-link clear-filters" href="/admin/partners">Clear</a>
+    </div>
+  </form>
+
+  <% if (!rows.length) { %>
+    <div class="panel empty">
+      Nobody on the list yet. Add the three or four businesses you already know by name before going looking for
+      new ones &mdash; a partner you have met is worth ten you have not.
+    </div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead>
+          <tr>
+            <th>Partner</th><th>Kind</th><th>Stage</th>
+            <th class="num">Touches</th><th class="num">Leads</th><th>Last contact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(row) { %>
+            <tr>
+              <td>
+                <a class="text-link" href="/admin/partners/<%= row.id %>"><%= row.name %></a>
+                <% if (row.city) { %><small><%= row.city %></small><% } %>
+              </td>
+              <td data-label="Kind"><%= partnerKind(row.kind).short %></td>
+              <td data-label="Stage"><span class="badge <%= row.status %>"><%= partnerStatusLabel(row.status) %></span></td>
+              <td class="num" data-label="Touches"><%= row.touches %></td>
+              <%# The only number on this page that matters in the end. %>
+              <td class="num" data-label="Leads"><%= row.leads %></td>
+              <td data-label="Last contact"><%= row.last_touch ? prettyDate(row.last_touch) : '—' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <%# ---- where to look ----
+
+      A list of sources, not a scraper. Everything named here is a place that
+      exists to be read by people: a business's own site, its own public
+      listing, a trade body's published member directory, a county register.
+      Nothing in this application fetches any of them, and nothing should: the
+      partners worth having are the ones somebody looked at and judged, and a
+      list of two hundred harvested email addresses is the thing that gets a
+      small local business a reputation it cannot undo. %>
+  <h2 class="dash-h2">Where to look</h2>
+  <div class="panel note-panel">
+    <p>
+      <strong>Entered by hand, from somewhere public.</strong> Nothing here fetches or harvests anything. Each of
+      these is a place meant to be read by a person, and the point of writing down where a partner came from is
+      that in a year there is still an answer to how we know about them.
+    </p>
+    <ul>
+      <li><strong>Google Maps, searched by hand</strong> &mdash; &ldquo;estate sale company&rdquo;, &ldquo;self
+        storage&rdquo;, &ldquo;property management&rdquo;, &ldquo;auctioneer&rdquo; plus a town in the service area.
+        Open the ones that look real, read their own website, note the contact they publish.</li>
+      <li><strong>Published member directories</strong> &mdash; the local association of Realtors, the state
+        auctioneers&rsquo; association, estate-sale trade bodies, the chamber of commerce in each town. These exist
+        so that the public can find members.</li>
+      <li><strong>County and state registers</strong> &mdash; the probate court for each county we work in lists
+        the attorneys who practise there; the state business register confirms a company is real and still filing.</li>
+      <li><strong>Who is already on the job</strong> &mdash; the single best source. The auctioneer, the cleaner,
+        the Realtor and the attorney who were on a cleanout you have just finished have all met you, and a partner
+        who has watched you work needs no cold introduction at all.</li>
+      <li><strong>Who asked and we could not help</strong> &mdash; a job turned down for being out of area or out of
+        scope is often somebody else&rsquo;s job, and sending it to them is how a two-way relationship starts.</li>
+    </ul>
+    <p>
+      <strong>What is not on this list:</strong> buying a lead list, scraping a directory, using somebody&rsquo;s
+      contact form to pitch them, or sending the same message to thirty businesses at once. Each one of those is
+      either against a platform&rsquo;s rules, against the law, or against the only real advantage a local operator
+      has, which is that people in a small market talk to each other.
+    </p>
+  </div>
+
+  <%# ---- add ---- %>
+  <h2 class="dash-h2" id="add">Add a partner</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/partners">
+      <div class="two">
+        <label>Business name <span class="hint">required</span>
+          <input required name="name" maxlength="120" placeholder="e.g. Flat River Estate Sales">
+        </label>
+        <label>Town
+          <input name="city" maxlength="80" placeholder="Lowell">
+        </label>
+      </div>
+      <div class="two">
+        <label>Kind
+          <select name="kind">
+            <% partnerKinds.forEach(function(k) { %><option value="<%= k.value %>"><%= k.label %></option><% }) %>
+          </select>
+        </label>
+        <label>Stage
+          <select name="status">
+            <% partnerStatuses.forEach(function(s) { %><option value="<%= s.value %>"><%= s.label %></option><% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Contact name
+          <input name="contact_name" maxlength="120">
+        </label>
+        <label>Phone
+          <input name="phone" type="tel" maxlength="40">
+        </label>
+      </div>
+      <div class="two">
+        <label>Email
+          <input name="email" type="email" maxlength="200">
+        </label>
+        <label>Their website <span class="hint">https only</span>
+          <input name="website" type="url" maxlength="400" placeholder="https://">
+        </label>
+      </div>
+      <label>Where you found them <span class="hint">the public page or listing</span>
+        <input name="source_url" type="url" maxlength="400" placeholder="https://">
+      </label>
+      <label>How you found them
+        <input name="source_note" maxlength="400" placeholder="e.g. Google Maps, estate sale companies near Ionia">
+      </label>
+      <label>Notes
+        <textarea name="notes" rows="3" maxlength="400" placeholder="Anything worth remembering before you call."></textarea>
+      </label>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" placeholder="e.g. Email the owner">
+        </label>
+        <label>Due <span class="hint">optional</span>
+          <input name="next_step_on" type="date" min="<%= today %>">
+        </label>
+      </div>
+      <button class="button" type="submit">Add partner</button>
+      <small class="fineprint">
+        A referral link is created for them automatically. Nothing is sent to anybody.
+      </small>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

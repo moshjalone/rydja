@@ -142,6 +142,14 @@ function migrate() {
   }
   db.exec('create index if not exists idx_leads_source on leads(source)');
 
+  // Which referral partner's link brought this lead, if any. Additive and
+  // never backfilled, for the same reason as the columns above: a lead taken
+  // before partners existed came from nobody in particular, and attributing
+  // it to one afterwards would be inventing a record of a referral that never
+  // happened. NULL means no partner.
+  addColumn('leads', 'referral_code', 'text');
+  db.exec('create index if not exists idx_leads_referral on leads(referral_code)');
+
   // Archiving, which is what the admin's "delete" actually does. NULL means
   // active. Nothing is ever removed: a lead carries photos, a job carries
   // expenses and salvage, and both are records of money. An archived row

@@ -871,10 +871,11 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .admin-nav{display:none}
 @media(max-width:860px){
   .admin-nav{
-    /* Four sections now, and "Dashboard" needs more than a quarter of a
-       390px screen. auto-fit wraps rather than squeezing, so every link stays
-       visible and full width however many there are -- nothing is hidden and
-       nothing scrolls sideways. */
+    /* Five sections, and "Dashboard" needs more than a fifth of a 390px
+       screen. auto-fit wraps rather than squeezing: four across on a normal
+       phone, three on a small one, and every link stays visible and full
+       width. Nothing is hidden and nothing scrolls sideways, which is what a
+       single row of five would have forced. */
     display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));
     background:var(--dark);border-bottom:1px solid #000
   }
@@ -942,3 +943,37 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
   .day-bars li{grid-template-columns:84px 1fr 36px;gap:8px;font-size:12px}
 }
 
+/* ---------- admin: referral partners ----------
+   Reuses the dashboard panels, the list toolbar and the badge set. What is new
+   is the referral link, the outreach draft, and six stage badges. */
+
+/* The referral link and the code, which get read aloud and copied. Monospace
+   and selectable on tap, with the line allowed to wrap on a phone rather than
+   scrolling a panel sideways. */
+.mono-line{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:14px;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin:0 0 12px;word-break:break-all;user-select:all
+}
+.kv-line{font-size:14px;margin:0 0 14px;color:var(--ink)}
+
+/* The outreach draft. A textarea, because the point is that it gets edited
+   before it is sent -- see the note on the page. Monospace so that a stray
+   double space or a broken line is visible. */
+.draft-label{display:flex;flex-direction:column;gap:7px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.draft{
+  width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:14px;line-height:1.55;color:var(--ink);resize:vertical;
+  text-transform:none;letter-spacing:0;font-weight:400
+}
+.draft:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+/* Stage badges. Deliberately the same visual language as the lead and job
+   statuses: active is the accent, a refusal is the red-ish one, and the
+   stages in between warm up as they get closer to work. */
+.badge.prospect{background:#e9e5da;color:var(--muted)}
+.badge.contacted{background:#fff1a8}
+.badge.talking{background:#dce7ff}
+.badge.active{background:var(--accent)}
+.badge.dormant{background:#e5e5e5;color:var(--muted)}

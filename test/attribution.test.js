@@ -680,7 +680,8 @@ test('the attribution cookie carries no identifier and no timestamp', async () =
 
   assert.deepEqual(
     Object.keys(payload).sort(),
-    ['campaign', 'content', 'landing_path', 'medium', 'referrer', 'source', 'term', 'utm_source'],
+    ['campaign', 'content', 'landing_path', 'medium', 'referral_code', 'referrer', 'source',
+     'term', 'utm_source'],
     'exactly the attribution fields, and nothing else'
   );
 

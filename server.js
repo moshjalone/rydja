@@ -19,6 +19,7 @@ const { LOCAL_PAGES, linkedServiceSlugs } = require('./content/local-pages');
 const indexnow = require('./indexnow');
 const attribution = require('./attribution');
 const analytics = require('./analytics');
+const partners = require('./partners');
 
 // ---------------------------------------------------------------- config
 //
@@ -632,6 +633,38 @@ const cleanWindow = (value) =>
   TIME_WINDOWS.some((w) => w.value === value) ? String(value) : null;
 
 /**
+ * A date near today: anything from a year ago to a year out, or null.
+ *
+ * cleanPrefDate() refuses the past on purpose -- a customer cannot prefer an
+ * appointment last Tuesday. A record of a conversation is the opposite case:
+ * "I rang them on the 3rd" is the normal entry, and the owner catching up on
+ * a week of calls would otherwise find every one of them silently dropped.
+ */
+function cleanDateNear(value) {
+  const raw = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [y, m, d] = raw.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (isNaN(dt) || dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+
+  const now = new Date();
+  const from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  const to = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+  return dt >= from && dt <= to ? raw : null;
+}
+
+/**
+ * A URL fit to put in an href, or '' -- https only, tracking parameters off.
+ *
+ * The same function the social profiles are cleaned with, named for what it
+ * does rather than for the first thing that needed it. Used for a partner's
+ * own website and for the public listing we found them on: both are rendered
+ * as links in the admin, and a `javascript:` value in a field the owner typed
+ * should drop the link rather than become one.
+ */
+const safeUrl = socialUrl;
+
+/**
  * Today, YYYY-MM-DD, in the server's own timezone -- the same clock the
  * business works to and the same one cleanPrefDate() validates against.
  *
@@ -848,6 +881,10 @@ function jobProfit(jobId) {
 // deploy that introduces it.
 analytics.migrate(db);
 
+// Referral partners and the record of talking to them. Same reasoning as
+// above: a database that predates the feature has to boot the deploy that
+// brings it.
+partners.migrate(db);
 
 /**
  * The day-rotating visitor key for this request.
@@ -918,12 +955,32 @@ app.use((req, res, next) => {
   // own browsing and a customer's private page say nothing about marketing.
   if (req.method !== 'GET' || !ATTRIBUTABLE.test(req.path)) return next();
 
-  // Already attributed? Then there is nothing to do, today or ever again.
-  if (attribution.fromRequest(req, SESSION_SECRET)) return next();
+  const stored = attribution.fromRequest(req, SESSION_SECRET);
+  const code = partners.normalizeCode(req.query && req.query.ref);
+
+  // Already attributed? Then there is nothing to do -- with one exception.
+  //
+  // A partner's referral code overrides a stored visit. First-touch is the
+  // right rule for everything it was written for: a referrer header and a
+  // campaign parameter are both inferences about how somebody arrived, and
+  // re-reading them on page four would credit the site to itself.
+  //
+  // A `?ref=` code is not an inference. It is a named local business handing
+  // over a card or forwarding our link, which is a deliberate act by a third
+  // party -- and it is the act the whole referral system exists to measure.
+  // Somebody who browsed the site in March and is sent back in June by an
+  // estate-sale company was sent by that company, and recording them as
+  // 'direct' would make the one number the owner uses to decide whether
+  // partnerships are worth his time quietly wrong.
+  //
+  // Narrow on purpose: only a valid code, and only when it is not the code
+  // already stored, so a partner's own link being clicked twice does not
+  // rewrite the cookie and slide its expiry forward.
+  if (stored && (!code || stored.referral_code === code)) return next();
 
   // Attribution used to live inside ps_session. Carry anything still there
   // across rather than relabelling a visitor who arrived before the split.
-  const legacy = req.session && req.session.attr;
+  const legacy = !stored && req.session && req.session.attr;
   const attr = legacy && typeof legacy === 'object' ? legacy : attribution.capture(req, SITE_URL);
   if (req.session && req.session.attr) delete req.session.attr;
 
@@ -2238,7 +2295,10 @@ function monthPeriod(now = new Date()) {
 }
 
 /** The six buckets, in the order the owner reads them. */
-const SOURCE_ORDER = ['google', 'facebook', 'bing', 'referral', 'direct', 'other'];
+// Partner first: it is the source the business has most control over and the
+// one it is actively building, so it belongs at the top of the column the
+// owner reads rather than buried under Direct.
+const SOURCE_ORDER = ['partner', 'google', 'facebook', 'bing', 'referral', 'direct', 'other'];
 
 // ------------------------------------------------- searching, sorting, filtering
 //
@@ -2546,6 +2606,14 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
                where ${JOB_ACTIVE}
                  and schedule_message is not null and schedule_message != ''
                  and status not in ('complete', 'cancelled')`)
+    },
+    {
+      // The referral engine's one entry on the dashboard. A count, linking to
+      // the list -- nothing reminds anybody of anything, which is the whole
+      // posture of that feature.
+      label: 'Partner follow-ups due',
+      href: '/admin/partners',
+      n: partners.due(db, todayLocal()).length
     },
     {
       label: 'Jobs in progress',
@@ -3377,6 +3445,212 @@ app.post('/admin/jobs/:id/photos/:photoId/delete', requireAdmin, (req, res) => {
     fs.unlink(path.join(UPLOAD_DIR, photo.filename), () => {});
   }
   res.redirect('/admin/jobs/' + req.params.id);
+});
+
+// --------------------------------------------------------------- admin partners
+//
+// The referral engine's administration. Five routes: a list, a detail page, a
+// form to add one, a form to log a conversation, and an archive.
+//
+// Nothing here sends anything. The outreach draft is rendered on the page for
+// the owner to read, edit and send from his own mailbox, one person at a time.
+// The reasoning for that -- legal and practical -- is at the top of
+// partners.js and is restated on the page itself, where somebody might
+// otherwise go looking for a "send" button.
+
+/** Everything the templates need to render the fixed vocabularies. */
+const PARTNER_LOCALS = {
+  partnerKinds: partners.KINDS,
+  partnerStatuses: partners.STATUSES,
+  partnerChannels: partners.CHANNELS,
+  partnerKind: partners.kind,
+  partnerStatusLabel: partners.statusLabel,
+  partnerChannelLabel: partners.channelLabel
+};
+
+/** The business facts an outreach draft is written from. */
+const outreachBusiness = () => ({
+  brand: BRAND,
+  phone: PHONE,
+  email: BUSINESS_EMAIL,
+  siteUrl: SITE_URL,
+  area: SERVICE_AREA,
+  ownerName: ownerOperator().name
+});
+
+app.get('/admin/partners', requireAdmin, (req, res) => {
+  const status = pick(req.query.status, partners.STATUS_VALUES, '');
+  const kindValue = pick(req.query.kind, partners.KIND_VALUES, '');
+  const q = clean(req.query.q, 80);
+
+  res.render('admin/partners', {
+    ...PARTNER_LOCALS,
+    rows: partners.list(db, { status, kind: kindValue, q: q ? likePattern(q) : null }),
+    summary: partners.summary(db),
+    due: partners.due(db, todayLocal()),
+    filters: { status, kind: kindValue, q: q || '' },
+    added: req.query.added === '1'
+  });
+});
+
+app.post('/admin/partners', requireAdmin, (req, res) => {
+  const name = clean(req.body.name, 120);
+  // A partner with no name is not a partner. Everything else is optional:
+  // a prospect is often a business name and a town and nothing more, and
+  // refusing to record that would mean it got written on a napkin instead.
+  if (!name) return res.redirect('/admin/partners');
+
+  const info = db
+    .prepare(
+      `insert into partners (name, kind, status, city, contact_name, phone, email, website,
+                             source_url, source_note, notes, next_step, next_step_on, referral_code)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      name,
+      pick(req.body.kind, partners.KIND_VALUES, 'other'),
+      pick(req.body.status, partners.STATUS_VALUES, 'prospect'),
+      clean(req.body.city, 80) || null,
+      clean(req.body.contact_name, 120) || null,
+      clean(req.body.phone, LIMITS.phone) || null,
+      clean(req.body.email, LIMITS.email) || null,
+      // A website and a source URL are published nowhere, but they are
+      // rendered as links in the admin, so the same rule the social profiles
+      // get applies: https only, or nothing.
+      safeUrl(req.body.website),
+      safeUrl(req.body.source_url),
+      clean(req.body.source_note, LIMITS.notes) || null,
+      clean(req.body.notes, LIMITS.notes) || null,
+      clean(req.body.next_step, 200) || null,
+      cleanPrefDate(req.body.next_step_on),
+      // Minted up front rather than on demand. The code is what makes a
+      // partner measurable, and a partner without one is a contact list entry.
+      partners.uniqueCode(db)
+    );
+
+  res.redirect('/admin/partners/' + info.lastInsertRowid);
+});
+
+app.get('/admin/partners/:id', requireAdmin, (req, res) => {
+  const partner = partners.get(db, req.params.id);
+  if (!partner) return res.status(404).render('404');
+
+  const leads = partners.leadsFor(db, partner.referral_code);
+
+  res.render('admin/partner', {
+    ...PARTNER_LOCALS,
+    partner,
+    touches: partners.touches(db, partner.id),
+    leads,
+    // What the relationship has actually produced. The reason the file exists.
+    produced: {
+      leads: leads.length,
+      approved: leads.filter((l) => l.approved).length,
+      value: leads.filter((l) => l.approved).reduce((sum, l) => sum + (l.amount_cents || 0), 0)
+    },
+    link: partners.referralLink(partner, SITE_URL),
+    draft: partners.outreachDraft(partner, outreachBusiness())
+  });
+});
+
+app.post('/admin/partners/:id/edit', requireAdmin, (req, res) => {
+  const partner = partners.get(db, req.params.id);
+  if (!partner) return res.status(404).render('404');
+
+  const name = clean(req.body.name, 120);
+  if (!name) return res.redirect('/admin/partners/' + partner.id);
+
+  db.prepare(
+    `update partners set name = ?, kind = ?, status = ?, city = ?, contact_name = ?,
+                         phone = ?, email = ?, website = ?, source_url = ?, source_note = ?,
+                         notes = ?, next_step = ?, next_step_on = ?
+      where id = ?`
+  ).run(
+    name,
+    pick(req.body.kind, partners.KIND_VALUES, partner.kind),
+    pick(req.body.status, partners.STATUS_VALUES, partner.status),
+    clean(req.body.city, 80) || null,
+    clean(req.body.contact_name, 120) || null,
+    clean(req.body.phone, LIMITS.phone) || null,
+    clean(req.body.email, LIMITS.email) || null,
+    safeUrl(req.body.website),
+    safeUrl(req.body.source_url),
+    clean(req.body.source_note, LIMITS.notes) || null,
+    clean(req.body.notes, LIMITS.notes) || null,
+    clean(req.body.next_step, 200) || null,
+    cleanPrefDate(req.body.next_step_on),
+    partner.id
+  );
+
+  // The referral code is deliberately not editable. It may already be printed
+  // on a card or sitting in somebody's email, and a code that changes is an
+  // attribution record that silently stops working.
+  res.redirect('/admin/partners/' + partner.id);
+});
+
+/**
+ * Log a conversation.
+ *
+ * The one write in this file that happens often, so it is the one that has to
+ * be quick: a channel, a sentence, and optionally what happens next. Logging a
+ * touch moves a prospect to 'contacted' on its own, because the owner having
+ * just written down that he emailed somebody is exactly the moment he should
+ * not also have to remember to change a dropdown.
+ */
+app.post('/admin/partners/:id/touch', requireAdmin, (req, res) => {
+  const partner = partners.get(db, req.params.id);
+  if (!partner) return res.status(404).render('404');
+
+  const summary = clean(req.body.summary, LIMITS.notes);
+  if (!summary) return res.redirect('/admin/partners/' + partner.id);
+
+  const direction = partners.DIRECTIONS.includes(req.body.direction) ? req.body.direction : 'out';
+
+  db.transaction(() => {
+    db.prepare(
+      'insert into partner_touches (partner_id, channel, direction, summary, happened_on) values (?, ?, ?, ?, ?)'
+    ).run(
+      partner.id,
+      pick(req.body.channel, partners.CHANNEL_VALUES, 'email'),
+      direction,
+      summary,
+      cleanDateNear(req.body.happened_on) || todayLocal()
+    );
+
+    // A status the owner typed wins over one inferred here. These two are the
+    // only inferences, and both are the obvious reading of what just happened.
+    const status = pick(req.body.status, partners.STATUS_VALUES, '');
+    const inferred =
+      status ||
+      (direction === 'in' && partner.status !== 'active' ? 'talking'
+        : partner.status === 'prospect' ? 'contacted'
+          : partner.status);
+
+    db.prepare('update partners set status = ?, next_step = ?, next_step_on = ? where id = ?').run(
+      inferred,
+      clean(req.body.next_step, 200) || null,
+      cleanPrefDate(req.body.next_step_on),
+      partner.id
+    );
+  })();
+
+  res.redirect('/admin/partners/' + partner.id);
+});
+
+/**
+ * Archive, which is what this admin's "delete" always means.
+ *
+ * Nothing is removed. A partner carries a referral code that leads are
+ * attributed to, and deleting the row would orphan that attribution -- the
+ * leads would keep their code and there would be nothing to join it to.
+ */
+app.post('/admin/partners/:id/archive', requireAdmin, (req, res) => {
+  const restore = req.body.restore === '1';
+  db.prepare('update partners set archived_at = ? where id = ?').run(
+    restore ? null : nowIso(),
+    req.params.id
+  );
+  res.redirect(restore ? '/admin/partners/' + req.params.id : '/admin/partners');
 });
 
 // ---------------------------------------------------------------- errors
