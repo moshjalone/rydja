@@ -597,9 +597,183 @@ be revisited first.
 
 ---
 
+---
+
+## Service area
+
+The record is `content/service-area.js`. Everything geographic on this site —
+page copy, titles, the footer, meta descriptions, `areaServed`, the county
+list — reads from it. Nothing else decides a place name.
+
+### What changed, and why
+
+The site used to claim **"West Michigan"** as its primary territory: on all
+nineteen pages, in all eight service page titles, in all eight meta
+descriptions, in the homepage title and H1, and as an entry in `areaServed`.
+
+Twenty-eight days of real Search Console data showed exactly what that bought:
+
+| Query | Impressions | Where |
+|---|---|---|
+| `rydja` | 25 | brand — people who already knew us |
+| `brush removal mancelona mi` | 8 | Antrim County, ~150 miles north |
+| various on `/junk-removal` | 23, **zero clicks**, positions 62–100 | Novi, Portage, West Branch, West Bloomfield |
+
+West Michigan holds roughly two million people — Grand Rapids, Holland,
+Muskegon, Kalamazoo. **Portage is West Michigan**, so that impression was a
+correct match against a wrongly stated territory. With nothing bounding the
+claim more tightly, the rest were guesses.
+
+The claim is now the territory: a business working from the Lowell area of Kent
+County, outward through Ada, Rockford, Greenville and Ionia, reaching Stanton
+and Baldwin for work that justifies the drive. "West Michigan" still appears in
+prose on a couple of pages, because it is true and people say it. It is no
+longer the targeting strategy.
+
+### The eighteen places, and the three tiers
+
+A tier is a **marketing priority and never a boundary**. Nothing in the
+configuration decides where a job is accepted, and `/service-area` says so in
+those words — a whole-property estate cleanout four counties out is routinely
+worth the trip where a single-item pickup is not.
+
+| Tier | Places |
+|---|---|
+| **Core** — lead the copy | Lowell, Ada Township, Rockford, Greenville, Ionia, Vergennes Township, Grattan Township |
+| **Nearby** — named wherever there is room | Alto, Cascade Township, Forest Hills, Cannonsburg, Cannon Township, Belmont, Saranac, Belding, Grand Rapids |
+| **Extended** — reached for the right job | **Stanton, Baldwin** |
+
+Counties, derived from the places rather than typed twice: **Kent, Montcalm,
+Ionia, Lake**. Published as `AdministrativeArea` in `areaServed` — a county is a
+boundary Google already holds a shape for, which eighteen town names cannot
+give, and it answers "junk removal ionia county mi".
+
+### Pending Google review
+
+Nine of the eighteen were submitted to the Business Profile on **2026-10-20 and
+are awaiting Google's review**. `serviceArea.pending()` lists them:
+
+> Vergennes Township, Grattan Township, Greenville, Cascade Township, Forest
+> Hills, Cannonsburg, Cannon Township, Belmont, Saranac
+
+The website may describe them, because RYDJA genuinely serves them. **Nothing
+may claim Google has approved them** until the profile says so, and a test
+asserts that no such claim appears.
+
+Three of the nine are worth a second look on the profile itself, because they
+overlap areas already listed and Google may flag them as duplicates:
+
+- **Forest Hills** is a school-district area, not a municipality; it spans parts
+  of Ada, Cascade and Grand Rapids townships
+- **Cannonsburg** sits inside Cannon Township, which is also listed
+- **Belmont** sits inside Plainfield Township; it was submitted as
+  "Belmont / Plainfield Township" and is stored here as `Belmont` with the
+  township recorded separately, because a `Place` called "Belmont / Plainfield
+  Township" is one name for two things
+
+### Protected coverage — Stanton and Baldwin
+
+Both carry `protect: true`. The brief on this was explicit and the mechanism
+reflects it:
+
+- `resolvePlaces()` **restores** either one if a `SERVICE_AREA_PLACES` override
+  omits it, and logs a loud `[service-area] … has been restored` line.
+- It **warns rather than throws**, because refusing to boot would make the
+  service area unconfigurable — which the brief also rules out. Dropping one
+  deliberately means editing `content/service-area.js`, which is a commit
+  somebody reviews.
+- `test/geography.test.js` asserts the Stanton page still answers 200, keeps its
+  own title, H1, 900+ words, three JSON-LD blocks, canonical, sitemap entry and
+  internal links — and that both towns stay in `areaServed`.
+
+### Overriding the area
+
+| Variable | Effect |
+|---|---|
+| `SERVICE_AREA` | The coverage sentence. Unset, it is built from the record |
+| `SERVICE_AREA_PLACES` | Pipe-separated qualified names. Protected places are restored if missing |
+| `SERVICE_AREA_COUNTIES` | Pipe-separated. Unset, derived from the places |
+
+An override narrows the page as well as the markup: the tier list, the anchor
+town and the supporting copy are all resolved against the configuration, so a
+narrowed deployment stops naming the towns it dropped. That was a real bug
+during this work — the tier list read the record directly and went on listing
+all eighteen regardless — and it is now asserted by a test.
+
+**Do not overwrite Render's environment blindly.** None of these are set in
+production today, which means production uses the record. Setting one is a
+coverage decision, not a tweak.
+
+---
+
+## Service catalog
+
+`content/service-catalog.js` holds the **twenty-three offerings** entered on the
+Google Business Profile, in four groups, each mapped to the page that describes
+it and the quote-form option that prices it.
+
+Rendered as an index on `/services` — not as twenty-three pages. Twenty-three
+pages would be doorway pages with extra steps: the same business, crew and
+truck described twenty-three times. The index means a customer who typed
+"attic cleanout" sees their own words and gets one click to a prefilled quote.
+
+| Group | Page | Offerings |
+|---|---|---|
+| Junk removal and hauling | `/junk-removal` | Junk Removal, Trash Removal, Junk Hauling, Debris Removal, Scrap Metal Pickup |
+| Property and estate cleanouts | `/estate-cleanouts` | Estate, Whole House, Garage, Basement, Attic, Storage Unit, Rental Property, Move-Out, Barn & Outbuilding |
+| Furniture, yard and demolition | `/yard-cleanup` | Furniture, Appliance, Yard Waste, Brush, Storm Debris, Shed Removal, Light Demolition |
+| Moving and delivery | `/hauling-moving-help` | Moving Labor & Loading Help, Local Hauling & Delivery |
+
+`serviceCatalog.check()` runs at boot and **refuses to start** if any offering
+points at a page that does not exist or prefills a quote option the form does
+not offer. A dead link in an index whose only job is routing, or a CTA landing
+on a form with nothing selected, are both worse than not listing the service.
+
+It also refuses an unqualified claim about being licensed, insured, bonded,
+certified, same-day, or able to do asbestos, hazardous waste or tree work.
+Disclaimers are allowed — "not a licensed interstate mover", "no asbestos" —
+because the word before the claim is what distinguishes them.
+
+Honest limits live on the entries that need them and render on the page rather
+than in a footnote: storm debris is *what is already down*, light demolition is
+*non-structural only*, barn cleanouts are *contents only*.
+
+**Two still to confirm on the profile itself:** Appliance Removal's description,
+and that Yard Waste Removal was added correctly. `serviceCatalog.verifyOnProfile()`
+returns them.
+
+---
+
+## Free quotes
+
+The estimate is free. **The removal is not.** That distinction is the one thing
+the copy must never blur, and it appears in these places:
+
+| Where | Wording |
+|---|---|
+| Homepage eyebrow | FREE QUOTES • LOCALLY OPERATED |
+| Homepage hero | "a **free, no-obligation estimate** — then you decide" |
+| Homepage CTA | Get a Free Quote |
+| Service page, top | Send Photos. Get a Free Estimate. |
+| Service page, bottom | Get a Free Quote |
+| Catalog entry | Free quote for *&lt;service&gt;* |
+| Quote form H1 | Send the job. Get a free estimate. |
+| Quote form note | "The estimate costs nothing and commits you to nothing… Pricing for the work itself depends on volume, access, labour and disposal" |
+| Submit button | Get My Free Estimate |
+| Sticky mobile bar | Free Quote |
+
+Nothing anywhere advertises free removal, a free load, or a discount every job
+qualifies for.
+
+---
+
 ## Local SEO
 
-Eight service pages, one per thing people actually search for:
+Eight service pages, one per thing people actually search for. All eight
+titles end "Near Lowell, MI" and all eight H1s name the area — seven of them
+named no place at all before this pass, which was the largest on-page
+relevance gap the audit found.
+
 
 | Page | Covers |
 |---|---|
@@ -738,6 +912,16 @@ Tests hold each of those.
 
 
 ### Google Search Console
+
+> **Already verified and active.** The property existed and was reporting
+> before any of this work began — it was verified by a method that leaves no
+> tag in the page, which is why the repository showed no sign of it. **Do not
+> create a second property and do not re-verify.** A duplicate splits the
+> reporting and proves nothing.
+>
+> `GOOGLE_SITE_VERIFICATION` remains available as an optional second
+> verification method. It is unset in production and leaving it unset changes
+> nothing.
 
 **Search Console is the only thing that can tell you whether a page is
 indexed.** Nothing in this repository can. A sitemap that validates, a page

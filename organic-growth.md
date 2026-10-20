@@ -15,9 +15,12 @@ validates, hard-coded privacy on every customer page, HTTPS with `www` and
 the wire, and 436 passing tests. Nothing in the audit below found a broken
 page, a mis-set canonical, a `noindex` leak or a crawl blocker.
 
-**The problem is that nothing was measured and nothing was verified.** There
-was no Google Search Console property, so nobody could see whether a single
-page was indexed or what anybody searched for. There was no visitor
+**The problem was never that the site could not be indexed.** Search Console
+was verified and active throughout, and twelve pages are indexed. The problem
+is relevance: the site told Google it served "West Michigan", a region of two
+million people, so it was shown to the region — Portage, Novi, West Branch,
+West Bloomfield — at positions 62 to 100, and to almost nobody in the
+territory the truck actually covers. There was no visitor
 measurement, so "no leads" could not be told apart from "no visitors" — and
 those have opposite fixes. And the site answered the query *"junk removal"*
 well and the query *"junk removal lowell mi"* only incidentally, which is the
@@ -38,10 +41,10 @@ how easy it is to fix.
 
 | | |
 |---|---|
-| **Finding** | No `google-site-verification` tag was served, anywhere. No Search Console property existed. |
-| **Why it matters** | Search Console is the *only* source of indexing status, impressions, queries and crawl errors. Without it, every decision about the site is a guess, and "we are not ranking" cannot be distinguished from "we are not indexed" or "nobody searches for that". |
-| **Evidence** | `curl -s https://getrydja.com/ \| grep -i verification` → nothing. No verification file in `public/`. No mention of Search Console anywhere in the repo. |
-| **Status** | **Mechanism built.** `GOOGLE_SITE_VERIFICATION` renders the tag on indexable pages only, validates the token, and refuses to boot if one of the app's own secrets is pasted in. **Verification itself is owner-performed** — see §8.1. |
+| **Finding** | No `google-site-verification` meta tag was being served by the app, and the repository contained no reference to Search Console. |
+| **CORRECTION (2026-10-20)** | **Search Console was already verified and active from the start**, by a method that leaves no tag in the HTML — a DNS record or a Google-account association. The original wording of this row said "no Search Console property existed", which was wrong: it inferred the absence of a property from the absence of a tag, and those are different things. **Do not create a second property.** The `GOOGLE_SITE_VERIFICATION` variable remains available as a belt-and-braces second verification method and is optional; leaving it unset changes nothing. |
+| **Why it still mattered** | The repository had no record that Search Console existed, so nobody working from the repo knew the data was there to read. That was a documentation gap rather than a technical one. |
+| **Status** | Resolved. The 28-day baseline in §0 comes from the real property. |
 
 > **An indexing claim is not made anywhere in this document.** It cannot be. A
 > page returning 200, a sitemap that validates and a passing `noindex` test are
@@ -353,7 +356,16 @@ because the behaviour it asserted was intentionally replaced:
 and every one is worth more than any further change to the pages. In priority
 order.
 
-### 8.1 — Google Search Console (30 minutes, do first)
+### 8.1 — Google Search Console — ALREADY DONE, do not redo
+
+> **Superseded 2026-10-20.** Search Console was verified and active from the
+> start. Do not add a property, do not re-verify, and do not create a second
+> one — a duplicate property splits the reporting and proves nothing. The
+> steps below are kept only as a record of how the HTML-tag method works, for
+> the optional `GOOGLE_SITE_VERIFICATION` belt-and-braces path.
+
+<details>
+<summary>The original setup steps, retained for reference</summary>
 
 Full steps in `DEPLOY.md` → **Google Search Console**. The short version:
 
@@ -371,7 +383,9 @@ Then record, in `business-listing-master.md`, the date it verified and what
 each URL Inspection actually said. That is the first real indexing evidence
 this business will have.
 
-Also worth the ten minutes: **Bing Webmaster Tools**, imported from the Search
+</details>
+
+Still worth the ten minutes: **Bing Webmaster Tools**, imported from the Search
 Console property. IndexNow already pings Bing on deploy, but nothing reports
 back without the property.
 
