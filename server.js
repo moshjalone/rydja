@@ -16,6 +16,8 @@ const scheduleBackup = require('./schedule-backup');
 const { SERVICE_PAGES, servicePage } = require('./content/service-pages');
 const { HAUL_AWAY_GROUPS, CALL_SITUATIONS, checkLinks } = require('./content/homepage');
 const { LOCAL_PAGES, linkedServiceSlugs } = require('./content/local-pages');
+const serviceArea = require('./content/service-area');
+const serviceCatalog = require('./content/service-catalog');
 const indexnow = require('./indexnow');
 const attribution = require('./attribution');
 const analytics = require('./analytics');
@@ -113,38 +115,152 @@ const TRUST_PROXY = process.env.TRUST_PROXY || (IS_PRODUCTION ? '1' : '');
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// Where we say we work. One source of truth: the page copy, the structured
-// data and the meta description all read from here, so they cannot drift and
-// nobody has to remember to update three places.
-const SERVICE_AREA = (process.env.SERVICE_AREA || 'Lowell, Stanton and surrounding West Michigan communities').trim();
-
-// The discrete communities, as the Google Business Profile declares them and
-// as business-listing-master.md §6 records them. Every one of these is a place
-// the owner set on the profile himself, which is the only reason any of them
-// is here: a city list is a coverage claim, and a city nobody has agreed to
-// drive to is a lie that costs a wasted phone call at both ends.
+// Where we say we work.
 //
-// "Michigan, USA" is on the profile too and is deliberately NOT propagated.
-// A service-area business with one truck does not serve a state, and claiming
-// it is how a local pack entry gets filtered out rather than ranked.
-const SERVICE_AREA_PLACES = (
-  process.env.SERVICE_AREA_PLACES ||
-  [
-    'Lowell, Michigan',
-    'Stanton, Michigan',
-    'Belding, Michigan',
-    'Ionia, Michigan',
-    'Grand Rapids, Michigan',
-    'Rockford, Michigan',
-    'Ada Township, Michigan',
-    'Alto, Michigan',
-    'Baldwin, Michigan',
-    'West Michigan'
-  ].join('|')
+// The record itself is content/service-area.js -- eighteen places, each with
+// its county and its marketing tier, plus the derived county list and the
+// coverage sentence. Everything geographic on this site reads from there, so
+// the page copy, the footer, the meta descriptions and areaServed cannot
+// drift apart.
+//
+// SERVICE_AREA and SERVICE_AREA_PLACES remain overridable from the
+// environment, because a deployment may legitimately need to narrow coverage.
+// What an override CANNOT do is silently drop Stanton or Baldwin: those carry
+// protect:true in the record, and resolvePlaces() restores either one with a
+// loud log line rather than refusing to start. Dropping one on purpose means
+// editing the record, which is a commit somebody reviews.
+const SERVICE_AREA = (process.env.SERVICE_AREA || serviceArea.SENTENCE).trim();
+
+const SERVICE_AREA_PLACES = serviceArea.resolvePlaces(
+  process.env.SERVICE_AREA_PLACES
+    ? process.env.SERVICE_AREA_PLACES.split('|').map((p) => p.trim()).filter(Boolean)
+    : null
+);
+
+// The counties the territory sits in, as administrative areas rather than as
+// cities. This is the signal a town list cannot give: a county is a boundary
+// Google already holds a shape for, and four adjacent ones describe a
+// service-area business far more precisely than eighteen town names or one
+// two-million-person region. It also answers "junk removal ionia county mi".
+const SERVICE_AREA_COUNTIES = (
+  process.env.SERVICE_AREA_COUNTIES ||
+  serviceArea.COUNTIES.map((c) => c + ' County, Michigan').join('|')
 )
   .split('|')
   .map((p) => p.trim())
   .filter(Boolean);
+
+// The one town a title or heading names.
+//
+// One, not a list. An earlier pass put four into every heading, which reads
+// like a directory entry rather than a sentence -- and eighteen would be
+// unreadable. Lowell is where the truck starts, so "near Lowell" is both the
+// shortest true thing to say and the most useful to somebody deciding whether
+// we come to them.
+//
+// The supporting copy underneath is where the other markets are named, and it
+// is built from the record rather than written out.
+/**
+ * The town a title or heading names, resolved against the configuration.
+ *
+ * Same correction as resolvedAreaTiers(): reading the record directly meant a
+ * narrowed SERVICE_AREA_PLACES still produced headings naming towns the
+ * deployment no longer claimed. The record's own anchor wins when it survives
+ * the override, and otherwise the first configured place does.
+ */
+const ANCHOR_TOWN = (function resolveAnchor() {
+  const resolved = SERVICE_AREA_PLACES.map((p) => p.split(',')[0].trim());
+  if (resolved.some((r) => r.toLowerCase() === serviceArea.ANCHOR.toLowerCase())) {
+    return serviceArea.ANCHOR;
+  }
+  return resolved[0] || serviceArea.ANCHOR;
+})();
+
+/**
+ * The tiered coverage list, as the page should render it.
+ *
+ * Built from SERVICE_AREA_PLACES rather than straight off the record, which is
+ * the bug this function exists to fix: an earlier version read the record
+ * directly, so SERVICE_AREA_PLACES could be narrowed and /service-area would
+ * go on listing all eighteen places anyway. A coverage page that ignores the
+ * coverage configuration is worse than no configuration.
+ *
+ * Two rules:
+ *
+ *   - a place in the record is shown in its own tier, but only if the resolved
+ *     list still contains it
+ *   - a place in the resolved list that the record has never heard of is still
+ *     shown, under a final group, so an override cannot make a town the
+ *     configuration claims disappear from the page that claims it
+ */
+function resolvedAreaTiers() {
+  const resolved = SERVICE_AREA_PLACES.map((p) => p.trim());
+  const matches = (place) =>
+    resolved.some((r) => r.toLowerCase().startsWith(place.name.toLowerCase()));
+
+  const tiers = serviceArea.TIERS.map((tier) => ({
+    ...tier,
+    places: serviceArea.byTier(tier.value).filter(matches)
+  })).filter((tier) => tier.places.length);
+
+  // Anything configured that the record does not describe.
+  const known = serviceArea.PLACES.filter(matches).map((p) => p.name.toLowerCase());
+  const extra = resolved
+    .filter((r) => !known.some((k) => r.toLowerCase().startsWith(k)))
+    .map((r) => ({ name: r.replace(/,\s*Michigan$/i, '') }));
+
+  if (extra.length) {
+    tiers.push({
+      value: 'configured',
+      label: 'Also served',
+      blurb: 'Configured for this deployment.',
+      places: extra
+    });
+  }
+  return tiers;
+}
+/**
+ * The towns the supporting copy names, resolved the same way.
+ *
+ * The record's lead markets, minus anything the configuration dropped. If an
+ * override leaves none of them, it falls back to the configured places
+ * themselves -- a heading should name somewhere we actually claim, and never
+ * nowhere at all.
+ */
+const ANCHOR_AREA = (function resolveAnchorArea() {
+  const resolved = SERVICE_AREA_PLACES.map((p) => p.split(',')[0].trim());
+  const lower = resolved.map((r) => r.toLowerCase());
+  const kept = serviceArea.LEAD_PLACES.filter((lead) =>
+    lower.some((r) => r === lead.toLowerCase() || r.startsWith(lead.toLowerCase() + ' '))
+  );
+  return serviceArea.joinNames(kept.length ? kept : resolved.slice(0, 5));
+})();
+
+// Service page titles are literal strings in content/service-pages.js -- a
+// title is written, not assembled -- so they get a warning rather than a
+// guard. A deployment that narrows the service area boots, and says loudly
+// that a title still names a place no longer covered.
+//
+// A warning and not a throw on purpose: refusing to start would make the
+// service area effectively unconfigurable, and what is being protected here is
+// copy accuracy, not correctness of behaviour.
+(function warnOnStaleTitles() {
+  const declared = new Set(SERVICE_AREA_PLACES.map((p) => p.split(',')[0].trim().toLowerCase()));
+  const stale = new Set();
+  for (const page of SERVICE_PAGES) {
+    const where = (page.title.match(/\b(?:near|in)\s+([^|]+)/i) || [])[1] || '';
+    for (const token of where.split(/[,&]|\band\b/)) {
+      const name = token.replace(/\bMI\b|\bMichigan\b/g, '').trim();
+      if (name && !declared.has(name.toLowerCase())) stale.add(name);
+    }
+  }
+  if (stale.size) {
+    console.warn(
+      '[config] service page titles name ' + [...stale].join(', ') +
+        ', which the service area does not list. Update content/service-pages.js.'
+    );
+  }
+})();
 
 // Confirmed off the Google Business Profile by the owner on 2026-10-08 and
 // recorded as canonical in business-listing-master.md §7: open seven days,
@@ -467,6 +583,16 @@ const PROFESSIONALS_PATH = '/property-professionals';
 // Every internal link the homepage sections promise has to resolve to a real
 // page. Checked at boot against the routes that actually exist.
 checkLinks([...SERVICE_PAGES.map((p) => '/' + p.slug), PROFESSIONALS_PATH]);
+
+// The twenty-three Google Business Profile offerings, checked against the
+// pages and the quote form. Every one has to point at a page that exists and
+// prefill an option the form actually offers -- a dead link in an index whose
+// job is routing, or a CTA landing on a form with nothing selected, are both
+// worse than not listing the service at all.
+serviceCatalog.check(
+  SERVICE_PAGES.map((p) => p.slug),
+  QUOTE_SERVICES
+);
 
 // The local pages link to service pages by slug. Checked here rather than
 // trusted, because the content file names them as strings and a renamed
@@ -1068,6 +1194,20 @@ app.use((req, res, next) => {
   res.locals.imgVersion = imgVersion;
   res.locals.serviceArea = SERVICE_AREA;
   res.locals.serviceAreaPlaces = SERVICE_AREA_PLACES;
+  res.locals.serviceAreaCounties = SERVICE_AREA_COUNTIES;
+  res.locals.anchorArea = ANCHOR_AREA;
+  res.locals.anchorTown = ANCHOR_TOWN;
+  // The tiered record itself, for the pages that present coverage properly:
+  // a tier is a marketing priority and never a boundary, and /service-area
+  // says so where somebody outside the core might otherwise assume we refuse.
+  // Resolved against SERVICE_AREA_PLACES, so narrowing the configuration
+  // narrows the page. Each tier already carries its own places.
+  res.locals.areaTiers = resolvedAreaTiers();
+  res.locals.areaSpoken = serviceArea.spoken;
+  res.locals.areaLead = serviceArea.LEAD_PLACES;
+  res.locals.catalogGroups = serviceCatalog.GROUPS;
+  res.locals.catalogByGroup = serviceCatalog.byGroup;
+  res.locals.catalogForPage = serviceCatalog.forPage;
   res.locals.servicePages = SERVICE_PAGES;
   // Only the city pages whose city the configuration says we actually serve.
   //
@@ -1457,6 +1597,22 @@ const IMAGE_CREDITS = [
  *                              describes something a visitor can also read --
  *                              which is the condition for including it at all.
  */
+/**
+ * The places this business serves, for areaServed.
+ *
+ * Towns are Places; counties are AdministrativeAreas. Both are facts already
+ * recorded one scale apart -- the counties are simply the counties the towns
+ * are in -- so this adds precision rather than reach, which is the whole point
+ * of the change. A region ("West Michigan") is deliberately absent: it would
+ * widen the claim to two million people and every town the region contains.
+ */
+function areaServedJsonLd() {
+  return [
+    ...SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name })),
+    ...SERVICE_AREA_COUNTIES.map((name) => ({ '@type': 'AdministrativeArea', name }))
+  ];
+}
+
 function businessJsonLd() {
   const data = {
     '@context': 'https://schema.org',
@@ -1470,7 +1626,11 @@ function businessJsonLd() {
       `moving help and light demolition serving ${SERVICE_AREA}.`,
     image: SITE_URL + '/og-image.jpg',
     logo: SITE_URL + '/img/rydja-logo.jpg',
-    areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name })),
+    // Towns as Places, counties as AdministrativeAreas. The distinction is not
+    // pedantry: a county is a boundary Google already holds a shape for, so
+    // three adjacent ones bound the territory in a way nine town names cannot,
+    // and a search for "junk removal ionia county mi" has something to match.
+    areaServed: areaServedJsonLd(),
     knowsAbout: SERVICE_KEYWORDS,
     // One specification covering all seven days, which is the correct shape
     // when the hours do not vary: dayOfWeek takes an array.
@@ -1541,7 +1701,7 @@ function serviceJsonLd(page) {
     url: SITE_URL + '/' + page.slug,
     serviceType: page.nav,
     provider: { '@type': 'HomeAndConstructionBusiness', '@id': SITE_URL + '/#business', name: BRAND },
-    areaServed: SERVICE_AREA_PLACES.map((name) => ({ '@type': 'Place', name }))
+    areaServed: areaServedJsonLd()
   });
 }
 

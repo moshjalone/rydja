@@ -297,7 +297,21 @@ test('the homepage h1 says what the business does, and the slogan survives', asy
   const h1 = doc.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)[1].replace(/<[^>]+>/g, '').trim();
   assert.match(h1, /Junk Removal/i);
   assert.match(h1, /Cleanouts/i);
-  assert.match(h1, /West Michigan/i);
+
+  // One town, not a list. Lowell is where the truck starts; four towns in a
+  // heading reads like a directory entry and eighteen would be unreadable.
+  // The heading is rendered from the resolved anchor, so it cannot name a town
+  // the configuration has stopped claiming.
+  assert.match(h1, /Lowell/, 'the h1 should name the anchor town');
+  assert.ok(!/West Michigan/i.test(h1), 'the region must not be the heading again');
+
+  // The markets are named in the supporting copy instead, which is where a
+  // list belongs.
+  const lede = doc.match(/<p class="lede">([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '');
+  for (const town of ['Lowell', 'Ada', 'Rockford', 'Greenville', 'Ionia', 'Stanton']) {
+    assert.ok(lede.includes(town), 'the hero copy should name ' + town);
+  }
+  assert.match(lede, /free, no-obligation estimate/i, 'the free estimate is the hero offer');
 
   // The brand line is still on the page, still prominent, and NOT the h1.
   assert.match(doc, /Point at the problem/);
@@ -342,7 +356,9 @@ test('the service area page reads from the configured area, not a hardcoded list
   try {
     const doc = await (await configured.get('/service-area')).text();
     assert.match(doc, /Testville and the surrounding Test County area/);
-    assert.match(doc, /Testville, Michigan/);
+    // The list shows the place name without the state: eighteen repetitions of
+    // ", Michigan" is noise, and the county headings carry the state.
+    assert.match(doc, /Testville/);
     assert.match(doc, /Test County/);
     // The default must not be baked in anywhere.
     assert.ok(!doc.includes('Lowell'), 'the area must come from configuration, not a second hardcoded list');

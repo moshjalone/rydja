@@ -52,10 +52,10 @@ const PAGES = [
     // the form's wording, and a CTA has to prefill something the select
     // actually offers -- server.js checks that at boot.
     quoteService: 'Estate / whole-property cleanout',
-    title: 'Estate Cleanouts in West Michigan | RYDJA',
-    h1: 'Estate and whole-property cleanouts',
+    title: 'Estate & Whole-House Cleanouts Near Lowell, MI | RYDJA',
+    h1: 'Estate and whole-property cleanouts near Lowell, Michigan',
     description:
-      'Estate, inherited-home and whole-property cleanouts across West Michigan. House, garage, basement, barn and outbuildings cleared. Send photos for a quote.',
+      'Shed removal, playset and fence removal, small deck tear-downs in Lowell, Ada, Rockford, Greenville and Ionia, MI. Non-structural only, debris hauled away. Free photo estimate.',
     lede:
       'When a house has to be emptied and there is far more in it than one family can shift, this is the work we do. House, garage, basement, attic, barn and outbuildings &mdash; cleared at the pace you need.',
     intro: [
@@ -243,10 +243,10 @@ const PAGES = [
         'Household junk, furniture, appliances, scrap and debris hauled away. One item or a whole load, and you do not have to carry it outside.'
     },
     quoteService: 'Junk / hauling',
-    title: 'Junk Removal & Junk Hauling in West Michigan | RYDJA',
-    h1: 'Junk removal and hauling in West Michigan',
+    title: 'Junk Removal & Hauling Near Lowell, MI | RYDJA',
+    h1: 'Junk removal and hauling in the Lowell area',
     description:
-      'Junk removal and junk hauling across West Michigan: household junk, furniture, appliances, scrap and debris. One item or a whole load. Send photos for a price.',
+      'Junk removal and junk hauling in Lowell, Ionia, Belding and Stanton, MI: household junk, furniture, appliances, scrap and debris. One item or a whole load.',
     lede:
       'The pile in the corner of the garage, the couch nobody wants, the load that will not fit in your car. Send photos, get a price, and we take it away.',
     intro: [
@@ -403,10 +403,10 @@ const PAGES = [
         'A whole space back to empty: garages, basements, barns, outbuildings, storage units and spare rooms. Cleared and swept, however many loads it takes.'
     },
     quoteService: 'Garage / basement cleanout',
-    title: 'Garage, Basement & Property Cleanouts in West Michigan | RYDJA',
-    h1: 'Garage, basement and property cleanouts',
+    title: 'Garage, Basement & Barn Cleanouts Near Lowell, MI | RYDJA',
+    h1: 'Garage, basement, attic and barn cleanouts near Lowell',
     description:
-      'Garage, basement, barn, outbuilding and storage unit cleanouts across West Michigan. A whole space emptied and swept. Photo quotes, no obligation.',
+      'Garage, basement, barn, outbuilding and storage unit cleanouts in Lowell, Ionia, Belding and Stanton, MI. A whole space emptied and swept. Photo quotes, no obligation.',
     lede:
       'A cleanout is a whole space emptied, not a single pickup. Garages, basements, barns, outbuildings, storage units and spare rooms &mdash; we clear the lot and leave the floor swept.',
     intro: [
@@ -507,10 +507,10 @@ const PAGES = [
         'Turnovers for landlords, property managers and investors. Abandoned furniture and household contents cleared to a date, so the unit can be relet.'
     },
     quoteService: 'Rental / property turnover',
-    title: 'Rental Property Cleanouts & Turnovers in West Michigan | RYDJA',
-    h1: 'Rental property cleanouts and turnovers',
+    title: 'Rental Turnover Cleanouts Near Lowell, MI | RYDJA',
+    h1: 'Rental turnover and move-out cleanouts near Lowell',
     description:
-      'Rental turnover cleanouts in West Michigan for landlords and property managers: abandoned furniture, household contents, garages and storage cleared to your date.',
+      'Rental turnover cleanouts in Lowell, Ionia and Stanton, MI for landlords and property managers: furniture, household contents, garages and storage cleared to your date.',
     lede:
       'A unit that cannot be shown is a unit that is not earning. We clear what the last tenant left so the turnover can get on with painting, cleaning and reletting.',
     intro: [
@@ -666,10 +666,10 @@ const PAGES = [
         'Brush, branches, fallen limbs, storm debris and outdoor clutter cleared and hauled off. Material already on the ground: we are not a tree service.'
     },
     quoteService: 'Yard / brush cleanup',
-    title: 'Yard Cleanup & Debris Removal in West Michigan | RYDJA',
-    h1: 'Yard cleanup and debris removal',
+    title: 'Yard Waste & Brush Removal Near Lowell, MI | RYDJA',
+    h1: 'Yard cleanup, brush and storm debris removal near Lowell',
     description:
-      'Brush removal, branch and fallen-limb cleanup, storm debris hauling and outdoor junk removal across West Michigan. Send photos for a quote.',
+      'Brush removal, branch and fallen-limb cleanup, storm debris hauling and outdoor junk removal in Lowell, Ionia, Belding and Stanton, MI. Send photos for a quote.',
     lede:
       'Brush piles, storm damage, the corner of the yard that has been filling up for years. We clear it, load it and haul it off.',
     intro: [
@@ -741,10 +741,10 @@ const PAGES = [
         'Couch removal, mattress removal, fridges, washers and dryers. One heavy awkward item carried out and hauled off by us, not by you.'
     },
     quoteService: 'Furniture / appliance removal',
-    title: 'Furniture, Couch & Appliance Removal in West Michigan | RYDJA',
-    h1: 'Furniture, couch and appliance removal',
+    title: 'Furniture & Appliance Removal Near Lowell, MI | RYDJA',
+    h1: 'Furniture and appliance removal near Lowell, Michigan',
     description:
-      'Couch, sofa, mattress, fridge, washer and dryer removal across West Michigan. Single-item pickups welcome. We carry it out, you do not.',
+      'Couch, sofa, mattress, fridge, washer and dryer removal in Lowell, Ionia, Belding and Stanton, MI. Single-item pickups welcome. We carry it out, you do not.',
     lede:
       'One couch down a narrow stair, a fridge that will not fit through the door, a mattress nobody will take. Heavy single items are their own kind of problem.',
     intro: [
@@ -836,10 +836,10 @@ const PAGES = [
         'When the thing has somewhere to go: local hauling, furniture delivery, Marketplace and auction pickups, loading and unloading help. Labour-only is fine.'
     },
     quoteService: 'Moving / delivery help',
-    title: 'Local Hauling, Delivery & Moving Help in West Michigan | RYDJA',
-    h1: 'Local hauling, delivery and moving help',
+    title: 'Moving Labor & Local Hauling Near Lowell, MI | RYDJA',
+    h1: 'Moving help, loading and local hauling near Lowell',
     description:
-      'Local hauling, furniture delivery, Marketplace and auction pickups, single-item transport and loading or unloading help across West Michigan.',
+      'Local hauling, furniture delivery, Marketplace and auction pickups, single-item transport and loading or unloading help across Lowell, Ionia, Belding and Stanton, MI.',
     lede:
       'Sometimes nothing needs throwing away &mdash; it just needs moving, and you do not have a truck or a second pair of hands.',
     intro: [
@@ -909,10 +909,10 @@ const PAGES = [
         'Sheds, playsets, fences, small decks, shelving and cabinets taken down and hauled away in one job. Non-structural work only.'
     },
     quoteService: 'Light demolition',
-    title: 'Shed Removal & Light Demolition in West Michigan | RYDJA',
-    h1: 'Shed removal, light demolition and debris hauling',
+    title: 'Shed Removal & Light Demolition Near Lowell, MI | RYDJA',
+    h1: 'Shed removal and light demolition near Lowell',
     description:
-      'Shed removal, playset and fence removal, small deck tear-downs and shelving or cabinet removal in West Michigan. Non-structural only, debris hauled away.',
+      'Shed removal, playset and fence removal, small deck tear-downs and shelving or cabinet removal in Lowell, Ionia, Belding and Stanton, MI. Non-structural only, debris hauled away.',
     lede:
       'Some things have to come apart before they can leave. Sheds, playsets, fences, small decks and built-in units &mdash; taken down and taken away in one job.',
     intro: [

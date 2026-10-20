@@ -22,7 +22,7 @@
   <% page.intro.forEach(function(para) { %><p><%- para %></p><% }) %>
 
   <p class="cta-inline">
-    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Send photos for a quote</a>
+    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Send Photos. Get a Free Estimate.</a>
     <% if (businessPhone) { %>
       <span class="or-call">or call <%- include('partials/call-text') %></span>
     <% } %>
@@ -111,6 +111,17 @@
     We serve <%= serviceArea %>. If you are just outside that, it is still worth asking &mdash; see the
     <a class="text-link" href="/service-area">service area</a> for how we decide.
   </p>
+  <%# Contextual links to the two towns with pages of their own.
+
+      In the body, not only in the footer: a footer link is discounted and
+      nobody scanning a page for their own town reads down there. Rendered
+      from the configured list, so narrowing the area narrows these too. %>
+  <% if (localPages.length) { %>
+    <p>
+      <% localPages.forEach(function(p, i) { %><%= i ? ' ' : '' %>Based in or near <%= p.city %>? There is a page
+        for <a class="text-link" href="/<%= p.slug %>"><%= page.nav.toLowerCase() %> and cleanouts in <%= p.city %></a>.<% }) %>
+    </p>
+  <% } %>
   <%# A page may add what the area means for this particular job: a whole
       property justifies a drive a single pickup does not. Optional, because
       on most pages the sentence above is the whole truth of it. %>
@@ -125,7 +136,7 @@
   </ul>
 
   <p class="cta-inline">
-    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Request a quote</a>
+    <a class="button" href="/quote?service=<%= encodeURIComponent(quoteFor) %>">Get a Free Quote</a>
   </p>
 </main>
 

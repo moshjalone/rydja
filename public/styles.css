@@ -1009,3 +1009,43 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 @media(max-width:860px){
   .admin-nav a{line-height:1.2;overflow-wrap:anywhere}
 }
+
+/* ---------- the service catalog ----------
+   Twenty-three offerings in four groups, each one a route to the page that
+   describes it and to a prefilled quote. Replaced a flat list of keyword
+   phrases that read honestly and went nowhere. */
+.catalog{margin:44px 0 0}
+.catalog-group{margin-bottom:16px}
+.catalog-group h3{
+  display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-size:19px;letter-spacing:-.02em;margin:0 0 6px
+}
+.catalog-page-link{font-size:13px;font-weight:800;white-space:nowrap}
+.catalog-blurb{color:var(--muted);font-size:14px;margin:0 0 18px}
+
+/* Two columns where there is room, one on a phone. Each item is a name, a
+   line in the customer's own words, the honest limit where there is one, and
+   the quote link. */
+.catalog-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:18px 26px}
+.catalog-list li{border-top:1px solid var(--line);padding-top:14px}
+.catalog-name{font-size:15px;font-weight:800;margin-bottom:5px}
+.catalog-says{color:#4b4d46;font-size:14px;line-height:1.55;margin:0 0 6px}
+/* The limit is not a footnote. Somebody whose job is actually a tree felling
+   needs to read it here rather than after a phone call. */
+.catalog-limit{
+  color:#6e1e11;background:#fde7e3;border-radius:8px;padding:7px 10px;
+  font-size:13px;line-height:1.45;margin:0 0 8px
+}
+.catalog-quote{font-size:13px;font-weight:800}
+
+@media(max-width:700px){
+  .catalog-list{grid-template-columns:1fr;gap:16px}
+  .catalog-group h3{font-size:17px}
+}
+
+/* The free-estimate note on the quote form. Sits on the dark panel, so it
+   needs its own treatment rather than inheriting the page's body colour. */
+.free-note{
+  background:rgba(255,255,255,.07);border-left:3px solid var(--accent);
+  border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;line-height:1.6
+}

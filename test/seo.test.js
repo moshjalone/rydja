@@ -93,11 +93,25 @@ test('the homepage targets the business, not a keyword list', async () => {
 
   assert.equal(
     meta(doc, /<title>([^<]*)<\/title>/),
-    'RYDJA | Junk Removal, Cleanouts &amp; Property Help in West Michigan'
+    'Junk Removal &amp; Property Cleanouts Near Lowell, MI | RYDJA'
   );
   const description = meta(doc, /<meta name="description" content="([^"]+)"/);
   assert.match(description, /junk removal/i);
-  assert.match(description, /West Michigan/);
+
+  // The territory, not the region. "West Michigan" was the primary claim on
+  // every page and Search Console showed what it bought: impressions for
+  // Portage, which is correctly West Michigan, and a guess at Mancelona 150
+  // miles north. A two-million-person region is not a service area.
+  for (const town of ['Lowell', 'Ada', 'Rockford', 'Greenville', 'Ionia']) {
+    assert.ok(description.includes(town), 'the description should name ' + town);
+  }
+  // And the thing that is actually free is said in the description, because
+  // that is the half of the result a person decides on.
+  assert.match(description, /[Ff]ree/, 'the free estimate belongs in the description');
+  assert.ok(
+    !/West Michigan/.test(description),
+    'the region must not be the homepage claim again'
+  );
   assert.ok(description.length <= 160, 'description should stay inside what a search result shows');
 
   // The hero is still the hero. SEO did not rewrite it.
@@ -107,21 +121,60 @@ test('the homepage targets the business, not a keyword list', async () => {
 
 test('the service area is stated on the page, not only in markup', async () => {
   const doc = await html('/');
-  assert.match(doc, /Serving Lowell, Stanton and surrounding West Michigan communities/);
+  // The footer sentence comes from content/service-area.js. It names the five
+  // core markets, names Stanton explicitly so preserved coverage is visible
+  // rather than merely configured, and bounds it by county.
+  assert.match(doc, /Serving Lowell, Ada, Rockford, Greenville, Ionia, Stanton and surrounding communities/);
+  assert.match(doc, /Kent, Montcalm, Ionia and Lake counties/);
   assert.ok(doc.includes('href="tel:+16169293360"'), 'the phone must be clickable');
 });
 
 test('the services page names the work in the words a customer would use', async () => {
-  const doc = await html('/services');
+  const raw = await html('/services');
+  const { SERVICES, GROUPS } = require('../content/service-catalog');
 
-  for (const term of [
-    'Junk removal', 'Junk hauling', 'Garage cleanouts', 'Basement cleanouts', 'Barn cleanouts',
-    'Storage unit cleanouts', 'Estate cleanouts', 'Tenant move-out cleanouts', 'Yard cleanup',
-    'Storm debris removal', 'Furniture removal', 'Appliance removal', 'Moving help',
-    'Shed removal', 'Light demolition', 'Scrap pickup', 'Property resets'
-  ]) {
-    assert.ok(doc.includes(term), 'services page should mention ' + term);
+  // Compare against decoded text: "Barn & Outbuilding Cleanouts" reaches the
+  // page as "Barn &amp; Outbuilding Cleanouts", and which entity the template
+  // chose is not what is being tested here.
+  const doc = raw
+    .replace(/&amp;/g, '&')
+    .replace(/&rsquo;/g, String.fromCharCode(8217))
+    .replace(/&mdash;/g, String.fromCharCode(8212))
+    .replace(/&ndash;/g, String.fromCharCode(8211));
+
+  // All twenty-three offerings, as entered on the Business Profile, so the
+  // site and the profile name the same things.
+  for (const service of SERVICES) {
+    assert.ok(doc.includes(service.name), 'services page should list ' + service.name);
+    assert.ok(doc.includes(service.says), 'and should say what it is: ' + service.name);
   }
+
+  // Each one routes twice: to the page that explains it, and to a quote form
+  // with its option already selected. An index whose job is routing has to be
+  // asserted on the routing.
+  for (const service of SERVICES) {
+    assert.ok(raw.includes('href="/' + service.page + '"'), service.name + ' must link its page');
+    assert.ok(
+      raw.includes('/quote?service=' + encodeURIComponent(service.quote)),
+      service.name + ' must link a prefilled quote'
+    );
+  }
+
+  for (const group of GROUPS) {
+    assert.ok(doc.includes(group.label), 'the catalog needs the group: ' + group.label);
+  }
+
+  // The honest limits are on the page, not in a footnote. Somebody whose job
+  // is actually a tree felling has to read that here.
+  for (const service of SERVICES.filter((s) => s.limit)) {
+    assert.ok(doc.includes(service.limit), 'the limit on ' + service.name + ' must be visible');
+  }
+
+  // Twenty-three offerings and eight pages: the catalog is an index, not
+  // twenty-three thin pages, which is what it is for.
+  const { SERVICE_PAGES } = require('../content/service-pages');
+  assert.equal(SERVICE_PAGES.length, 8, 'eight service pages, not twenty-three');
+  assert.equal(SERVICES.length, 23);
 });
 
 // The hub is the page that has to link every service, because it is the one a
@@ -311,16 +364,52 @@ test('the homepage carries valid structured data, and invents nothing', async ()
   assert.equal(data.url, SITE_URL + '/');
   assert.equal(data.telephone, '1-616-929-3360');
   assert.equal(data.logo, SITE_URL + '/img/rydja-logo.jpg');
-  assert.match(data.description, /West Michigan/);
+  // The description reads from SERVICE_AREA, which now names the territory.
+  assert.match(data.description, /Lowell, Ada, Rockford, Greenville, Ionia, Stanton/);
+  assert.match(data.description, /Kent, Montcalm, Ionia and Lake counties/);
   // The communities the owner actually set on the Business Profile, as
   // business-listing-master.md §6 records them. "Michigan, USA" is on that
   // profile too and is deliberately not propagated: a service-area business
   // with one truck does not serve a state.
-  assert.deepEqual(data.areaServed.map((a) => a.name), [
-    'Lowell, Michigan', 'Stanton, Michigan', 'Belding, Michigan', 'Ionia, Michigan',
-    'Grand Rapids, Michigan', 'Rockford, Michigan', 'Ada Township, Michigan',
-    'Alto, Michigan', 'Baldwin, Michigan', 'West Michigan'
-  ]);
+  // The eighteen places the owner has set on the Business Profile, as Places,
+  // in the order content/service-area.js declares them. Nine of these were
+  // submitted to Google on 2026-10-20 and may still be under review -- the
+  // site may describe them because RYDJA serves them; what nobody may claim is
+  // that Google has approved them.
+  assert.deepEqual(
+    data.areaServed.filter((a) => a['@type'] === 'Place').map((a) => a.name),
+    [
+      'Lowell, Michigan', 'Ada Township, Michigan', 'Rockford, Michigan',
+      'Greenville, Michigan', 'Ionia, Michigan', 'Vergennes Township, Michigan',
+      'Grattan Township, Michigan', 'Alto, Michigan', 'Cascade Township, Michigan',
+      'Forest Hills, Michigan', 'Cannonsburg, Michigan', 'Cannon Township, Michigan',
+      'Belmont, Michigan', 'Saranac, Michigan', 'Belding, Michigan',
+      'Grand Rapids, Michigan', 'Stanton, Michigan', 'Baldwin, Michigan'
+    ]
+  );
+
+  // PRESERVED COVERAGE. Stanton and Baldwin carry protect:true in the record
+  // and a configuration override restores either if it is dropped. They are
+  // asserted by name here so no future edit can quietly lose them.
+  for (const kept of ['Stanton, Michigan', 'Baldwin, Michigan']) {
+    assert.ok(data.areaServed.some((a) => a.name === kept), kept + ' must never leave areaServed');
+  }
+
+  // And the three counties those towns sit in, as administrative areas. This
+  // is precision rather than reach -- a county is a boundary Google already
+  // holds a shape for, and it is what bounds a service-area business in a way
+  // nine town names cannot. Exactly three, and no fourth.
+  assert.deepEqual(
+    data.areaServed.filter((a) => a['@type'] === 'AdministrativeArea').map((a) => a.name),
+    ['Kent County, Michigan', 'Montcalm County, Michigan', 'Ionia County, Michigan',
+     'Lake County, Michigan']
+  );
+
+  // The region is gone from areaServed on purpose: "West Michigan" sitting in
+  // a list of cities widens the claim to every town the region contains,
+  // which is what Search Console showed it buying.
+  assert.ok(!data.areaServed.some((a) => /West Michigan/i.test(a.name)),
+    'a regional claim must not reach areaServed');
   assert.ok(!data.areaServed.some((a) => /Michigan,?\s*USA/i.test(a.name)),
     'a statewide claim must not reach areaServed');
   assert.ok(data.knowsAbout.includes('junk removal'));

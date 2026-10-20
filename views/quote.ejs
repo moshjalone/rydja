@@ -1,16 +1,25 @@
 <%- include('partials/head', {
-  title: 'Request a Quote',
+  fullTitle: 'Free Junk Removal & Cleanout Quotes Near Lowell, MI | RYDJA',
   canonicalPath: '/quote',
-  description: 'Send photos of the job and get a price back. No obligation.'
+  description: 'Send photos of the job and get a free, no-obligation estimate back. Junk removal, cleanouts and hauling in ' +
+    anchorArea + ', MI.'
 }) %>
 <% var v = function(k, fallback) { return values && values[k] != null && values[k] !== '' ? values[k] : (fallback || ''); } %>
 
 <main id="main" tabindex="-1" class="section dark">
   <div class="shell form-shell">
     <div class="form-intro">
-      <div class="eyebrow">REQUEST A QUOTE</div>
-      <h1>Send the job.</h1>
+      <div class="eyebrow">FREE, NO-OBLIGATION ESTIMATE</div>
+      <h1>Send the job. Get a free estimate.</h1>
       <p>Give us enough to understand the work. Photos are the fastest way to an accurate price &mdash; shoot everything you want gone, plus the path out to the driveway.</p>
+      <%# The distinction the whole site has to keep straight: the ESTIMATE is
+          free, the removal is not. Said here, in the one place somebody is
+          deciding whether to spend four minutes on a form. %>
+      <p class="free-note">
+        <strong>The estimate costs nothing and commits you to nothing.</strong> We review your photos and send a
+        price; if it does not suit you, that is the end of it. Pricing for the work itself depends on volume,
+        access, labour and disposal, and we tell you the number before anything is booked.
+      </p>
       <% if (businessPhone) { %><p>Rather talk? Call <a class="text-link accent" href="tel:<%= telHref(businessPhone) %>"><%= businessPhone %></a> or <a class="text-link accent" href="sms:<%= smsHref(businessPhone) %>">text us</a></p><% } %>
     </div>
 
@@ -215,8 +224,8 @@
         I confirm this job does not knowingly include hazardous waste, asbestos, biohazards, unknown chemicals or other regulated materials.
       </label>
 
-      <button class="button full" type="submit">Send Quote Request</button>
-      <small class="fineprint">We review the job and send a price to your phone. No obligation.</small>
+      <button class="button full" type="submit">Get My Free Estimate</button>
+      <small class="fineprint">Free and no obligation. We review the job and send a price to your phone.</small>
     </form>
   </div>
 </main>

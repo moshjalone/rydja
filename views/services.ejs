@@ -1,7 +1,7 @@
 <%- include('partials/head', {
-  fullTitle: 'Junk Removal & Property Cleanout Services in West Michigan | RYDJA',
+  fullTitle: 'Junk Removal & Cleanout Services Near Lowell, MI | RYDJA',
   canonicalPath: '/services',
-  description: 'Junk removal and hauling, garage and basement cleanouts, estate and rental cleanouts, yard cleanup, furniture and appliance removal and shed removal in West Michigan.'
+  description: '23 services: junk removal, estate and garage cleanouts, rental turnovers, yard waste, brush, shed removal and moving help in ' + anchorArea + '. Free quotes.'
 }) %>
 
 <main id="main" tabindex="-1" class="section shell">
@@ -63,17 +63,58 @@
     </ul>
   </section>
 
-  <%# The same work again, in the words a customer would actually type. One
-      honest list beats twenty thin pages that say the same thing. %>
-  <div class="panel">
-    <h2 class="sub-head">Every job we handle</h2>
-    <ul class="keyword-list">
-      <% serviceKeywords.forEach(function(k) { %><li><%= k.charAt(0).toUpperCase() + k.slice(1) %></li><% }) %>
-    </ul>
+  <%# ---- the full catalog, in the customer's own words ----
+
+      Twenty-three offerings, the same ones listed on the Google Business
+      Profile, each one a link to the page that describes it and a link to a
+      quote form with the right service already selected.
+
+      This replaced a flat list of keyword phrases. The phrases were honest but
+      they went nowhere: somebody who had just read the words "attic cleanout"
+      still had to work out which of eight pages covered it. Now the words they
+      typed are the link.
+
+      Twenty-three separate pages would be the other way to do this, and it
+      would be doorway pages with extra steps -- the same business, crew and
+      truck described twenty-three times. %>
+  <section class="catalog" aria-labelledby="catalog-head">
+    <h2 class="sub-head" id="catalog-head">Everything we take on</h2>
     <p class="price-note">
-      Not sure where yours fits? Send a photo and ask &mdash; if it is property work, it is probably on the list.
+      Find your job, read how it runs, or go straight to a free quote with it already filled in.
     </p>
-  </div>
+
+    <% catalogGroups.forEach(function(group) { %>
+      <div class="panel catalog-group">
+        <h3>
+          <%= group.label %>
+          <a class="text-link catalog-page-link" href="/<%= group.page %>">how this works &rarr;</a>
+        </h3>
+        <p class="catalog-blurb"><%= group.blurb %></p>
+        <ul class="catalog-list">
+          <% catalogByGroup(group.key).forEach(function(s) { %>
+            <li>
+              <div class="catalog-name">
+                <a class="text-link" href="/<%= s.page %>"><%= s.name %></a>
+              </div>
+              <p class="catalog-says"><%= s.says %></p>
+              <%# The limit, where there is one. On the page rather than in a
+                  footnote: somebody whose job is actually a tree felling needs
+                  to know that here, not after a phone call. %>
+              <% if (s.limit) { %><p class="catalog-limit"><%= s.limit %></p><% } %>
+              <a class="text-link catalog-quote" href="/quote?service=<%= encodeURIComponent(s.quote) %>">
+                Free quote for <%= s.name.toLowerCase() %> &rarr;
+              </a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% }) %>
+
+    <p class="price-note">
+      Not sure where yours fits? Send a photograph and ask &mdash; if it is property work, it is probably on the
+      list, and we will tell you plainly if it is not.
+    </p>
+  </section>
 
   <div class="panel notice">
     <h3>What we can&rsquo;t take</h3>
@@ -81,10 +122,10 @@
   </div>
 
   <p class="center-cta">
-    <a class="button" href="/quote">Request a quote</a>
+    <a class="button" href="/quote">Get a Free Quote</a>
   </p>
   <p class="center-cta">
-    <a class="text-link" href="/service-area">See where RYDJA works across West Michigan &rarr;</a>
+    <a class="text-link" href="/service-area">See where RYDJA works &rarr;</a>
   </p>
 </main>
 

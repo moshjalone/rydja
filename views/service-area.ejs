@@ -1,9 +1,15 @@
 <%- include('partials/head', {
-  fullTitle: 'West Michigan Junk Removal & Cleanout Service Area | RYDJA',
+  // Built from the configured area, not written out, so a narrowed
+  // SERVICE_AREA_PLACES narrows the title with it.
+  fullTitle: 'Service Area: ' + anchorArea.replace(' and ', ' & ') + ' MI | RYDJA',
   canonicalPath: '/service-area',
   // Plain text only: this lands in a meta content attribute, where an HTML
   // entity would be escaped and shown to the reader as its own source.
-  description: 'Where RYDJA works: ' + serviceArea + '. Junk removal, cleanouts, hauling and yard cleanup. Just outside the area? Ask and we will answer honestly.'
+  //
+  // Built from the anchor towns rather than the full coverage sentence, which
+  // is ninety-five characters on its own and overflowed what a result shows.
+  description: 'Junk removal, cleanouts, hauling and yard cleanup in ' + anchorArea +
+    ', MI. Just outside the area? Ask — we answer honestly. Free photo estimates.'
 }) %>
 
 <main id="main" tabindex="-1" class="section shell narrow legal service-page">
@@ -32,21 +38,59 @@
       pages earned them by having something true and specific to say about
       doing this work there -- the rule a third would have to satisfy is
       written down at the top of content/local-pages.js. %>
-  <h2>Communities we serve</h2>
+  <%# The counties first, then the towns grouped by how often we are in them.
+
+      A county is the honest unit for a service-area business: it is a boundary
+      a reader already holds a picture of, and four adjacent ones say more
+      about where a one-truck operation goes than eighteen town names do. It is
+      also the answer to somebody searching their county rather than their
+      town. %>
+  <h2>The counties we cover</h2>
   <ul class="area-list">
-    <% serviceAreaPlaces.forEach(function(place) { %><li><%= place %></li><% }) %>
+    <% serviceAreaCounties.forEach(function(county) { %><li><%= county %></li><% }) %>
   </ul>
 
-  <%# Only the cities the configuration says we serve have a page linked here,
-      and the sentence above the list is written from the data rather than
-      naming them -- so narrowing SERVICE_AREA_PLACES narrows this too instead
-      of leaving a promise behind. The whole block disappears if none of them
-      is in the configured area. %>
-  <% if (localPages.length) { %>
-  <h3>Where we work from most</h3>
+  <%# ---- the tiers ----
+
+      A tier is a marketing priority and NOT a boundary, and the page has to
+      say so in those words, because somebody reading "further out" about their
+      own town will otherwise assume we refuse to come. The paragraph under the
+      third group is the most important sentence on this page. %>
+  <h2>Communities we serve</h2>
+  <% areaTiers.forEach(function(tier) { %>
+    <% var places = tier.places; %>
+    <% if (places.length) { %>
+      <h3><%= tier.label %></h3>
+      <p class="price-note"><%= tier.blurb %></p>
+      <ul class="area-list">
+        <% places.forEach(function(place) { %>
+          <li>
+            <%= place.name %>
+            <% if (place.township) { %><small>in <%= place.township %></small><% } %>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  <% }) %>
+
+  <div class="panel notice">
+    <h3>These are priorities, not limits</h3>
+    <p>
+      The groups above describe where the truck already is most days &mdash; nothing more. They are not a
+      boundary, and no job is refused for being in the wrong group. A
+      <a class="text-link" href="/estate-cleanouts">whole-property cleanout</a> is routinely worth a longer drive
+      than a single-item pickup, which is the whole of how we decide. If your town is not on the list at all,
+      ask anyway.
+    </p>
+  </div>
+
+  <%# The two towns with pages of their own, linked in the body rather than
+      only from the footer -- a footer link is discounted and a reader scanning
+      for their own town will not find it down there. %>
+  <h2>Towns with a page of their own</h2>
   <p>
-    <%= localPages.map(function (p) { return p.city; }).join(' and ') %>
-    <%= localPages.length > 1 ? 'are the two ends of the area, in two different counties, and the work is genuinely different at each end. Each has a page of its own:' : 'has a page of its own:' %>
+    Two places have enough that is specific to them to be worth writing down separately &mdash; different
+    counties, different housing, genuinely different jobs:
   </p>
   <ul>
     <% localPages.forEach(function(p) { %>
@@ -56,7 +100,7 @@
       </li>
     <% }) %>
   </ul>
-  <% } %>
+
   <p class="price-note">
     These are the places we have actually committed to, not a radius drawn to look impressive. If your town is not
     named, read on &mdash; the boundary is softer than a list makes it look.
@@ -136,7 +180,7 @@
   </p>
 
   <p class="cta-inline">
-    <a class="button" href="/quote">Send photos for a quote</a>
+    <a class="button" href="/quote">Send Photos. Get a Free Estimate.</a>
     <% if (businessPhone) { %>
       <span class="or-call">or call <%- include('partials/call-text') %></span>
     <% } %>

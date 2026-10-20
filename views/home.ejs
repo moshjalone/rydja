@@ -1,7 +1,14 @@
 <%- include('partials/head', {
-  fullTitle: 'RYDJA | Junk Removal, Cleanouts & Property Help in West Michigan',
+  //   "Near Lowell" rather than a list of towns. Lowell is where the truck
+  //   starts, it is the strongest single geographic claim the business can
+  //   make, and a title is not the place for eighteen service areas. The
+  //   markets are named in the copy below, built from the service-area record.
+  fullTitle: 'Junk Removal & Property Cleanouts Near Lowell, MI | RYDJA',
   canonicalPath: '/',
-  description: 'Fast local junk removal, cleanouts, yard cleanup and furniture removal in ' + serviceArea + '. Send photos for a quote.'
+  //   About 160 characters is what a result shows, so the description names
+  //   the five core markets and leads with the thing that is actually free.
+  description: 'Locally operated junk removal, estate cleanouts, hauling and property cleanup in ' +
+    anchorArea + '. Free photo estimates.'
 }) %>
 
 <main id="main" tabindex="-1">
@@ -10,22 +17,41 @@
   <div class="hero-band">
   <section class="hero shell">
     <div class="hero-copy">
-      <div class="eyebrow">LOCAL PROPERTY HELP • FAST QUOTES</div>
+      <div class="eyebrow">FREE QUOTES &bull; LOCALLY OPERATED</div>
       <p class="hero-slogan">Point at the problem.<br><span>We&rsquo;ll handle the rest.</span></p>
-      <h1 class="hero-h1">Junk Removal &amp; Cleanouts in West Michigan</h1>
+      <%# One town in the heading, not a list.
+
+          The previous version said "West Michigan", which is two million
+          people, and Search Console showed what that bought: impressions for
+          Portage and a guess at Mancelona, 150 miles north. An interim version
+          named four towns, which reads like a directory entry. Lowell is where
+          the truck starts, so "the Lowell area" is the strongest true claim
+          available in six words -- and the markets are named in the sentence
+          underneath, from the service-area record rather than written out. %>
+      <h1 class="hero-h1">Junk Removal &amp; Property Cleanouts in the <%= anchorTown %> Area</h1>
       <p class="lede">
-        RYDJA is a local junk removal and hauling business. We handle cleanouts, yard cleanup, furniture and
-        appliance removal, moving help, debris hauling and property cleanup &mdash; and the jobs you just need
-        finished. Send photos, get a price, get it handled.
+        Locally operated junk removal, estate cleanouts, hauling and property cleanup serving
+        <%= anchorArea %>, Stanton and surrounding communities. Send a few photos and we send back a
+        <strong>free, no-obligation estimate</strong> &mdash; then you decide.
       </p>
       <div class="hero-actions">
-        <a class="button" href="/quote">Send Photos for a Quote</a>
-        <a class="text-link" href="/services">See what we do &rarr;</a>
+        <a class="button" href="/quote">Get a Free Quote</a>
+        <% if (businessPhone) { %>
+          <%# Call and text as first-class actions in the hero, not only in the
+              sticky bar. Plenty of customers will text a photo of a garage who
+              would never ring a stranger, and the reverse is just as true. %>
+          <a class="button ghost" href="tel:<%= telHref(businessPhone) %>">Call <%= businessPhone %></a>
+          <a class="text-link" href="sms:<%= smsHref(businessPhone) %>">or text us &rarr;</a>
+        <% } else { %>
+          <a class="text-link" href="/services">See what we do &rarr;</a>
+        <% } %>
       </div>
       <div class="trust-row">
-        <div><strong>Fast</strong><span>photo quotes</span></div>
-        <div><strong>Local</strong><span>real operators</span></div>
-        <div><strong>Smart</strong><span>reuse before landfill</span></div>
+        <%# Only things that are true and checkable. No review count, no years
+            in business, no licence or insurance claim. %>
+        <div><strong>Free</strong><span>photo estimates</span></div>
+        <div><strong>Local</strong><span>owner-operated</span></div>
+        <div><strong>7 days</strong><span><%= businessHours.opens.replace(':00','') %>&ndash;<%= businessHours.closes.replace(':00','') %></span></div>
       </div>
     </div>
     <aside class="quote-card">

@@ -320,7 +320,7 @@ test('the mobile bar offers three real actions, each doing what it says', async 
   assert.ok(!text.includes('?') && !text.includes('&'), 'no body parameter: ' + text);
 
   assert.match(bar, /aria-label="Contact RYDJA"/);
-  for (const label of ['Call', 'Text', 'Get Quote']) {
+  for (const label of ['Call', 'Text', 'Free Quote']) {
     assert.ok(bar.includes('<strong>' + label + '</strong>'), 'the bar should offer ' + label);
   }
 

@@ -83,7 +83,10 @@ test('/estate-cleanouts answers 200 with one h1 and the title we meant', async (
 
   const doc = await res.text();
   assert.equal((doc.match(/<h1[\s>]/g) || []).length, 1);
-  assert.equal(meta(doc, /<title>([^<]*)<\/title>/), 'Estate Cleanouts in West Michigan | RYDJA');
+  assert.equal(
+    meta(doc, /<title>([^<]*)<\/title>/),
+    'Estate &amp; Whole-House Cleanouts Near Lowell, MI | RYDJA'
+  );
   assert.doesNotMatch(doc, /name="robots"/, 'the flagship page must be indexable');
 });
 
