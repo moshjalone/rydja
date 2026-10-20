@@ -226,7 +226,10 @@ test('a rejected submission reopens the sections it was carrying values in', asy
   }
 
   // And the values are genuinely still in the inputs.
-  assert.match(doc, /name="address" value="44 Maple St"/);
+  // Order-tolerant: the field also carries an autocomplete attribute now,
+  // and which attribute the template writes first is not what is being
+  // tested here -- that the typed value came back is.
+  assert.match(doc, /name="address"[^>]*value="44 Maple St"/);
   assert.match(doc, new RegExp('name="preferred_date_1"[^>]*value="' + future + '"'));
   assert.match(doc, /Gate code is on the sign\./);
 });

@@ -15,7 +15,11 @@
     </div>
 
     <form class="quote-form" method="post" action="/quote" enctype="multipart/form-data">
-      <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+      <%# role="alert" so a screen reader is told why the form came back,
+          rather than the reader having to go looking for a red box. The
+          server re-renders the whole page on a refusal, so this is a new
+          element each time and will be announced. %>
+      <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
 
       <%# Bot filter: a signed timestamp proving this form came from our server
           and was issued recently. It is the only hidden field — a decoy input
@@ -23,12 +27,17 @@
       <input type="hidden" name="form_stamp" value="<%= stamp %>">
 
       <div class="two">
-        <label>Name<input required name="name" value="<%= v('name') %>" placeholder="Your name"></label>
-        <label>Phone<input required name="phone" type="tel" value="<%= v('phone') %>" placeholder="(555) 555-5555"></label>
+        <%# autocomplete, autocapitalize and inputmode on the four fields a
+            phone already knows. One tap fills them, which takes most of the
+            typing out of a form somebody is filling in while standing in a
+            garage -- and the browser only offers what the visitor has already
+            chosen to save. %>
+        <label>Name<input required name="name" autocomplete="name" autocapitalize="words" value="<%= v('name') %>" placeholder="Your name"></label>
+        <label>Phone<input required name="phone" type="tel" autocomplete="tel" inputmode="tel" value="<%= v('phone') %>" placeholder="(555) 555-5555"></label>
       </div>
       <div class="two">
-        <label>ZIP code<input required name="zip" inputmode="numeric" value="<%= v('zip') %>" placeholder="49503"></label>
-        <label>Email <span class="hint">optional</span><input name="email" type="email" value="<%= v('email') %>" placeholder="you@example.com"></label>
+        <label>ZIP code<input required name="zip" autocomplete="postal-code" inputmode="numeric" value="<%= v('zip') %>" placeholder="49503"></label>
+        <label>Email <span class="hint">optional</span><input name="email" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" value="<%= v('email') %>" placeholder="you@example.com"></label>
       </div>
 
       <label>What do you need?
@@ -95,11 +104,11 @@
             Helps us judge access and plan the route. Your ZIP above is enough for a price.
           </p>
           <label>Street address
-            <input name="address" value="<%= v('address') %>" placeholder="123 Main St">
+            <input name="address" autocomplete="street-address" value="<%= v('address') %>" placeholder="123 Main St">
           </label>
           <div class="two">
-            <label>City<input name="city" value="<%= v('city') %>"></label>
-            <label>State<input name="state" value="<%= v('state') %>" maxlength="20"></label>
+            <label>City<input name="city" autocomplete="address-level2" value="<%= v('city') %>"></label>
+            <label>State<input name="state" autocomplete="address-level1" value="<%= v('state') %>" maxlength="20"></label>
           </div>
         </div>
       </details>
