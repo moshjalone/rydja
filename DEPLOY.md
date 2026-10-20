@@ -352,6 +352,7 @@ app will not unfurl into a preview card.
 | `/og-image.jpg` | 1200x630 share card, 39KB |
 | JSON-LD on `/` | `HomeAndConstructionBusiness`: name, legalName, url, phone, description, areaServed, logo, opening hours, offer catalog |
 | `/<key>.txt` | The IndexNow key file, when `INDEXNOW_KEY` is set. See below |
+| `<meta name="google-site-verification">` | On every indexable page when `GOOGLE_SITE_VERIFICATION` is set. See [Google Search Console](#google-search-console) |
 
 **The structured data claims only what we actually know.** No street address,
 no price range, no ratings, no reviews -- a knowledge panel that is wrong in
@@ -572,8 +573,9 @@ test in the same commit as the page.
 
 Audited at the time of writing: **no analytics, no advertising pixels, no
 session recording, no third-party scripts.** The only script the site serves is
-its own `app.js`. Public pages set **no cookies at all** -- the one session
-cookie appears only after a staff member signs in to the admin.
+its own `app.js`. Public pages set **one** cookie, `ps_attr`, which records
+which link brought the visitor; the admin session cookie appears only after a
+staff member signs in.
 
 There is therefore no cookie banner, correctly. If analytics are ever added,
 that decision changes and the privacy policy and consent position have to be
@@ -602,11 +604,6 @@ renders all six, but the substance of each is written separately and differs
 throughout -- a test measures vocabulary overlap between every pair and fails
 above 0.6, because six pages that are one template with the nouns swapped are
 doorway pages and deserve to be treated as such.
-
-**No city pages.** `/junk-removal-lowell` and friends do not exist and a test
-asserts they 404. They get built when there is real local content behind them
--- finished jobs, photographs, something true about that town -- and not
-before.
 
 ### The homepage heading
 
@@ -664,6 +661,120 @@ Set `GOOGLE_REVIEW_URL` and a customer whose job is `complete` is offered it on
 their own page. The same link for everyone, no incentive, no satisfaction
 screening, no automatic redirect, nothing at all if the variable is unset.
 Tests hold each of those.
+
+---
+
+
+### Google Search Console
+
+**Search Console is the only thing that can tell you whether a page is
+indexed.** Nothing in this repository can. A sitemap that validates, a page
+that returns 200 and a `noindex` test that passes are all necessary and none of
+them is evidence of indexing. The crawler log on `/admin/traffic` gets closer —
+it can prove Googlebot *fetched* a page — and a crawl is still not an index.
+
+So this is the one piece of setup that cannot be skipped, and it is
+owner-performed: it is behind a Google sign-in.
+
+#### One-time setup
+
+1. Sign in at [search.google.com/search-console](https://search.google.com/search-console)
+   with the Google account that owns the Business Profile, so the two sit
+   together.
+
+2. **Add property → URL prefix**, and enter `https://getrydja.com` exactly —
+   with the `https://`, without `www.`, without a trailing path. That is what
+   `SITE_URL` is set to and what every canonical on the site points at.
+
+   > A *Domain* property instead of a URL-prefix one would also work and needs
+   > a DNS TXT record. URL prefix with the HTML tag below is faster and
+   > survives a redeploy, which the alternatives do not.
+
+3. Choose the **HTML tag** verification method. Google shows a line like:
+
+   ```html
+   <meta name="google-site-verification" content="AbC123_long-token-here" />
+   ```
+
+4. Render → your service → **Environment** → add:
+
+   | Variable | Value |
+   |---|---|
+   | `GOOGLE_SITE_VERIFICATION` | the `content` value — `AbC123_long-token-here` |
+
+   Pasting the whole `<meta ...>` element also works; the app pulls the
+   `content` attribute out of it. What it will not accept is a file name, a
+   URL, or one of this app's own secrets — it **refuses to start** rather than
+   publish a credential in a tag on every page.
+
+5. Redeploy, then confirm the tag is live before pressing Verify:
+
+   ```bash
+   curl -s https://getrydja.com/ | grep google-site-verification
+   ```
+
+6. Press **Verify** in Search Console.
+
+The tag renders on the indexable pages only. The admin and a customer's own
+`/q/<token>` page never carry it — proving you own the host does not require
+putting a token on a page a customer is reading.
+
+#### Immediately after verifying
+
+1. **Submit the sitemap.** Search Console → Sitemaps → enter `sitemap.xml` →
+   Submit. Then come back a day later and read what it says: "Success" with a
+   discovered-URL count is the only confirmation that matters.
+
+2. **Inspect the pages that earn money.** URL Inspection, one at a time:
+
+   ```
+   https://getrydja.com/
+   https://getrydja.com/estate-cleanouts
+   https://getrydja.com/junk-removal-lowell-mi
+   https://getrydja.com/junk-removal-stanton-mi
+   https://getrydja.com/quote
+   ```
+
+   For each one, read the verdict rather than guessing at it:
+
+   | What it says | What it means | What to do |
+   |---|---|---|
+   | **URL is on Google** | Indexed | Nothing. Record the date |
+   | **URL is not on Google** + *Discovered – currently not indexed* | Google knows the URL and has not crawled it | Request Indexing. Then wait; this is normal on a new site |
+   | **URL is not on Google** + *Crawled – currently not indexed* | Crawled and judged not worth indexing yet | Usually thin or duplicate content. Do not resubmit repeatedly — improve the page |
+   | **Excluded by 'noindex' tag** | On a public page this is a bug | Check the page is not being served the private branch of `head.ejs` |
+   | **Alternate page with proper canonical tag** | Correct behaviour on a duplicate | Nothing |
+
+   **Request Indexing** on each of the five. The quota is a handful a day, so
+   spend it on the pages that convert, not on `/terms`.
+
+3. **Confirm the property, once.** Settings → Ownership verification should
+   show the HTML tag as verified. Write the date in
+   `business-listing-master.md` so there is a record.
+
+#### What to read, weekly, for the first month
+
+| Report | The question it answers |
+|---|---|
+| **Pages** (Indexing) | How many URLs are indexed, and the reason for every one that is not |
+| **Sitemaps** | Whether the sitemap was read, and how many URLs it discovered |
+| **Performance → Queries** | What people actually typed. This is the only honest source of keywords, and it will not match what anybody guessed |
+| **Performance → Pages** | Which page is being shown, and its average position |
+| **Experience → Core Web Vitals** | Needs real traffic before it reports anything. Expect "no data" for a while |
+
+The first useful Performance data arrives a few days after verification and
+means nothing until there are impressions in it. **Zero impressions is itself a
+finding**: it means the site is not being shown for anything, which is a
+visibility problem rather than a conversion one, and it is answered with
+Business Profile work and local content rather than with changes to the pages.
+
+#### Bing Webmaster Tools
+
+Worth the ten minutes, for the same reason IndexNow is: it is a second index,
+it is not Google, and it can be set up by importing the Search Console
+property. [bing.com/webmasters](https://www.bing.com/webmasters) → Import from
+Google Search Console. The site already pings Bing on deploy — see
+[IndexNow](#indexnow) — but nothing reports back without the property.
 
 ---
 
@@ -735,6 +846,7 @@ procedure during an outage.
 ### Optional
 
 `PORT` (host sets it), `BRAND_NAME`, `BRAND_TAGLINE`, `SITE_URL`, `BUSINESS_PHONE`,
+`GOOGLE_SITE_VERIFICATION`,
 `BUSINESS_EMAIL`, `OWNER_NAME`, `OWNER_PHONE`, `OWNER_EMAIL`, `BACKUP_DAILY`, `BACKUP_HOUR`,
 `BACKUP_KEEP_LOCAL`, `BACKUP_S3_*`.
 
@@ -782,6 +894,12 @@ on its own.
 
 The boot log prints both in production, so a change to one is never mistaken
 for the other.
+
+### Search engines
+
+| Variable | Default | What it does |
+|---|---|---|
+| `GOOGLE_SITE_VERIFICATION` | unset | The Search Console ownership token — the `content` value of the `google-site-verification` meta tag, or the whole tag. Rendered on every indexable page. Unset means no tag. **Published by design**, so the app refuses to start if you paste one of its own secrets here |
 
 ### IndexNow
 

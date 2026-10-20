@@ -194,6 +194,66 @@ if (INDEXNOW_KEY) {
   if (problem) throw new Error(`INDEXNOW_KEY ${problem}`);
 }
 
+// The Google Search Console ownership token, if one has been issued.
+//
+// Search Console is the only place that will tell you whether Google has
+// actually indexed a page, what it is being searched for, and why a URL was
+// refused. None of that is observable from outside, and nothing in this
+// repository can substitute for it: a sitemap that validates and a page that
+// returns 200 are necessary and not sufficient.
+//
+// Google offers several ways to prove ownership of a host. This supports the
+// HTML-tag method, because it is the only one that survives a redeploy without
+// anybody remembering to re-upload a file: the token goes in the environment
+// and the tag is rendered on every public page.
+//
+// The value is the `content` attribute of the tag Google shows you -- the long
+// token on its own, NOT the whole `<meta ...>` element. Both are accepted
+// below, because pasting the whole tag is the obvious mistake and silently
+// rendering a broken one would fail verification with no clue why.
+//
+// Like the IndexNow key this is published on purpose and is not a secret --
+// which is exactly why an app secret pasted here would be published too, so
+// the same refusal applies.
+const GSC_TOKEN_PATTERN = /^[A-Za-z0-9_-]{20,128}$/;
+
+/**
+ * The bare verification token, or '' when none is configured.
+ *
+ * Throws rather than publishing something that cannot work (or must not be
+ * published). A site that will not boot is a five-minute problem; a site
+ * serving a broken verification tag is a fortnight of wondering why Search
+ * Console will not accept it.
+ */
+function googleSiteVerification(raw) {
+  const value = (raw || '').trim();
+  if (!value) return '';
+
+  // Accept the whole <meta> element as well as the token, and keep only the
+  // content attribute from it.
+  const tag = value.match(/content\s*=\s*["']([^"']+)["']/i);
+  const token = (tag ? tag[1] : value).trim();
+
+  if (!GSC_TOKEN_PATTERN.test(token)) {
+    throw new Error(
+      'GOOGLE_SITE_VERIFICATION must be the token from the google-site-verification ' +
+        'meta tag (20-128 characters of A-Z, a-z, 0-9, _ and -). Paste the tag or the ' +
+        'content value, not a file name or a URL.'
+    );
+  }
+  for (const secret of [ADMIN_PASSWORD, SESSION_SECRET, INDEXNOW_KEY]) {
+    if (secret && token === secret) {
+      throw new Error(
+        'GOOGLE_SITE_VERIFICATION is one of this app\'s other secrets. The tag is ' +
+          'PUBLIC on every page -- setting this would publish that secret.'
+      );
+    }
+  }
+  return token;
+}
+
+const GOOGLE_SITE_VERIFICATION = googleSiteVerification(process.env.GOOGLE_SITE_VERIFICATION);
+
 // The effective date of the Terms as currently published. Recorded against a
 // quote at the moment it is approved, so there is a record of which version
 // that customer actually saw. Bump it whenever the Terms change materially.
@@ -790,6 +850,9 @@ app.use((req, res, next) => {
   res.locals.brand = BRAND;
   res.locals.tagline = TAGLINE;
   res.locals.siteUrl = SITE_URL;
+  // Rendered in the head of every indexable page, and nowhere else. '' means
+  // no tag at all rather than an empty one.
+  res.locals.googleSiteVerification = GOOGLE_SITE_VERIFICATION;
   res.locals.businessPhone = PHONE;
   // Customer links and admin pages must never be indexed; the public marketing
   // pages should be. Each template overrides this where it differs.

@@ -26,6 +26,10 @@
     <meta name="robots" content="noindex,nofollow">
   <% } else { %>
     <link rel="canonical" href="<%= pageUrl %>">
+    <%# Search Console ownership, when a token is configured. Only on the
+        indexable pages: proving you own the host does not require putting a
+        token on a customer's private job page, and the admin is noindex. %>
+    <% if (googleSiteVerification) { %><meta name="google-site-verification" content="<%= googleSiteVerification %>"><% } %>
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="<%= brand %>">
     <meta property="og:title" content="<%= pageTitle %>">
