@@ -988,6 +988,108 @@ never folded into Referral — those mean different things.
 Nothing reminds anybody of anything. The list is the list, and the owner
 decides. Archiving a partner keeps the history and the leads credited to their
 link, because a referral that happened stays a fact.
+---
+
+## Opportunities
+
+The other half of the acquisition engine: `opportunities.js`, plus
+`/admin/opportunities`.
+
+A **partner** is a relationship — an estate-sale company that remembers your
+name sends work for years. An **opportunity** is a single piece of work
+somebody has already advertised, with a date on it, available to whoever
+answers first. They are worked differently and both end in the same place, so
+they are tracked separately and roll up through the same money function.
+
+### Nothing is fetched
+
+No code path in this feature makes an outbound request to any source, and a
+test asserts the absence rather than trusting it. Every opportunity is entered
+by a person who read a notice and judged it worth the trip.
+
+That is not caution for its own sake. Half the sources below forbid automated
+access in their terms; the half that do not publish PDFs and board minutes no
+parser survives. And the judgement is the valuable part — "is this real, is it
+in our area, can we actually do it" is a thirty-second human decision and an
+unsolvable machine one. Five notices a person looked at beat two hundred
+harvested ones.
+
+### The three postures
+
+Every source carries one, and `/admin/opportunities` prints it next to the
+source where somebody is about to record something.
+
+| Posture | Means |
+|---|---|
+| **Published for this** | Put out so the public reads it. Bid boards, legal notices, auction lists, probate dockets |
+| **Read by hand only** | Public to a person, closed to a machine. Estate-sale sites, listing sites, Marketplace, Nextdoor. A person may read and type; nothing may fetch |
+| **Not used** | Refused. One source only: bought leads and scraped lists |
+
+The refusal is enforced, not advised: a restricted source is rejected on create
+**and on edit**, because a refusal one edit away from pointless is not a
+refusal. The source is also absent from every dropdown.
+
+### The one rule that matters most
+
+Probate filings are a public record and **not a mailing list.** Nobody contacts
+a bereaved family because a name appeared on a court docket — that is how a
+local business becomes the one everybody warns each other about, and in some
+states it is regulated besides. The legitimate use is the professionals: the
+attorneys and personal representatives who appear repeatedly are worth knowing,
+and they are the ones who hand our name to the family. Record **the attorney**
+as a partner. Do not record the decedent, the family, or the address.
+
+That rule is in `opportunities.js`, on the admin page, and asserted by a test.
+
+### The money chain
+
+The question the whole acquisition effort has to answer is whether it produced
+paying work, so three figures are deliberately kept apart:
+
+| Figure | What it is |
+|---|---|
+| **Our estimate** | A guess made before anybody was contacted. Never shown to a customer, never counted as revenue |
+| **Quoted / approved** | The real quote on the lead, with a customer attached |
+| **Revenue** | Jobs marked **complete** only |
+
+An approved quote is a promise and a finished job is money. `moneyFor()` counts
+revenue over completed jobs only, and it is the single function the opportunity
+page, both partner pages and the dashboard all use — so none of the four can
+disagree about what a lead was worth.
+
+The join is `opportunities.lead_id`, set by typing the lead's **work
+reference** on the opportunity page. The reference rather than an id, because
+the reference is the thing already in front of the owner: in the notification
+email, on the lead page, on the customer's own page.
+
+### Reading it
+
+- `/admin/opportunities` — what is due or closing this week first, then the
+  stage counts, then what is still live. Closed work is one click away, not in
+  the default view.
+- `/admin/opportunities/<id>` — the deadline, what it produced, the lead it
+  became, the source and its rule, who to talk to, the history, and why we
+  passed if we did.
+- `/admin/dashboard` — "Acquisition, all time", plus a due count beside the
+  partner one. All-time rather than monthly on purpose: a relationship built in
+  March pays in August, and a monthly window would keep resetting the one
+  number meant to compound.
+
+`partner_touches` now serves both: `partner_id` and `opportunity_id` are both
+nullable and one row belongs to one or the other. SQLite cannot drop a NOT NULL
+with ALTER, so the table is rebuilt inside a transaction that copies every
+existing row first — and a test drives that migration against a table with rows
+in it, because a rebuild that loses the record of who was spoken to is the worst
+outcome available.
+
+### Passing is an outcome
+
+A bid requiring an insurance certificate RYDJA does not hold is a **pass**, not
+a failure, and `outcome_note` is where the reason goes. Recording it is how the
+same half-hour is not spent on the same dead end next quarter.
+
+---
+
 ## Restore procedure
 
 Tested end to end: database, photos, job P&L and customer links all survive.

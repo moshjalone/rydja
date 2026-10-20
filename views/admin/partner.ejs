@@ -21,15 +21,42 @@
       First, because it is the answer to the only question that decides whether
       this relationship is worth more of the owner's time. %>
   <h2 class="dash-h2">What this relationship has produced</h2>
-  <div class="metrics three">
+  <div class="metrics four">
     <div><span>Leads</span><strong><%= produced.leads %></strong></div>
-    <div><span>Approved</span><strong><%= produced.approved %></strong></div>
-    <div class="net"><span>Approved value</span><strong><%= money(produced.value) %></strong></div>
+    <div><span>Quoted</span><strong><%= money(produced.quotedValue) %></strong></div>
+    <div><span>Approved</span><strong><%= money(produced.approvedValue) %></strong></div>
+    <div class="net"><span>Revenue</span><strong><%= money(produced.revenue) %></strong></div>
   </div>
   <p class="dash-note">
-    Counted from leads that arrived through this partner&rsquo;s own link. Work they sent by word of mouth, without
-    the link, is not in here &mdash; log it as a touch so there is at least a record of it.
+    Counted from leads that arrived through this partner&rsquo;s own link. <strong>Revenue</strong> is jobs actually
+    marked complete &mdash; an approved quote is a promise, and a dashboard that calls it revenue lies in the
+    direction everybody wants it to.
   </p>
+  <p class="dash-note">
+    Work they send by word of mouth, without the link, will not appear above. Record it as an
+    <a class="text-link" href="/admin/opportunities#add">opportunity</a> and name them as the source, so a partner
+    who rings with a job instead of forwarding a URL does not look like a partner who produced nothing.
+  </p>
+
+  <%# Work this partner told us about, link or no link. %>
+  <% if (opportunities.length) { %>
+    <h3 class="dash-h3">Work they told us about</h3>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>What</th><th>Stage</th><th class="num">Our estimate</th><th>When</th></tr></thead>
+        <tbody>
+          <% opportunities.forEach(function(o) { %>
+            <tr>
+              <td><a class="text-link" href="/admin/opportunities/<%= o.id %>"><%= o.title %></a></td>
+              <td data-label="Stage"><span class="badge <%= o.status %>"><%= oppStatusLabel(o.status) %></span></td>
+              <td class="num" data-label="Our estimate"><%= o.est_value_cents == null ? '—' : money(o.est_value_cents) %></td>
+              <td data-label="When"><%= prettyDate(o.created_at) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 
   <%# ---- the link ---- %>
   <h2 class="dash-h2">Their referral link</h2>

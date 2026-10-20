@@ -63,6 +63,35 @@
     <a class="text-link" href="/admin/traffic">Full traffic and funnel &rarr;</a>
   </p>
 
+  <%# What the acquisition work has actually produced.
+
+      All-time rather than this month, deliberately: a referral relationship
+      built in March pays in August, and a monthly window would keep resetting
+      the one number that is meant to compound. Revenue counts completed jobs
+      only — an approved quote is a promise. %>
+  <h2 class="dash-h2">Acquisition, all time</h2>
+  <div class="metrics four">
+    <div><span>Partners</span><strong><%= acquisition.partners %></strong></div>
+    <div><span>Open opportunities</span><strong><%= acquisition.openOpportunities %></strong></div>
+    <div><span>Leads from partners</span><strong><%= acquisition.fromPartners.leads %></strong></div>
+    <div class="net">
+      <span>Revenue from both</span>
+      <strong><%= money(acquisition.fromPartners.revenue + acquisition.fromOpportunities.revenue) %></strong>
+    </div>
+  </div>
+  <p class="dash-note">
+    <% if (!acquisition.partners && !acquisition.everRecorded) { %>
+      Nothing on either list yet. The fastest start is the three or four businesses you already know by name
+      &mdash; <a class="text-link" href="/admin/partners#add">add them as partners</a> &mdash; and this
+      week&rsquo;s estate sales and county bid boards
+      &mdash; <a class="text-link" href="/admin/opportunities#add">record what you find</a>.
+    <% } else { %>
+      <a class="text-link" href="/admin/partners">Partners</a> are relationships that pay repeatedly;
+      <a class="text-link" href="/admin/opportunities">opportunities</a> are single advertised jobs with a deadline.
+      Revenue is completed jobs traced back to one or the other.
+    <% } %>
+  </p>
+
   <h2 class="dash-h2">Needs attention</h2>
   <div class="attention">
     <% attention.forEach(function(item) { %>

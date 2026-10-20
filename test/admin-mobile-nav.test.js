@@ -22,7 +22,8 @@ const assert = require('node:assert/strict');
 const { startServer, freshStamp, submission } = require('./helpers');
 
 const SITE = 'https://getrydja.com';
-const SECTIONS = ['/admin/dashboard', '/admin/leads', '/admin/jobs', '/admin/traffic', '/admin/partners'];
+const SECTIONS = ['/admin/dashboard', '/admin/leads', '/admin/jobs', '/admin/traffic', '/admin/partners',
+                  '/admin/opportunities'];
 
 let app;
 let cookie;

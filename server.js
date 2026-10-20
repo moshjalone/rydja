@@ -20,6 +20,7 @@ const indexnow = require('./indexnow');
 const attribution = require('./attribution');
 const analytics = require('./analytics');
 const partners = require('./partners');
+const opportunities = require('./opportunities');
 
 // ---------------------------------------------------------------- config
 //
@@ -885,6 +886,11 @@ analytics.migrate(db);
 // above: a database that predates the feature has to boot the deploy that
 // brings it.
 partners.migrate(db);
+
+// Publicly advertised work, and the widening of the touch log to cover it.
+// Runs after partners.migrate because it rebuilds partner_touches, and that
+// table has to exist first.
+opportunities.migrate(db);
 
 /**
  * The day-rotating visitor key for this request.
@@ -2616,6 +2622,13 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
       n: partners.due(db, todayLocal()).length
     },
     {
+      // And the opportunity side, which has deadlines the partner side does
+      // not: a bid that closes on Friday is worth nothing on Saturday.
+      label: 'Opportunities due or closing',
+      href: '/admin/opportunities',
+      n: opportunities.due(db, todayLocal(), soonDay()).length
+    },
+    {
       label: 'Jobs in progress',
       href: '/admin/jobs',
       n: one(`select count(*) as n from jobs where ${JOB_ACTIVE} and status = 'in_progress'`)
@@ -2645,13 +2658,48 @@ app.get('/admin/dashboard', requireAdmin, (req, res) => {
     crawled: analytics.crawlerSummary(db, trafficFrom, trafficTo).length > 0
   };
 
+  // ---- what the acquisition work has produced -------------------------
+  //
+  // The whole point of the partner and opportunity features, in four figures
+  // the owner can read in two seconds. All of it is all-time rather than this
+  // month on purpose: a referral relationship built in March pays in August,
+  // and a monthly window would keep resetting the only number that is supposed
+  // to compound.
+  //
+  // Every figure comes from opportunities.moneyFor(), the same function the
+  // partner page and the opportunity page use, so the three cannot disagree.
+  const partnerLeadIds = db
+    .prepare('select id from leads where referral_code is not null and archived_at is null')
+    .all()
+    .map((r) => r.id);
+
+  const acquisition = {
+    partners: db.prepare('select count(*) as n from partners where archived_at is null').get().n,
+    // Everything ever recorded, which is what decides whether this is a
+    // first-run empty state. Counting only the OPEN ones made a finished
+    // opportunity look like an empty list sitting next to real revenue.
+    everRecorded: db.prepare('select count(*) as n from opportunities where archived_at is null').get().n,
+    openOpportunities: db
+      .prepare(
+        `select count(*) as n from opportunities
+          where archived_at is null
+            and status in (${opportunities.OPEN_STATUSES.map(() => '?').join(', ')})`
+      )
+      .get(...opportunities.OPEN_STATUSES).n,
+    // Leads that arrived through a partner's referral link.
+    fromPartners: opportunities.moneyFor(db, partnerLeadIds),
+    // Leads that came out of a find we worked.
+    fromOpportunities: opportunities.moneyFor(db, opportunities.leadIdsFromOpportunities(db))
+  };
+
   res.render('admin/dashboard', {
     period,
     month,
     totals: monthMoney(period),
     sources: sourceBreakdown(period),
     attention,
-    traffic
+    traffic,
+    acquisition
   });
 });
 
@@ -3460,6 +3508,9 @@ app.post('/admin/jobs/:id/photos/:photoId/delete', requireAdmin, (req, res) => {
 
 /** Everything the templates need to render the fixed vocabularies. */
 const PARTNER_LOCALS = {
+  // The opportunity labeller too: a partner's page lists the work they told us
+  // about, and an opportunity's stages are not a partner's stages.
+  oppStatusLabel: opportunities.statusLabel,
   partnerKinds: partners.KINDS,
   partnerStatuses: partners.STATUSES,
   partnerChannels: partners.CHANNELS,
@@ -3542,12 +3593,15 @@ app.get('/admin/partners/:id', requireAdmin, (req, res) => {
     partner,
     touches: partners.touches(db, partner.id),
     leads,
-    // What the relationship has actually produced. The reason the file exists.
-    produced: {
-      leads: leads.length,
-      approved: leads.filter((l) => l.approved).length,
-      value: leads.filter((l) => l.approved).reduce((sum, l) => sum + (l.amount_cents || 0), 0)
-    },
+    // What the relationship has actually produced, through the one rollup
+    // the opportunity pages and the dashboard also use -- so no two pages can
+    // disagree about what a lead was worth. Revenue counts completed jobs
+    // only; an approved quote is a promise.
+    produced: opportunities.moneyFor(db, leads.map((l) => l.id)),
+    // Work they told us about that never went through their link. Without
+    // this, a partner who rings with a job instead of forwarding the URL looks
+    // like a partner who produced nothing.
+    opportunities: opportunities.forPartner(db, partner.id),
     link: partners.referralLink(partner, SITE_URL),
     draft: partners.outreachDraft(partner, outreachBusiness())
   });
@@ -3651,6 +3705,284 @@ app.post('/admin/partners/:id/archive', requireAdmin, (req, res) => {
     req.params.id
   );
   res.redirect(restore ? '/admin/partners/' + req.params.id : '/admin/partners');
+});
+
+// ----------------------------------------------------- admin opportunities
+//
+// Publicly advertised work, from the notice to the invoice. The reasoning and
+// the source rules are at the top of opportunities.js; these are the six
+// routes that read and write it.
+//
+// Nothing here fetches anything from any source, and nothing ever should. An
+// opportunity exists because a person read a notice and judged it worth the
+// trip, and that judgement is the valuable part.
+
+/** Everything the templates need for the fixed vocabularies. */
+const OPP_LOCALS = {
+  // The channel vocabulary comes from partners.js: an opportunity's history
+  // is logged into the same table, so the two must offer the same choices.
+  ...PARTNER_LOCALS,
+  oppSources: opportunities.SOURCES,
+  oppKinds: opportunities.KINDS,
+  oppStatuses: opportunities.STATUSES,
+  oppSource: opportunities.source,
+  oppKindLabel: opportunities.kindLabel,
+  oppStatusLabel: opportunities.statusLabel,
+  oppRestricted: opportunities.RESTRICTED,
+  oppManualOnly: opportunities.MANUAL_ONLY,
+  oppAuthorized: opportunities.AUTHORIZED
+};
+
+/** A week out, which is the window a bid deadline is worth shouting about. */
+function soonDay(days = 7) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return analytics.localDay(d);
+}
+
+app.get('/admin/opportunities', requireAdmin, (req, res) => {
+  const status = pick(req.query.status, opportunities.STATUS_VALUES, '');
+  const kindValue = pick(req.query.kind, opportunities.KIND_VALUES, '');
+  const sourceKind = pick(req.query.source_kind, opportunities.SOURCE_VALUES, '');
+  const q = clean(req.query.q, 80);
+  // The default view is what is still live. A list whose first screen is last
+  // quarter's losses is a list nobody opens.
+  const open = !status && req.query.all !== '1';
+
+  const rows = opportunities.list(db, {
+    status,
+    kind: kindValue,
+    source_kind: sourceKind,
+    open,
+    q: q ? likePattern(q) : null
+  });
+
+  res.render('admin/opportunities', {
+    ...OPP_LOCALS,
+    rows,
+    summary: opportunities.summary(db),
+    due: opportunities.due(db, todayLocal(), soonDay()),
+    // For the "a partner told us" field. Active partners only: a dropdown of
+    // everybody we ever declined is noise.
+    partners: partners.list(db, {}),
+    filters: { status, kind: kindValue, source_kind: sourceKind, q: q || '', open },
+    refused: req.query.refused === '1'
+  });
+});
+
+/**
+ * Record one.
+ *
+ * The only hard refusal is the source. A restricted source is not a validation
+ * nicety -- it is the line between a lead source RYDJA owns and a scraped list
+ * that costs us the reputation we are building, so it is enforced here rather
+ * than described in a comment on the form.
+ */
+app.post('/admin/opportunities', requireAdmin, (req, res) => {
+  const title = clean(req.body.title, 160);
+  if (!title) return res.redirect('/admin/opportunities');
+
+  const sourceKind = String(req.body.source_kind || '');
+  if (!opportunities.usableSource(sourceKind)) {
+    return res.redirect('/admin/opportunities?refused=1');
+  }
+
+  const info = db
+    .prepare(
+      `insert into opportunities
+         (title, kind, source_kind, status, source_url, source_note, city,
+          contact_name, contact_phone, contact_email, partner_id, closes_on,
+          est_value_cents, notes, next_step, next_step_on)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      title,
+      pick(req.body.kind, opportunities.KIND_VALUES, 'other'),
+      sourceKind,
+      pick(req.body.status, opportunities.STATUS_VALUES, 'new'),
+      safeUrl(req.body.source_url),
+      clean(req.body.source_note, LIMITS.notes) || null,
+      clean(req.body.city, 80) || null,
+      clean(req.body.contact_name, 120) || null,
+      clean(req.body.phone, LIMITS.phone) || null,
+      clean(req.body.email, LIMITS.email) || null,
+      partnerIdOrNull(req.body.partner_id),
+      cleanDateNear(req.body.closes_on),
+      estimateCents(req.body.est_value),
+      clean(req.body.notes, LIMITS.notes) || null,
+      clean(req.body.next_step, 200) || null,
+      cleanDateNear(req.body.next_step_on)
+    );
+
+  res.redirect('/admin/opportunities/' + info.lastInsertRowid);
+});
+
+/** A partner id that exists, or null. Never a number off the wire. */
+function partnerIdOrNull(value) {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return partners.get(db, id) ? id : null;
+}
+
+/**
+ * Our own rough estimate, in cents, or null.
+ *
+ * Deliberately a different function from toCents(): a quote may not be zero
+ * and must be sane, whereas an estimate may be left blank and is allowed to be
+ * a round guess. It is never shown as a quote and never counted as revenue.
+ */
+function estimateCents(value) {
+  const raw = String(value == null ? '' : value).trim();
+  if (!raw) return null;
+  const cents = toCents(raw);
+  return cents != null && cents >= 0 && saneCents(cents) ? cents : null;
+}
+
+app.get('/admin/opportunities/:id', requireAdmin, (req, res) => {
+  const opp = opportunities.get(db, req.params.id);
+  if (!opp) return res.status(404).render('404');
+
+  // The money this one actually produced, through the lead it became. One
+  // function serves this page, the partner pages and the dashboard, so none of
+  // them can disagree about what a lead was worth.
+  const produced = opportunities.moneyFor(db, opp.lead_id ? [opp.lead_id] : []);
+  const lead = opp.lead_id
+    ? db.prepare('select id, work_ref, service, status from leads where id = ?').get(opp.lead_id)
+    : null;
+
+  res.render('admin/opportunity', {
+    ...OPP_LOCALS,
+    opp,
+    lead,
+    produced,
+    touches: opportunities.touches(db, opp.id),
+    partners: partners.list(db, {}),
+    partner: opp.partner_id ? partners.get(db, opp.partner_id) : null,
+    linkError: req.query.link === 'notfound' ? 'No active lead has that reference.' : null
+  });
+});
+
+app.post('/admin/opportunities/:id/edit', requireAdmin, (req, res) => {
+  const opp = opportunities.get(db, req.params.id);
+  if (!opp) return res.status(404).render('404');
+
+  const title = clean(req.body.title, 160);
+  if (!title) return res.redirect('/admin/opportunities/' + opp.id);
+
+  // The source may be changed but never to a restricted one, the same rule the
+  // insert follows -- otherwise the refusal is one edit away from pointless.
+  const sourceKind = String(req.body.source_kind || '');
+  const source = opportunities.usableSource(sourceKind) ? sourceKind : opp.source_kind;
+
+  db.prepare(
+    `update opportunities set title = ?, kind = ?, source_kind = ?, status = ?,
+            source_url = ?, source_note = ?, city = ?, contact_name = ?,
+            contact_phone = ?, contact_email = ?, partner_id = ?, closes_on = ?,
+            est_value_cents = ?, outcome_note = ?, notes = ?, next_step = ?, next_step_on = ?
+      where id = ?`
+  ).run(
+    title,
+    pick(req.body.kind, opportunities.KIND_VALUES, opp.kind),
+    source,
+    pick(req.body.status, opportunities.STATUS_VALUES, opp.status),
+    safeUrl(req.body.source_url),
+    clean(req.body.source_note, LIMITS.notes) || null,
+    clean(req.body.city, 80) || null,
+    clean(req.body.contact_name, 120) || null,
+    clean(req.body.phone, LIMITS.phone) || null,
+    clean(req.body.email, LIMITS.email) || null,
+    partnerIdOrNull(req.body.partner_id),
+    cleanDateNear(req.body.closes_on),
+    estimateCents(req.body.est_value),
+    clean(req.body.outcome_note, LIMITS.notes) || null,
+    clean(req.body.notes, LIMITS.notes) || null,
+    clean(req.body.next_step, 200) || null,
+    cleanDateNear(req.body.next_step_on),
+    opp.id
+  );
+
+  res.redirect('/admin/opportunities/' + opp.id);
+});
+
+/** Log a conversation. Same shape as a partner touch, same table. */
+app.post('/admin/opportunities/:id/touch', requireAdmin, (req, res) => {
+  const opp = opportunities.get(db, req.params.id);
+  if (!opp) return res.status(404).render('404');
+
+  const summary = clean(req.body.summary, LIMITS.notes);
+  if (!summary) return res.redirect('/admin/opportunities/' + opp.id);
+
+  db.transaction(() => {
+    db.prepare(
+      `insert into partner_touches (opportunity_id, channel, direction, summary, happened_on)
+       values (?, ?, ?, ?, ?)`
+    ).run(
+      opp.id,
+      pick(req.body.channel, partners.CHANNEL_VALUES, 'email'),
+      partners.DIRECTIONS.includes(req.body.direction) ? req.body.direction : 'out',
+      summary,
+      cleanDateNear(req.body.happened_on) || todayLocal()
+    );
+
+    // A typed status wins; otherwise logging the first contact against a new
+    // find moves it along, the same inference the partner log makes.
+    const typed = pick(req.body.status, opportunities.STATUS_VALUES, '');
+    const status = typed || (['new', 'researching'].includes(opp.status) ? 'contacted' : opp.status);
+
+    db.prepare('update opportunities set status = ?, next_step = ?, next_step_on = ? where id = ?').run(
+      status,
+      clean(req.body.next_step, 200) || null,
+      cleanDateNear(req.body.next_step_on),
+      opp.id
+    );
+  })();
+
+  res.redirect('/admin/opportunities/' + opp.id);
+});
+
+/**
+ * Attach the lead this became, by its work reference.
+ *
+ * By reference rather than by id, because the reference is the thing the owner
+ * has in front of him -- it is in the notification email, on the lead page and
+ * on the customer's own page. This is the join that makes the whole acquisition
+ * effort answerable in money rather than in activity.
+ */
+app.post('/admin/opportunities/:id/link', requireAdmin, (req, res) => {
+  const opp = opportunities.get(db, req.params.id);
+  if (!opp) return res.status(404).render('404');
+
+  const ref = String(req.body.work_ref || '').trim().toUpperCase();
+
+  // Blank clears the link, which is how a mistake is undone.
+  if (!ref) {
+    db.prepare('update opportunities set lead_id = null where id = ?').run(opp.id);
+    return res.redirect('/admin/opportunities/' + opp.id);
+  }
+
+  const lead = db
+    .prepare('select id from leads where work_ref = ? and archived_at is null')
+    .get(ref);
+  if (!lead) return res.redirect('/admin/opportunities/' + opp.id + '?link=notfound');
+
+  // Linking a lead means it happened, so the stage follows unless it is
+  // already past that.
+  db.prepare(
+    `update opportunities
+        set lead_id = ?, status = case when status in ('won') then status else 'won' end
+      where id = ?`
+  ).run(lead.id, opp.id);
+
+  res.redirect('/admin/opportunities/' + opp.id);
+});
+
+app.post('/admin/opportunities/:id/archive', requireAdmin, (req, res) => {
+  const restore = req.body.restore === '1';
+  db.prepare('update opportunities set archived_at = ? where id = ?').run(
+    restore ? null : nowIso(),
+    req.params.id
+  );
+  res.redirect(restore ? '/admin/opportunities/' + req.params.id : '/admin/opportunities');
 });
 
 // ---------------------------------------------------------------- errors

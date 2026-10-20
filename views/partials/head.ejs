@@ -73,7 +73,7 @@
   <nav>
     <a href="/services">Services</a>
     <a href="/#how">How it works</a>
-    <% if (isAdmin) { %><a href="/admin/dashboard">Dashboard</a><a href="/admin/leads">Leads</a><a href="/admin/jobs">Jobs</a><a href="/admin/traffic">Traffic</a><a href="/admin/partners">Partners</a><% } %>
+    <% if (isAdmin) { %><a href="/admin/dashboard">Dashboard</a><a href="/admin/leads">Leads</a><a href="/admin/jobs">Jobs</a><a href="/admin/traffic">Traffic</a><a href="/admin/partners">Partners</a><a href="/admin/opportunities">Opportunities</a><% } %>
   </nav>
   <a class="button small" href="/quote">Get a Quote</a>
 </header>
@@ -109,7 +109,8 @@
       { href: '/admin/leads', label: 'Leads' },
       { href: '/admin/jobs', label: 'Jobs' },
       { href: '/admin/traffic', label: 'Traffic' },
-      { href: '/admin/partners', label: 'Partners' }
+      { href: '/admin/partners', label: 'Partners' },
+      { href: '/admin/opportunities', label: 'Opportunities' }
     ];
   %>
   <nav class="admin-nav" aria-label="Admin sections">

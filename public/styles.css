@@ -977,3 +977,35 @@ input[type="datetime-local"]:focus-visible{outline:2px solid var(--accent);outli
 .badge.talking{background:#dce7ff}
 .badge.active{background:var(--accent)}
 .badge.dormant{background:#e5e5e5;color:var(--muted)}
+
+/* ---------- admin: opportunities ----------
+   The source catalogue and the three postures. A posture is not decoration:
+   "read by hand only" is the difference between browsing a site as a person
+   and collecting from it with a script, and the badge is where that rule is
+   visible at the moment somebody is about to record something. */
+.source-card h3{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:17px;margin:0 0 8px}
+.source-card p{font-size:14px;line-height:1.6;color:#4b4d46;margin:0 0 10px}
+.source-card p:last-child{margin-bottom:0}
+.source-where{color:var(--muted);font-size:13px;font-style:italic}
+.source-rule{background:#f6f3eb;border-left:3px solid var(--line);padding:10px 12px;border-radius:0 8px 8px 0}
+
+/* Published for this / read by hand only / not used. The last one is red
+   because recording from it is refused, and the badge should look like it. */
+.badge.posture-authorized{background:#cfe9d4}
+.badge.posture-manual_only{background:#ffe9c7}
+.badge.posture-restricted{background:#f3d2cb}
+
+/* Opportunity stages, in the same visual language as every other status on
+   the site: won is the accent, a refusal is the red-ish one. */
+.badge.researching{background:#dce7ff}
+.badge.contacted{background:#fff1a8}
+.badge.quoted{background:#dce7ff}
+.badge.won{background:var(--accent)}
+.badge.lost{background:#f3d2cb}
+.badge.passed{background:#e5e5e5;color:var(--muted)}
+
+/* Six admin sections now. The nav already wraps; this lets a long label use
+   two lines inside its cell rather than overflowing it. */
+@media(max-width:860px){
+  .admin-nav a{line-height:1.2;overflow-wrap:anywhere}
+}

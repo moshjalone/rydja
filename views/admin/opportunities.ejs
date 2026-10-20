@@ -1,0 +1,252 @@
+<%- include('../partials/head', { title: 'Opportunities', noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">ADMIN</div>
+      <h1>Opportunities</h1>
+      <p class="dash-sub">Work somebody has already advertised, with a date on it.</p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/partners">Partners</a>
+      <a class="button small" href="#add">Record a find</a>
+    </div>
+  </div>
+
+  <% if (refused) { %>
+    <%# The one hard refusal in the feature, explained where it happened. %>
+    <div class="panel form-error" role="alert">
+      <strong>Not recorded.</strong> That source is not one we work from. Bought leads and scraped lists are the
+      thing this whole system exists to replace &mdash; a paid marketplace resells the same lead to four
+      competitors, and a scraped list is somebody else&rsquo;s terms of service and our reputation. Pick the source
+      you actually read it on.
+    </div>
+  <% } %>
+
+  <%# Due first, because a deadline is the whole difference between this and
+      the partner list. A bid that closes Friday is worth nothing on Saturday. %>
+  <h2 class="dash-h2">Needs you this week</h2>
+  <% if (!due.length) { %>
+    <div class="panel empty">Nothing due. Anything with a deadline shows up here a week out.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>What</th><th>Next step</th><th>Closes</th></tr></thead>
+        <tbody>
+          <% due.forEach(function(row) { %>
+            <tr>
+              <td>
+                <a class="text-link" href="/admin/opportunities/<%= row.id %>"><%= row.title %></a>
+                <small><%= oppKindLabel(row.kind) %><% if (row.city) { %> &middot; <%= row.city %><% } %></small>
+              </td>
+              <td data-label="Next step"><%= row.next_step || '—' %></td>
+              <td data-label="Closes"><strong><%= row.closes_on || row.next_step_on %></strong></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <h2 class="dash-h2">Where everything stands</h2>
+  <div class="attention">
+    <% summary.forEach(function(stage) { %>
+      <a class="attention-item <%= stage.n ? '' : 'quiet' %>" href="/admin/opportunities?status=<%= stage.value %>">
+        <strong><%= stage.n %></strong>
+        <span><%= stage.label %></span>
+      </a>
+    <% }) %>
+  </div>
+
+  <h2 class="dash-h2"><%= filters.open ? 'Still live' : 'Everything' %></h2>
+  <form class="toolbar" method="get" action="/admin/opportunities">
+    <div class="toolbar-search">
+      <label class="sr-only" for="opp-q">Search opportunities</label>
+      <input id="opp-q" name="q" value="<%= filters.q %>" placeholder="Title, town or contact">
+      <button class="button small" type="submit">Search</button>
+    </div>
+    <div class="toolbar-filters">
+      <label>Stage
+        <select name="status">
+          <option value="">Still live</option>
+          <% oppStatuses.forEach(function(s) { %>
+            <option value="<%= s.value %>"<%= filters.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Kind
+        <select name="kind">
+          <option value="">Any kind</option>
+          <% oppKinds.forEach(function(k) { %>
+            <option value="<%= k.value %>"<%= filters.kind === k.value ? ' selected' : '' %>><%= k.label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>Source
+        <select name="source_kind">
+          <option value="">Any source</option>
+          <% oppSources.forEach(function(s) { %>
+            <% if (s.posture !== oppRestricted) { %>
+              <option value="<%= s.value %>"<%= filters.source_kind === s.value ? ' selected' : '' %>><%= s.label %></option>
+            <% } %>
+          <% }) %>
+        </select>
+      </label>
+      <button class="button small" type="submit">Filter</button>
+      <a class="text-link clear-filters" href="/admin/opportunities?all=1">Show closed too</a>
+    </div>
+  </form>
+
+  <% if (!rows.length) { %>
+    <div class="panel empty">
+      Nothing on the list. Start with the three sources that need no introduction: this week&rsquo;s estate sales,
+      the county bid boards, and the legal notices in the local papers.
+    </div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead>
+          <tr>
+            <th>What</th><th>Source</th><th>Stage</th>
+            <th class="num">Our estimate</th><th>Closes</th><th>Became</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(row) { %>
+            <tr>
+              <td>
+                <a class="text-link" href="/admin/opportunities/<%= row.id %>"><%= row.title %></a>
+                <small>
+                  <%= oppKindLabel(row.kind) %><% if (row.city) { %> &middot; <%= row.city %><% } %>
+                  <% if (row.partner_name) { %> &middot; via <%= row.partner_name %><% } %>
+                </small>
+              </td>
+              <td data-label="Source"><%= oppSource(row.source_kind).label %></td>
+              <td data-label="Stage"><span class="badge <%= row.status %>"><%= oppStatusLabel(row.status) %></span></td>
+              <%# Our guess, and labelled as ours. Never confused with a quote. %>
+              <td class="num" data-label="Our estimate"><%= row.est_value_cents == null ? '—' : money(row.est_value_cents) %></td>
+              <td data-label="Closes"><%= row.closes_on || '—' %></td>
+              <td data-label="Became">
+                <% if (row.lead_ref) { %>
+                  <a class="text-link" href="/admin/leads/<%= row.lead_id %>"><%= row.lead_ref %></a>
+                <% } else { %>—<% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <%# ---- the sources ----
+
+      The operating manual for this feature, on the page where it is used.
+      Three postures, and the middle one is the one that matters: public to a
+      person, closed to a machine. Nothing in this application fetches any of
+      these and nothing should. %>
+  <h2 class="dash-h2">Where to look, and the rules</h2>
+  <div class="panel note-panel">
+    <p>
+      <strong>Nothing here fetches anything.</strong> Every find below is something a person read and judged worth
+      the trip &mdash; which is the valuable part, because &ldquo;is this real, is it in our area, can we actually
+      do it&rdquo; is a thirty-second human decision and an unsolvable machine one.
+    </p>
+  </div>
+  <% oppSources.forEach(function(s) { %>
+    <div class="panel source-card">
+      <h3>
+        <%= s.label %>
+        <span class="badge posture-<%= s.posture %>">
+          <%= s.posture === oppAuthorized ? 'Published for this'
+              : s.posture === oppManualOnly ? 'Read by hand only'
+              : 'Not used' %>
+        </span>
+      </h3>
+      <p class="source-where"><%= s.where %></p>
+      <p><%= s.what %></p>
+      <p class="source-rule"><strong>Rule:</strong> <%= s.rule %></p>
+    </div>
+  <% }) %>
+
+  <%# ---- record one ---- %>
+  <h2 class="dash-h2" id="add">Record a find</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/opportunities">
+      <label>What is it <span class="hint">required</span>
+        <input required name="title" maxlength="160"
+               placeholder="e.g. Estate sale ending Sun 26th, Vergennes Twp — house + barn">
+      </label>
+      <div class="two">
+        <label>Kind
+          <select name="kind">
+            <% oppKinds.forEach(function(k) { %><option value="<%= k.value %>"><%= k.label %></option><% }) %>
+          </select>
+        </label>
+        <label>Town
+          <input name="city" maxlength="80">
+        </label>
+      </div>
+      <label>Where you saw it <span class="hint">required</span>
+        <select required name="source_kind">
+          <option value="">Choose the source you read it on</option>
+          <% oppSources.forEach(function(s) { %>
+            <% if (s.posture !== oppRestricted) { %>
+              <option value="<%= s.value %>"><%= s.label %></option>
+            <% } %>
+          <% }) %>
+        </select>
+      </label>
+      <label>Link to it <span class="hint">https only</span>
+        <input name="source_url" type="url" maxlength="400" placeholder="https://">
+      </label>
+      <label>Note about the source
+        <input name="source_note" maxlength="400" placeholder="e.g. Montcalm County purchasing page, Oct bids">
+      </label>
+      <div class="two">
+        <label>Who to talk to
+          <input name="contact_name" maxlength="120">
+        </label>
+        <label>A partner told us <span class="hint">optional</span>
+          <select name="partner_id">
+            <option value="">Nobody — we found it</option>
+            <% partners.forEach(function(p) { %><option value="<%= p.id %>"><%= p.name %></option><% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Phone
+          <input name="phone" type="tel" maxlength="40">
+        </label>
+        <label>Email
+          <input name="email" type="email" maxlength="200">
+        </label>
+      </div>
+      <div class="two">
+        <label>Closes / ends
+          <input name="closes_on" type="date">
+        </label>
+        <label>Our rough estimate <span class="hint">ours, not a quote</span>
+          <input name="est_value" inputmode="decimal" placeholder="1200">
+        </label>
+      </div>
+      <label>Notes
+        <textarea name="notes" rows="3" maxlength="400"
+                  placeholder="What you know, and what you still need to find out."></textarea>
+      </label>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" placeholder="e.g. Ring the sale company Monday">
+        </label>
+        <label>By when
+          <input name="next_step_on" type="date">
+        </label>
+      </div>
+      <button class="button" type="submit">Record it</button>
+      <small class="fineprint">
+        Nothing is sent to anybody. The estimate is ours and is never shown as a quote.
+      </small>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>

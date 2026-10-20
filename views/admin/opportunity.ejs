@@ -1,0 +1,305 @@
+<%- include('../partials/head', { title: opp.title, noindex: true }) %>
+
+<main id="main" tabindex="-1" class="shell dashboard">
+  <div class="dash-head">
+    <div>
+      <div class="eyebrow">OPPORTUNITY</div>
+      <h1><%= opp.title %></h1>
+      <p class="dash-sub">
+        <%= oppKindLabel(opp.kind) %>
+        <% if (opp.city) { %> &middot; <%= opp.city %><% } %>
+        &middot; <span class="badge <%= opp.status %>"><%= oppStatusLabel(opp.status) %></span>
+        <% if (opp.archived_at) { %> &middot; <strong>Archived</strong><% } %>
+      </p>
+    </div>
+    <div class="dash-actions">
+      <a class="button small ghost" href="/admin/opportunities">&larr; All opportunities</a>
+    </div>
+  </div>
+
+  <%# ---- the deadline, if there is one ----
+      Top of the page, because it is the only thing here that expires. %>
+  <% if (opp.closes_on) { %>
+    <div class="panel notice">
+      <h3>Closes <%= opp.closes_on %></h3>
+      <p>
+        <% if (opp.closes_on < today) { %>
+          That date has passed. If it came to nothing, set the stage to Lost or Passed and say why &mdash; so the
+          next one like it gets judged faster.
+        <% } else { %>
+          Still open. <%= opp.next_step ? 'Next step: ' + opp.next_step : 'No next step set.' %>
+        <% } %>
+      </p>
+    </div>
+  <% } %>
+
+  <%# ---- what it produced ----
+      The question the whole feature exists to answer. Four figures, and the
+      distinction between them is the point: an estimate is our guess, a quote
+      is a price with a customer attached, and revenue is a completed job. %>
+  <h2 class="dash-h2">What it produced</h2>
+  <div class="metrics four">
+    <div><span>Our estimate</span><strong><%= opp.est_value_cents == null ? '—' : money(opp.est_value_cents) %></strong></div>
+    <div><span>Quoted</span><strong><%= money(produced.quotedValue) %></strong></div>
+    <div><span>Approved</span><strong><%= money(produced.approvedValue) %></strong></div>
+    <div class="net"><span>Revenue</span><strong><%= money(produced.revenue) %></strong></div>
+  </div>
+  <p class="dash-note">
+    Three different things, deliberately kept apart. <strong>Our estimate</strong> is a guess made before anybody
+    was contacted and is never shown to a customer. <strong>Quoted</strong> and <strong>approved</strong> come from
+    the real quote on the lead. <strong>Revenue</strong> counts only jobs marked complete &mdash; an approved quote
+    is a promise and a finished job is money, and calling the first one revenue would flatter every number built on
+    it.
+  </p>
+
+  <%# ---- the lead it became ---- %>
+  <h2 class="dash-h2">The lead it became</h2>
+  <div class="panel">
+    <% if (lead) { %>
+      <p>
+        <a class="text-link" href="/admin/leads/<%= lead.id %>"><strong><%= lead.work_ref %></strong></a>
+        &mdash; <%= lead.service %>
+        &middot; <span class="badge <%= lead.status %>"><%= prettyStatus(lead.status) %></span>
+      </p>
+      <p class="dash-note">
+        This is the join that makes the money above real. Clear it by submitting the form below empty.
+      </p>
+    <% } else { %>
+      <p class="dash-note">
+        Not yet attached to a lead. When this turns into a real request &mdash; through the quote form, or taken
+        over the phone and entered as a lead &mdash; put its reference in here. That is what connects the work you
+        did finding this to the money it produced, and it is the only reason any of this is measurable.
+      </p>
+    <% } %>
+    <% if (linkError) { %><p class="form-error" role="alert"><%= linkError %></p><% } %>
+    <form class="stack-form" method="post" action="/admin/opportunities/<%= opp.id %>/link">
+      <label>Work reference
+        <input name="work_ref" maxlength="20" placeholder="RYDJA-XXXXXX"
+               value="<%= lead ? lead.work_ref : '' %>">
+      </label>
+      <button class="button small" type="submit"><%= lead ? 'Update the link' : 'Attach the lead' %></button>
+      <small class="fineprint">The reference is in the notification email and on the lead page.</small>
+    </form>
+  </div>
+
+  <%# ---- where it came from ---- %>
+  <h2 class="dash-h2">Where it came from</h2>
+  <%
+    var src = oppSource(opp.source_kind);
+  %>
+  <div class="panel">
+    <p class="kv-line">
+      <strong><%= src.label %></strong>
+      <span class="badge posture-<%= src.posture %>">
+        <%= src.posture === oppAuthorized ? 'Published for this'
+            : src.posture === oppManualOnly ? 'Read by hand only'
+            : 'Not used' %>
+      </span>
+    </p>
+    <% if (opp.source_note) { %><p><%= opp.source_note %></p><% } %>
+    <% if (opp.source_url) { %>
+      <p>
+        <a class="text-link" href="<%= opp.source_url %>" target="_blank" rel="noopener noreferrer"><%= opp.source_url %></a>
+      </p>
+    <% } %>
+    <% if (partner) { %>
+      <p>Told to us by <a class="text-link" href="/admin/partners/<%= partner.id %>"><%= partner.name %></a>.</p>
+    <% } %>
+    <p class="source-rule"><strong>Rule for this source:</strong> <%= src.rule %></p>
+  </div>
+
+  <%# ---- who to talk to ---- %>
+  <% if (opp.contact_name || opp.contact_phone || opp.contact_email) { %>
+    <h2 class="dash-h2">Who to talk to</h2>
+    <div class="panel">
+      <% if (opp.contact_name) { %><p><strong><%= opp.contact_name %></strong></p><% } %>
+      <% if (opp.contact_phone) { %>
+        <p>Call <a class="text-link" href="tel:<%= telHref(opp.contact_phone) %>"><%= opp.contact_phone %></a></p>
+      <% } %>
+      <% if (opp.contact_email) { %>
+        <p><a class="text-link" href="mailto:<%= opp.contact_email %>"><%= opp.contact_email %></a></p>
+      <% } %>
+    </div>
+  <% } %>
+
+  <%# ---- log it ---- %>
+  <h2 class="dash-h2">Log a conversation</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/opportunities/<%= opp.id %>/touch">
+      <div class="two">
+        <label>How
+          <select name="channel">
+            <% partnerChannels.forEach(function(c) { %><option value="<%= c.value %>"><%= c.label %></option><% }) %>
+          </select>
+        </label>
+        <label>Which way
+          <select name="direction">
+            <option value="out">We contacted them</option>
+            <option value="in">They contacted us</option>
+          </select>
+        </label>
+      </div>
+      <label>What happened <span class="hint">required</span>
+        <textarea required name="summary" rows="3" maxlength="400"
+                  placeholder="e.g. Rang the purchasing clerk. Bid needs a certificate of insurance — passing."></textarea>
+      </label>
+      <div class="two">
+        <label>When
+          <input type="date" name="happened_on" value="<%= today %>">
+        </label>
+        <label>Move to stage <span class="hint">optional</span>
+          <select name="status">
+            <option value="">Leave as it is</option>
+            <% oppStatuses.forEach(function(s) { %>
+              <option value="<%= s.value %>"<%= opp.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" value="<%= opp.next_step || '' %>">
+        </label>
+        <label>By when
+          <input type="date" name="next_step_on" value="<%= opp.next_step_on || '' %>">
+        </label>
+      </div>
+      <button class="button" type="submit">Log it</button>
+    </form>
+  </div>
+
+  <h2 class="dash-h2">History</h2>
+  <% if (!touches.length) { %>
+    <div class="panel empty">Nothing logged yet.</div>
+  <% } else { %>
+    <div class="panel">
+      <table class="rows">
+        <thead><tr><th>When</th><th>How</th><th>What happened</th></tr></thead>
+        <tbody>
+          <% touches.forEach(function(t) { %>
+            <tr>
+              <td data-label="When"><%= t.happened_on || prettyDate(t.created_at) %></td>
+              <td data-label="How">
+                <%= partnerChannelLabel(t.channel) %>
+                <small><%= t.direction === 'in' ? 'they contacted us' : 'we contacted them' %></small>
+              </td>
+              <td data-label="What happened"><%= t.summary %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+
+  <%# ---- the record ---- %>
+  <h2 class="dash-h2">Details</h2>
+  <div class="panel">
+    <form class="stack-form" method="post" action="/admin/opportunities/<%= opp.id %>/edit">
+      <label>What is it <span class="hint">required</span>
+        <input required name="title" maxlength="160" value="<%= opp.title %>">
+      </label>
+      <div class="two">
+        <label>Kind
+          <select name="kind">
+            <% oppKinds.forEach(function(k) { %>
+              <option value="<%= k.value %>"<%= opp.kind === k.value ? ' selected' : '' %>><%= k.label %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Stage
+          <select name="status">
+            <% oppStatuses.forEach(function(s) { %>
+              <option value="<%= s.value %>"<%= opp.status === s.value ? ' selected' : '' %>><%= s.label %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Town
+          <input name="city" maxlength="80" value="<%= opp.city || '' %>">
+        </label>
+        <label>Source
+          <select name="source_kind">
+            <% oppSources.forEach(function(s) { %>
+              <% if (s.posture !== oppRestricted) { %>
+                <option value="<%= s.value %>"<%= opp.source_kind === s.value ? ' selected' : '' %>><%= s.label %></option>
+              <% } %>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <label>Link to it
+        <input name="source_url" type="url" maxlength="400" value="<%= opp.source_url || '' %>">
+      </label>
+      <label>Note about the source
+        <input name="source_note" maxlength="400" value="<%= opp.source_note || '' %>">
+      </label>
+      <div class="two">
+        <label>Who to talk to
+          <input name="contact_name" maxlength="120" value="<%= opp.contact_name || '' %>">
+        </label>
+        <label>A partner told us
+          <select name="partner_id">
+            <option value="">Nobody — we found it</option>
+            <% partners.forEach(function(p) { %>
+              <option value="<%= p.id %>"<%= opp.partner_id === p.id ? ' selected' : '' %>><%= p.name %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+      <div class="two">
+        <label>Phone
+          <input name="phone" type="tel" maxlength="40" value="<%= opp.contact_phone || '' %>">
+        </label>
+        <label>Email
+          <input name="email" type="email" maxlength="200" value="<%= opp.contact_email || '' %>">
+        </label>
+      </div>
+      <div class="two">
+        <label>Closes / ends
+          <input name="closes_on" type="date" value="<%= opp.closes_on || '' %>">
+        </label>
+        <label>Our rough estimate <span class="hint">ours, not a quote</span>
+          <input name="est_value" inputmode="decimal"
+                 value="<%= opp.est_value_cents == null ? '' : (opp.est_value_cents / 100).toFixed(2) %>">
+        </label>
+      </div>
+      <label>Notes
+        <textarea name="notes" rows="4" maxlength="400"><%= opp.notes || '' %></textarea>
+      </label>
+      <%# Why we passed or lost. Worth a field of its own, because it is the
+          thing that stops the same half-hour being spent on the same kind of
+          dead end next quarter. %>
+      <label>If lost or passed, why <span class="hint">read this before chasing a similar one</span>
+        <textarea name="outcome_note" rows="2" maxlength="400"
+                  placeholder="e.g. Bid required a certificate of insurance we do not hold."><%= opp.outcome_note || '' %></textarea>
+      </label>
+      <div class="two">
+        <label>Next step
+          <input name="next_step" maxlength="200" value="<%= opp.next_step || '' %>">
+        </label>
+        <label>By when
+          <input type="date" name="next_step_on" value="<%= opp.next_step_on || '' %>">
+        </label>
+      </div>
+      <button class="button" type="submit">Save</button>
+    </form>
+  </div>
+
+  <div class="panel notice">
+    <h3><%= opp.archived_at ? 'Restore' : 'Archive' %></h3>
+    <p>
+      <%= opp.archived_at
+            ? 'Archived, and out of the list. Restoring puts it back.'
+            : 'Archiving takes it out of the list. Nothing is deleted — the history and any lead attached to it are kept.' %>
+    </p>
+    <form method="post" action="/admin/opportunities/<%= opp.id %>/archive" class="inline-form">
+      <% if (opp.archived_at) { %><input type="hidden" name="restore" value="1"><% } %>
+      <button class="button small <%= opp.archived_at ? '' : 'ghost' %>" type="submit">
+        <%= opp.archived_at ? 'Restore' : 'Archive' %>
+      </button>
+    </form>
+  </div>
+</main>
+
+<%- include('../partials/foot') %>
